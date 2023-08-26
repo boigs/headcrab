@@ -1,18 +1,53 @@
-use axum::{response::Html, routing::get, Router};
+use axum::{
+    http::StatusCode,
+    routing::{get, post},
+    Json, Router,
+};
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
     // build our application with a route
-    let app = Router::new().route("/", get(handler));
+    let app = Router::new()
+        .route("/", get(handler))
+        .route("/tet", post(tet));
 
     // run it
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    println!("listening on {}", addr);
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
         .await
         .unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
 }
 
-async fn handler() -> Html<&'static str> {
-    Html("<h1>Hello, World!</h1>")
+async fn handler() -> (StatusCode, Json<Person>) {
+    let user = Person {
+        id: 1337,
+        name: String::from("sergirk"),
+    };
+
+    (StatusCode::OK, Json(user))
+}
+
+async fn tet(Json(input): Json<Input>) -> (StatusCode, Json<Person>) {
+    (
+        StatusCode::OK,
+        Json(Person {
+            id: 3848,
+            name: input.text,
+        }),
+    )
+}
+
+#[derive(Serialize)]
+struct Person {
+    id: u64,
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct Input {
+    text: String,
 }
