@@ -6,7 +6,7 @@ use axum::{
 };
 use lobby::Lobby;
 use player::Player;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use std::{net::SocketAddr, sync::Mutex};
 
@@ -32,9 +32,9 @@ async fn main() {
         .unwrap();
 }
 
-async fn get_lobby(State(lobby): State<Arc<Mutex<Lobby>>>) -> (StatusCode, Json<String>) {
+async fn get_lobby(State(lobby): State<Arc<Mutex<Lobby>>>) -> (StatusCode, Json<Lobby>) {
     let lobby = match lobby.lock() {
-        Ok(lobby) => format!("{:?}", lobby),
+        Ok(lobby) => lobby.clone(),
         Err(_) => panic!("no lobby"),
     };
 
@@ -44,19 +44,13 @@ async fn get_lobby(State(lobby): State<Arc<Mutex<Lobby>>>) -> (StatusCode, Json<
 async fn add_player(
     State(lobby): State<Arc<Mutex<Lobby>>>,
     Json(input): Json<Input>,
-) -> (StatusCode, Json<String>) {
+) -> (StatusCode, Json<Player>) {
     let player = Player::new(&input.name);
     match lobby.lock() {
-        Ok(mut lobby) => (*lobby).add_player(player),
-        Err(_) => (),
+        Ok(mut lobby) => lobby.add_player(player.clone()),
+        Err(_) => panic!("can't add"),
     };
-    (StatusCode::OK, Json("player".to_string()))
-}
-
-#[derive(Serialize)]
-struct Person {
-    id: u64,
-    name: String,
+    (StatusCode::OK, Json(player))
 }
 
 #[derive(Deserialize)]
