@@ -1,6 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -29,18 +33,13 @@ pub async fn add_player(
 
 pub async fn remove_player(
     State(lobby): State<Arc<Mutex<Lobby>>>,
-    Json(request): Json<DropPlayerRequest>,
+    Path(id): Path<Uuid>,
 ) -> StatusCode {
-    lobby.lock().unwrap().remove_player(&request.id);
+    lobby.lock().unwrap().remove_player(&id);
     StatusCode::OK
 }
 
 #[derive(Deserialize)]
 pub struct AddPlayerRequest {
     name: String,
-}
-
-#[derive(Deserialize)]
-pub struct DropPlayerRequest {
-    id: Uuid,
 }

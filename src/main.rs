@@ -18,9 +18,9 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-        .route("/add_player", post(LobbyController::add_player))
         .route("/lobby", get(LobbyController::get))
-        .route("/remove_player", delete(LobbyController::remove_player))
+        .route("/lobby/players", post(LobbyController::add_player))
+        .route("/lobby/players/:id", delete(LobbyController::remove_player))
         .with_state(lobby);
 
     // run it
