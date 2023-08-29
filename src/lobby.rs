@@ -1,6 +1,8 @@
+use serde::Serialize;
+
 use super::player::Player;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Lobby {
     players: Vec<Player>,
 }
@@ -10,7 +12,7 @@ impl Lobby {
         Lobby { players: vec![] }
     }
 
-    pub fn players(&self) -> &Vec<Player> {
+    pub fn players(&self) -> &[Player] {
         &self.players
     }
 
