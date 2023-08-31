@@ -32,6 +32,8 @@ impl Lobby {
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::Lobby;
     use crate::player::Player;
 
@@ -62,5 +64,14 @@ mod tests {
         assert_eq!(lobby.players().len(), 1);
         assert_eq!(lobby.players().first().unwrap(), &other_player);
         assert_eq!(removed, player);
+    }
+
+    #[test]
+    fn remove_non_existing() {
+        let mut lobby = Lobby::new();
+
+        let removed = lobby.remove_player(&Uuid::new_v4());
+
+        assert_eq!(removed, None);
     }
 }
