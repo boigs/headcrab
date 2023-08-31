@@ -38,9 +38,8 @@ pub async fn remove_player(
     let removed = lobby.lock().unwrap().remove_player(&id);
     match removed {
         Some(removed) => (StatusCode::OK, Json(Some(removed))),
-        None => (StatusCode::NOT_FOUND, Json(None))
+        None => (StatusCode::NOT_FOUND, Json(None)),
     }
-    
 }
 
 #[derive(Deserialize)]
