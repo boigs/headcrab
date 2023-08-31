@@ -21,13 +21,19 @@ impl Lobby {
         self.players.push(player);
     }
 
-    pub fn remove_player(&mut self, id: &Uuid) {
-        self.players.retain(|player| player.id() != id)
+    pub fn remove_player(&mut self, id: &Uuid) -> Option<Player> {
+        if let Some(index) = self.players.iter().position(|x| x.id() == id) {
+            Some(self.players.remove(index))
+        } else {
+            None
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::Lobby;
     use crate::player::Player;
 
@@ -53,9 +59,19 @@ mod tests {
 
         assert_eq!(lobby.players().len(), 2);
 
-        lobby.remove_player(player.id());
+        let removed = lobby.remove_player(player.id()).unwrap();
 
         assert_eq!(lobby.players().len(), 1);
         assert_eq!(lobby.players().first().unwrap(), &other_player);
+        assert_eq!(removed, player);
+    }
+
+    #[test]
+    fn remove_non_existing() {
+        let mut lobby = Lobby::new();
+
+        let removed = lobby.remove_player(&Uuid::new_v4());
+
+        assert_eq!(removed, None);
     }
 }
