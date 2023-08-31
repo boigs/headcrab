@@ -57,9 +57,10 @@ mod tests {
 
         assert_eq!(lobby.players().len(), 2);
 
-        lobby.remove_player(player.id());
+        let removed = lobby.remove_player(player.id()).unwrap();
 
         assert_eq!(lobby.players().len(), 1);
         assert_eq!(lobby.players().first().unwrap(), &other_player);
+        assert_eq!(removed, player);
     }
 }
