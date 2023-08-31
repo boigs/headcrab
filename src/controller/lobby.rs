@@ -36,7 +36,11 @@ pub async fn remove_player(
     Path(id): Path<Uuid>,
 ) -> (StatusCode, Json<Option<Player>>) {
     let removed = lobby.lock().unwrap().remove_player(&id);
-    (StatusCode::OK, Json(removed))
+    match removed {
+        Some(removed) => (StatusCode::OK, Json(Some(removed))),
+        None => (StatusCode::NOT_FOUND, Json(None))
+    }
+    
 }
 
 #[derive(Deserialize)]
