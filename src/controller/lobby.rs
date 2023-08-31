@@ -34,9 +34,9 @@ pub async fn add_player(
 pub async fn remove_player(
     State(lobby): State<Arc<Mutex<Lobby>>>,
     Path(id): Path<Uuid>,
-) -> StatusCode {
-    lobby.lock().unwrap().remove_player(&id);
-    StatusCode::OK
+) -> (StatusCode, Json<Option<Player>>) {
+    let removed = lobby.lock().unwrap().remove_player(&id);
+    (StatusCode::OK, Json(removed))
 }
 
 #[derive(Deserialize)]

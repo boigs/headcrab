@@ -21,8 +21,12 @@ impl Lobby {
         self.players.push(player);
     }
 
-    pub fn remove_player(&mut self, id: &Uuid) {
-        self.players.retain(|player| player.id() != id)
+    pub fn remove_player(&mut self, id: &Uuid) -> Option<Player> {
+        if let Some(index) = self.players.iter().position(|x| x.id() == id) {
+            Some(self.players.remove(index))
+        } else {
+            None
+        }
     }
 }
 
