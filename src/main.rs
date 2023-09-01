@@ -9,6 +9,7 @@ use axum::{
 use lobby::Lobby;
 use std::sync::Arc;
 use std::{net::SocketAddr, sync::Mutex};
+use tower_http::cors::CorsLayer;
 
 use controller::lobby as LobbyController;
 
@@ -21,7 +22,8 @@ async fn main() {
         .route("/lobby", get(LobbyController::get))
         .route("/lobby/players", post(LobbyController::add_player))
         .route("/lobby/players/:id", delete(LobbyController::remove_player))
-        .with_state(lobby);
+        .with_state(lobby)
+        .layer(CorsLayer::permissive());
 
     // run it
     let addr = SocketAddr::from(([0, 0, 0, 0], 4000));
