@@ -13,6 +13,10 @@ impl Lobby {
         Lobby { players: vec![] }
     }
 
+    pub fn players(&self) -> &[Player] {
+        &self.players
+    }
+
     pub fn add_player(&mut self, player: Player) {
         self.players.push(player);
     }
