@@ -10,7 +10,9 @@ use uuid::Uuid;
 
 use crate::{lobby::Lobby, player::Player};
 
-pub async fn get_players(State(lobby): State<Arc<Mutex<Lobby>>>) -> (StatusCode, Json<Vec<Player>>) {
+pub async fn get_players(
+    State(lobby): State<Arc<Mutex<Lobby>>>,
+) -> (StatusCode, Json<Vec<Player>>) {
     let lobby = match lobby.lock() {
         Ok(lobby) => lobby.clone(),
         Err(_) => panic!("no lobby"),
