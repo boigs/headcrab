@@ -28,15 +28,15 @@ impl GameManager {
         self.games.get(game_id)
     }
 
-    pub fn add_player(&mut self, game_id: &str, nickname: &str) -> Uuid {
+    pub fn add_player(&mut self, game_id: &str, nickname: &str) -> String {
         let player = Player::new(nickname);
-        let id = player.id().clone();
+        let id = player.nickname.clone();
         self.games.get_mut(game_id).unwrap().add_player(player);
 
         id
     }
 
-    pub fn remove_player(&mut self, game_id: &str, id: &Uuid) -> Option<Player> {
+    pub fn remove_player(&mut self, game_id: &str, id: &str) -> Option<Player> {
         self.games.get_mut(game_id).unwrap().remove_player(id)
     }
 }

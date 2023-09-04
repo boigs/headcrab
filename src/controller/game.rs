@@ -6,7 +6,6 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::domain::{game_manager::GameManager, player::Player};
 
@@ -27,7 +26,7 @@ pub struct CreateGameResponse {
 
 #[derive(Serialize)]
 pub struct AddPlayerResponse {
-    id: Uuid,
+    nickname: String,
 }
 
 pub async fn create_game(
@@ -57,16 +56,16 @@ pub async fn add_player(
     Json(request): Json<AddPlayerRequest>,
 ) -> (StatusCode, Json<AddPlayerResponse>) {
     let mut manager = manager.lock().unwrap();
-    let player_id = manager.add_player(&game_id, &request.nickname);
+    let nickname = manager.add_player(&game_id, &request.nickname);
 
-    (StatusCode::OK, Json(AddPlayerResponse { id: player_id }))
+    (StatusCode::OK, Json(AddPlayerResponse { nickname }))
 }
 
 pub async fn remove_player(
     State(game): State<Arc<Mutex<GameManager>>>,
-    Path((game_id, player_id)): Path<(String, Uuid)>,
+    Path((game_id, nickname)): Path<(String, String)>,
 ) -> (StatusCode, Json<Option<Player>>) {
-    let removed = game.lock().unwrap().remove_player(&game_id, &player_id);
+    let removed = game.lock().unwrap().remove_player(&game_id, &nickname);
     match removed {
         Some(removed) => (StatusCode::OK, Json(Some(removed))),
         None => (StatusCode::NOT_FOUND, Json(None)),
