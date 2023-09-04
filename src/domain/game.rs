@@ -35,7 +35,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::Game;
-    use crate::player::Player;
+    use crate::domain::player::Player;
 
     #[test]
     fn add_player_works() {

@@ -4,7 +4,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Player {
     id: Uuid,
-    pub name: String,
+    pub nickname: String,
 }
 
 impl Player {
@@ -12,7 +12,7 @@ impl Player {
         let id = Uuid::new_v4();
         Player {
             id,
-            name: String::from(name),
+            nickname: String::from(name),
         }
     }
 
