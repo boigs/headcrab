@@ -4,13 +4,13 @@ use uuid::Uuid;
 use super::player::Player;
 
 #[derive(Debug, Serialize, Clone)]
-pub struct Lobby {
+pub struct Game {
     players: Vec<Player>,
 }
 
-impl Lobby {
+impl Game {
     pub fn new() -> Self {
-        Lobby { players: vec![] }
+        Game { players: vec![] }
     }
 
     pub fn players(&self) -> &[Player] {
@@ -34,43 +34,43 @@ impl Lobby {
 mod tests {
     use uuid::Uuid;
 
-    use super::Lobby;
+    use super::Game;
     use crate::player::Player;
 
     #[test]
     fn add_player_works() {
-        let mut lobby = Lobby::new();
+        let mut game = Game::new();
         let player = Player::new("any-player");
 
-        lobby.add_player(player.clone());
+        game.add_player(player.clone());
 
-        assert_eq!(lobby.players().len(), 1);
-        assert_eq!(lobby.players().first().unwrap(), &player);
+        assert_eq!(game.players().len(), 1);
+        assert_eq!(game.players().first().unwrap(), &player);
     }
 
     #[test]
     fn remove_player_works() {
-        let mut lobby = Lobby::new();
+        let mut game = Game::new();
         let player = Player::new("any-player");
         let other_player = Player::new("other-player");
 
-        lobby.add_player(player.clone());
-        lobby.add_player(other_player.clone());
+        game.add_player(player.clone());
+        game.add_player(other_player.clone());
 
-        assert_eq!(lobby.players().len(), 2);
+        assert_eq!(game.players().len(), 2);
 
-        let removed = lobby.remove_player(player.id()).unwrap();
+        let removed = game.remove_player(player.id()).unwrap();
 
-        assert_eq!(lobby.players().len(), 1);
-        assert_eq!(lobby.players().first().unwrap(), &other_player);
+        assert_eq!(game.players().len(), 1);
+        assert_eq!(game.players().first().unwrap(), &other_player);
         assert_eq!(removed, player);
     }
 
     #[test]
     fn remove_non_existing() {
-        let mut lobby = Lobby::new();
+        let mut game = Game::new();
 
-        let removed = lobby.remove_player(&Uuid::new_v4());
+        let removed = game.remove_player(&Uuid::new_v4());
 
         assert_eq!(removed, None);
     }

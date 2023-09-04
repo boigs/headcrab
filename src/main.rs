@@ -1,28 +1,28 @@
 mod controller;
-mod lobby;
+mod game;
 mod player;
 
 use axum::{
     routing::{delete, get, post},
     Router,
 };
-use lobby::Lobby;
+use game::Game;
 use std::sync::Arc;
 use std::{net::SocketAddr, sync::Mutex};
 use tower_http::cors::CorsLayer;
 
-use controller::lobby as LobbyController;
+use controller::game as GameController;
 
 #[tokio::main]
 async fn main() {
-    let lobby = Arc::new(Mutex::new(Lobby::new()));
+    let game = Arc::new(Mutex::new(Game::new()));
 
     // build our application with a route
     let app = Router::new()
-        .route("/lobby/players", get(LobbyController::get_players))
-        .route("/lobby/players", post(LobbyController::add_player))
-        .route("/lobby/players/:id", delete(LobbyController::remove_player))
-        .with_state(lobby)
+        .route("/game/players", get(GameController::get_players))
+        .route("/game/players", post(GameController::add_player))
+        .route("/game/players/:id", delete(GameController::remove_player))
+        .with_state(game)
         .layer(CorsLayer::permissive());
 
     // run it
