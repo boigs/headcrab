@@ -19,12 +19,15 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-    .route("/game", post(GameController::create_game))
-    .route("/game/:game_id/players", get(GameController::get_players))
-    .route("/game/:game_id/players", post(GameController::add_player))
-    .route("/game/:game_id/players/:id", delete(GameController::remove_player))
-    .with_state(game)
-    .layer(CorsLayer::permissive());
+        .route("/game", post(GameController::create_game))
+        .route("/game/:game_id/players", get(GameController::get_players))
+        .route("/game/:game_id/players", post(GameController::add_player))
+        .route(
+            "/game/:game_id/players/:id",
+            delete(GameController::remove_player),
+        )
+        .with_state(game)
+        .layer(CorsLayer::permissive());
 
     // run it
     let addr = SocketAddr::from(([0, 0, 0, 0], 4000));
