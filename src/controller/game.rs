@@ -1,9 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, ops::ControlFlow};
 
 use axum::{
     extract::{Path, State},
+    extract::ws::{WebSocketUpgrade, WebSocket, Message},
     http::StatusCode,
-    Json,
+    Json, response::Response,
 };
 use serde::{Deserialize, Serialize};
 
@@ -67,4 +68,51 @@ pub async fn remove_player(
         Some(removed) => (StatusCode::OK, Json(Some(removed))),
         None => (StatusCode::NOT_FOUND, Json(None)),
     }
+}
+
+pub async fn websocket_handler(
+    // Upgrade the request to a WebSocket connection where the server sends
+    // messages of type `ServerMsg` and the clients sends `ClientMsg`
+    State(state): State<Arc<Mutex<GameManager>>>,
+    Path((game_id, nickname)): Path<(String, String)>,
+    websocket: WebSocketUpgrade,
+) -> Response {
+    websocket.on_upgrade(move |socket| handle_socket(socket, game_id, nickname, state))
+}
+
+async fn handle_socket(mut socket: WebSocket, game_id: String, nickname: String, state: Arc<Mutex<GameManager>>) {
+    while let Some(message) = socket.recv().await {
+        if let Ok(message) = message {
+            if process_message(message, &nickname).is_break() {
+                return;
+            }
+        } else {
+            println!("client {nickname} abruptly disconnected");
+            return;
+        }
+        if socket.send(Message::Text(format!("Hi {nickname} times!"))).await.is_err() {
+            println!("error")
+        }
+    }
+}
+
+fn process_message(message: Message, nickname: &str) -> ControlFlow<(), ()> {
+    match message {
+        Message::Text(t) => {
+            println!(">>> {} sent str: {:?}", nickname, t);
+        }
+        Message::Close(c) => {
+            if let Some(cf) = c {
+                println!(
+                    ">>> {} sent close with code {} and reason `{}`",
+                    nickname, cf.code, cf.reason
+                );
+            } else {
+                println!(">>> {} somehow sent close message without CloseFrame", nickname);
+            }
+            return ControlFlow::Break(());
+        }
+        _ => println!("received something else")
+    }
+    ControlFlow::Continue(())
 }
