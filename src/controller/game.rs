@@ -15,9 +15,7 @@ pub struct AddPlayerRequest {
 }
 
 #[derive(Deserialize)]
-pub struct CreateGameRequest {
-    nickname: String,
-}
+pub struct CreateGameRequest { }
 
 #[derive(Serialize)]
 pub struct CreateGameResponse {
@@ -31,11 +29,10 @@ pub struct AddPlayerResponse {
 
 pub async fn create_game(
     State(manager): State<Arc<Mutex<GameManager>>>,
-    Json(request): Json<CreateGameRequest>,
+    Json(_): Json<CreateGameRequest>,
 ) -> (StatusCode, Json<CreateGameResponse>) {
-    let host_nickname = request.nickname;
     let mut manager = manager.lock().unwrap();
-    let game_id = manager.create_new_game(&host_nickname);
+    let game_id = manager.create_new_game();
 
     (StatusCode::OK, Json(CreateGameResponse { id: game_id }))
 }
