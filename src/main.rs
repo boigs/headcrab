@@ -26,7 +26,10 @@ async fn main() {
             "/game/:game_id/player/:nickname",
             delete(GameController::remove_player),
         )
-        .route("/ws/game/:game_id/player/:nickname", get(GameController::websocket_handler))
+        .route(
+            "/ws/game/:game_id/player/:nickname",
+            get(GameController::websocket_handler),
+        )
         .with_state(game)
         .layer(CorsLayer::permissive());
 
