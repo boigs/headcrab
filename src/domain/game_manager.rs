@@ -16,10 +16,9 @@ impl GameManager {
         }
     }
 
-    pub fn create_new_game(&mut self, host_nickname: &str) -> String {
+    pub fn create_new_game(&mut self) -> String {
         let id = Uuid::new_v4().to_string();
         self.games.insert(id.clone(), Game::new());
-        self.add_player(&id, host_nickname);
 
         id
     }

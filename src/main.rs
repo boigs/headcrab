@@ -21,10 +21,14 @@ async fn main() {
     let app = Router::new()
         .route("/game", post(GameController::create_game))
         .route("/game/:game_id/players", get(GameController::get_players))
-        .route("/game/:game_id/players", post(GameController::add_player))
+        .route("/game/:game_id/player", post(GameController::add_player))
         .route(
-            "/game/:game_id/players/:id",
+            "/game/:game_id/player/:nickname",
             delete(GameController::remove_player),
+        )
+        .route(
+            "/ws/game/:game_id/player/:nickname",
+            get(GameController::websocket_handler),
         )
         .with_state(game)
         .layer(CorsLayer::permissive());

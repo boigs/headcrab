@@ -1,8 +1,13 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    ops::ControlFlow,
+    sync::{Arc, Mutex},
+};
 
 use axum::{
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{Path, State},
     http::StatusCode,
+    response::Response,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -15,9 +20,7 @@ pub struct AddPlayerRequest {
 }
 
 #[derive(Deserialize)]
-pub struct CreateGameRequest {
-    nickname: String,
-}
+pub struct CreateGameRequest {}
 
 #[derive(Serialize)]
 pub struct CreateGameResponse {
@@ -31,11 +34,10 @@ pub struct AddPlayerResponse {
 
 pub async fn create_game(
     State(manager): State<Arc<Mutex<GameManager>>>,
-    Json(request): Json<CreateGameRequest>,
+    Json(_): Json<CreateGameRequest>,
 ) -> (StatusCode, Json<CreateGameResponse>) {
-    let host_nickname = request.nickname;
     let mut manager = manager.lock().unwrap();
-    let game_id = manager.create_new_game(&host_nickname);
+    let game_id = manager.create_new_game();
 
     (StatusCode::OK, Json(CreateGameResponse { id: game_id }))
 }
@@ -70,4 +72,63 @@ pub async fn remove_player(
         Some(removed) => (StatusCode::OK, Json(Some(removed))),
         None => (StatusCode::NOT_FOUND, Json(None)),
     }
+}
+
+pub async fn websocket_handler(
+    // Upgrade the request to a WebSocket connection where the server sends
+    // messages of type `ServerMsg` and the clients sends `ClientMsg`
+    State(state): State<Arc<Mutex<GameManager>>>,
+    Path((game_id, nickname)): Path<(String, String)>,
+    websocket: WebSocketUpgrade,
+) -> Response {
+    websocket.on_upgrade(move |socket| handle_socket(socket, game_id, nickname, state))
+}
+
+async fn handle_socket(
+    mut socket: WebSocket,
+    _game_id: String,
+    nickname: String,
+    _state: Arc<Mutex<GameManager>>,
+) {
+    while let Some(message) = socket.recv().await {
+        if let Ok(message) = message {
+            if process_message(message, &nickname).is_break() {
+                return;
+            }
+        } else {
+            println!("client {nickname} abruptly disconnected");
+            return;
+        }
+        if socket
+            .send(Message::Text(format!("Hi {nickname} times!")))
+            .await
+            .is_err()
+        {
+            println!("error")
+        }
+    }
+}
+
+fn process_message(message: Message, nickname: &str) -> ControlFlow<(), ()> {
+    match message {
+        Message::Text(t) => {
+            println!(">>> {} sent str: {:?}", nickname, t);
+        }
+        Message::Close(c) => {
+            if let Some(cf) = c {
+                println!(
+                    ">>> {} sent close with code {} and reason `{}`",
+                    nickname, cf.code, cf.reason
+                );
+            } else {
+                println!(
+                    ">>> {} somehow sent close message without CloseFrame",
+                    nickname
+                );
+            }
+            return ControlFlow::Break(());
+        }
+        _ => println!("received something else"),
+    }
+    ControlFlow::Continue(())
 }
