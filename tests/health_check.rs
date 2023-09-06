@@ -24,7 +24,7 @@ fn spawn_app() -> SocketAddr {
         TcpListener::bind(random_port_address).expect("Failed to bind to bind random port");
     let address = listener.local_addr().unwrap();
 
-    let server = headcrab::run(listener).expect("Failed to bind address");
+    let server = headcrab::create_web_server(listener).expect("Failed to bind address");
     let _ = tokio::spawn(server);
 
     address

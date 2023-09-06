@@ -19,7 +19,7 @@ use controller::game as GameController;
 
 use crate::domain::game_manager::GameManager;
 
-pub fn run(
+pub fn create_web_server(
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
     let game = Arc::new(Mutex::new(GameManager::new()));
