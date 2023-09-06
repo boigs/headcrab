@@ -3,11 +3,20 @@ name = "headcrab"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "headcrab"
 
 [dependencies]
 axum = { version = "0.6.20", features = ["ws"] }
+hyper = "0.14.27"
 serde = {version = "1.0.188", features = ["derive"] }
 tokio = { version = "1.32.0", features = ["full"] }
 tower-http = { version = "0.4.4", features = ["cors"] }
 uuid = { version = "1.4.1", features = ["v4", "serde"] }
+
+[dev-dependencies]
+reqwest = "0.11.20"

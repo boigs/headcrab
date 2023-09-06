@@ -31,8 +31,6 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
-
     use super::Game;
     use crate::domain::player::Player;
 
