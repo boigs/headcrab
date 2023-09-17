@@ -13,18 +13,16 @@ use axum::{
 use hyper::server::conn::AddrIncoming;
 use std::net::TcpListener;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc;
 use tower_http::cors::CorsLayer;
 
 use crate::controller::game::create_game;
 use crate::domain::game_manager;
 
-use crate::domain::message::Message;
-
 pub fn create_web_server(
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let (sender, receiver): (Sender<Message>, Receiver<Message>) = mpsc::channel(512);
+    let (sender, receiver) = mpsc::channel(512);
 
     tokio::spawn(game_manager::actor(receiver));
 

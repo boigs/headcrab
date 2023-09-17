@@ -1,7 +1,13 @@
 use tokio::sync::oneshot::Sender;
 
 #[derive(Debug)]
-pub enum Message {
-    CreateGame { sender: Sender<Message> },
+pub enum GameManagerCommand {
+    CreateGame {
+        response_channel: Sender<GameManagerResponse>,
+    },
+}
+
+#[derive(Debug)]
+pub enum GameManagerResponse {
     GameCreated { game_id: String },
 }

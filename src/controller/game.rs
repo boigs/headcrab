@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
-use crate::domain::message::Message as DomainMessage;
-use crate::domain::message::Message::{CreateGame, GameCreated};
+use crate::domain::message::GameManagerCommand;
+use crate::domain::message::GameManagerCommand::CreateGame;
+use crate::domain::message::GameManagerResponse::GameCreated;
 
 #[derive(Deserialize)]
 pub struct AddPlayerRequest {
@@ -27,13 +28,15 @@ pub struct AddPlayerResponse {
 }
 
 pub async fn create_game(
-    State(sender): State<Arc<Sender<DomainMessage>>>,
+    State(sender): State<Arc<Sender<GameManagerCommand>>>,
 ) -> (StatusCode, Json<CreateGameResponse>) {
-    let (tx, rx): (
-        oneshot::Sender<DomainMessage>,
-        oneshot::Receiver<DomainMessage>,
-    ) = oneshot::channel();
-    sender.send(CreateGame { sender: tx }).await.unwrap();
+    let (tx, rx) = oneshot::channel();
+    sender
+        .send(CreateGame {
+            response_channel: tx,
+        })
+        .await
+        .unwrap();
     match rx.await.unwrap() {
         GameCreated { game_id } => (StatusCode::OK, Json(CreateGameResponse { id: game_id })),
         _ => panic!("error at receiving game created"),
