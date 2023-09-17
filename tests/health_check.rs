@@ -1,5 +1,5 @@
-use std::net::{SocketAddr, TcpListener};
 use serde::Deserialize;
+use std::net::{SocketAddr, TcpListener};
 
 #[tokio::test]
 async fn health_check_works() {
@@ -18,7 +18,7 @@ async fn health_check_works() {
 
 #[derive(Deserialize)]
 struct GameCreatedResponse {
-    id: String
+    id: String,
 }
 
 #[tokio::test]
@@ -34,10 +34,8 @@ async fn create_game_works() {
 
     assert!(response.status().is_success());
 
-    let game_created: GameCreatedResponse = response
-        .json()
-        .await
-        .expect("Failed to parse response.");
+    let game_created: GameCreatedResponse =
+        response.json().await.expect("Failed to parse response.");
 
     assert!(!game_created.id.is_empty());
 }
