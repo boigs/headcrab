@@ -1,4 +1,5 @@
 use std::net::{SocketAddr, TcpListener};
+use serde::Deserialize;
 
 #[tokio::test]
 async fn health_check_works() {
@@ -13,6 +14,32 @@ async fn health_check_works() {
 
     assert!(response.status().is_success());
     assert_eq!(Some(0), response.content_length());
+}
+
+#[derive(Deserialize)]
+struct GameCreatedResponse {
+    id: String
+}
+
+#[tokio::test]
+async fn create_game_works() {
+    let base_address = spawn_app();
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post(format!("{}/game", base_address))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    assert!(response.status().is_success());
+
+    let game_created: GameCreatedResponse = response
+        .json()
+        .await
+        .expect("Failed to parse response");
+
+    assert!(!game_created.id.is_empty());
 }
 
 fn spawn_app() -> String {
