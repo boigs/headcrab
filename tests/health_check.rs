@@ -4,9 +4,8 @@ use std::net::{SocketAddr, TcpListener};
 #[tokio::test]
 async fn health_check_works() {
     let base_address = spawn_app();
-    let client = reqwest::Client::new();
 
-    let response = client
+    let response = reqwest::Client::new()
         .get(format!("{base_address}/health_check"))
         .send()
         .await
@@ -24,9 +23,8 @@ struct GameCreatedResponse {
 #[tokio::test]
 async fn create_game_works() {
     let base_address = spawn_app();
-    let client = reqwest::Client::new();
 
-    let response = client
+    let response = reqwest::Client::new()
         .post(format!("{base_address}/game"))
         .send()
         .await
