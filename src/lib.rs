@@ -17,7 +17,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tower_http::cors::CorsLayer;
 
 use crate::controller::game::create_game;
-use crate::domain::game_manager;
+use crate::domain::game_factory;
 use crate::domain::message::GameFactoryCommand;
 
 pub fn create_web_server(
@@ -26,7 +26,7 @@ pub fn create_web_server(
     let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
         mpsc::channel(512);
 
-    tokio::spawn(game_manager::actor(receiver));
+    tokio::spawn(game_factory::actor(receiver));
 
     let sender = Arc::new(sender);
 
