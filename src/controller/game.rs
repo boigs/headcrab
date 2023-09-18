@@ -3,11 +3,11 @@ use std::sync::Arc;
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
+use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::domain::message::GameManagerCommand;
-use crate::domain::message::GameManagerCommand::CreateGame;
-use crate::domain::message::GameManagerResponse::GameCreated;
+use crate::domain::message::GameFactoryCommand::CreateGame;
+use crate::domain::message::GameFactoryResponse::GameCreated;
+use crate::domain::message::{GameFactoryCommand, GameFactoryResponse};
 
 #[derive(Deserialize)]
 pub struct AddPlayerRequest {
@@ -28,9 +28,12 @@ pub struct AddPlayerResponse {
 }
 
 pub async fn create_game(
-    State(sender): State<Arc<Sender<GameManagerCommand>>>,
+    State(sender): State<Arc<Sender<GameFactoryCommand>>>,
 ) -> (StatusCode, Json<CreateGameResponse>) {
-    let (tx, rx) = oneshot::channel();
+    let (tx, rx): (
+        OneshotSender<GameFactoryResponse>,
+        OneshotReceiver<GameFactoryResponse>,
+    ) = oneshot::channel();
     sender
         .send(CreateGame {
             response_channel: tx,

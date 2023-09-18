@@ -4,8 +4,8 @@ use tokio::sync::mpsc::Receiver;
 use uuid::Uuid;
 
 use crate::domain::game::Game;
-use crate::domain::message::GameManagerCommand;
-use crate::domain::message::GameManagerResponse::GameCreated;
+use crate::domain::message::GameFactoryCommand;
+use crate::domain::message::GameFactoryResponse::GameCreated;
 use crate::domain::player::Player;
 
 pub struct GameManager {
@@ -43,11 +43,11 @@ impl GameManager {
     }
 }
 
-pub async fn actor(mut rx: Receiver<GameManagerCommand>) {
+pub async fn actor(mut rx: Receiver<GameFactoryCommand>) {
     let mut game_manager = GameManager::new();
     println!("game manager logic");
     while let Some(message) = rx.recv().await {
-        if let GameManagerCommand::CreateGame { response_channel } = message {
+        if let GameFactoryCommand::CreateGame { response_channel } = message {
             println!("Received CreateGame Message");
             let game_id = game_manager.create_new_game();
             let game_created = GameCreated { game_id };
