@@ -1,4 +1,4 @@
-use crate::domain::game_factory::game_factory::GameFactory;
+use crate::domain::game_factory::GameFactory;
 use tokio::sync::mpsc::Receiver;
 
 use crate::domain::game_factory::message::GameFactoryCommand::{self, *};
@@ -25,7 +25,7 @@ pub async fn handler(mut rx: Receiver<GameFactoryCommand>) {
                     },
                 );
 
-                response_channel.send(response);
+                response_channel.send(response).unwrap();
             }
         }
     }

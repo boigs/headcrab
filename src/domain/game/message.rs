@@ -1,6 +1,5 @@
+use crate::domain::player::Player;
 use tokio::sync::mpsc::Sender;
-
-use crate::domain::player::player::Player;
 
 pub enum GameCommand {
     AddPlayer {
@@ -11,5 +10,5 @@ pub enum GameCommand {
 
 pub enum GameResponse {
     PlayerAdded,
-    PlayerAlreadyExists,
+    _PlayerAlreadyExists,
 }

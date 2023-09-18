@@ -1,9 +1,7 @@
+use crate::domain::game::Game;
 use tokio::sync::mpsc::Receiver;
 
-use super::{
-    game::Game,
-    message::{GameCommand, GameResponse},
-};
+use super::message::{GameCommand, GameResponse};
 
 pub async fn handler(mut rx: Receiver<GameCommand>) {
     let mut game = Game::new();
