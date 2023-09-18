@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::domain::message::GameFactoryCommand::CreateGame;
-use crate::domain::message::GameFactoryResponse::GameCreated;
-use crate::domain::message::{GameFactoryCommand, GameFactoryResponse};
+use crate::domain::game_factory::message::{
+    GameFactoryCommand::{self, *},
+    GameFactoryResponse::{self, *},
+};
 
 #[derive(Deserialize)]
 pub struct AddPlayerRequest {

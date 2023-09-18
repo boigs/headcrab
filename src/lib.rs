@@ -18,7 +18,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::controller::game::create_game;
 use crate::domain::game_factory;
-use crate::domain::message::GameFactoryCommand;
+use crate::domain::game_factory::message::GameFactoryCommand;
 
 pub fn create_web_server(
     listener: TcpListener,
@@ -26,7 +26,7 @@ pub fn create_web_server(
     let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
         mpsc::channel(512);
 
-    tokio::spawn(game_factory::actor(receiver));
+    tokio::spawn(game_factory::actor::actor_handler(receiver));
 
     let sender = Arc::new(sender);
 
