@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::domain::player::Player;
+use crate::domain::player::player::Player;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Game {

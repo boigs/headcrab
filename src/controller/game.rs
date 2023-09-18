@@ -64,14 +64,18 @@ pub async fn player_connecting_ws(
         OneshotReceiver<GameFactoryResponse>,
     ) = oneshot::channel();
 
-    sender.send(GetGameActor {
-        game_id,
-        response_channel: tx,
-    });
+    sender
+        .send(GetGameActor {
+            game_id,
+            response_channel: tx,
+        })
+        .await
+        .unwrap();
 
     match rx.await {
         Ok(GameActor { game_channel }) => websocket
             .on_upgrade(move |socket| player::actor::handler(socket, nickname, game_channel)),
+
         Ok(GameNotFound) => StatusCode::NOT_FOUND.into_response(),
         _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }

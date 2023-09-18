@@ -1,11 +1,26 @@
 use tokio::sync::mpsc::Receiver;
 
-use super::message::GameCommand;
+use super::{
+    game::Game,
+    message::{GameCommand, GameResponse},
+};
 
 pub async fn handler(mut rx: Receiver<GameCommand>) {
+    let mut game = Game::new();
+
     while let Some(command) = rx.recv().await {
         match command {
-            GameCommand::AddPlayer { nickname } => todo!(),
+            GameCommand::AddPlayer {
+                player,
+                response_channel,
+            } => {
+                game.add_player(player);
+
+                response_channel
+                    .send(GameResponse::PlayerAdded)
+                    .await
+                    .unwrap();
+            }
         }
     }
 }

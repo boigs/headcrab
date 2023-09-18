@@ -1,24 +1,29 @@
 use axum::extract::ws::WebSocket;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::domain::game::message::GameCommand;
+use crate::domain::game::message::{
+    GameCommand::{self, *},
+    GameResponse,
+};
+
+use super::player::Player;
 
 pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Sender<GameCommand>) {
-    while let Some(message) = socket.recv().await {
-        if let Ok(message) = message {
-            if process_message(message, &nickname).is_break() {
-                return;
-            }
-        } else {
-            println!("client {nickname} abruptly disconnected");
-            return;
-        }
-        if socket
-            .send(Message::Text(format!("Hi {nickname} times!")))
-            .await
-            .is_err()
-        {
-            println!("error")
-        }
+    let (tx, mut rx): (Sender<GameResponse>, Receiver<GameResponse>) = mpsc::channel(32);
+
+    game_channel
+        .send(AddPlayer {
+            player: Player { nickname },
+            response_channel: tx,
+        })
+        .await
+        .unwrap();
+
+    match rx.recv().await {
+        Some(GameResponse::PlayerAdded) => (),
+        Some(GameResponse::PlayerAlreadyExists) => panic!("Player already exists"),
+        _ => panic!("Channel closed or something"),
     }
+
+    loop {}
 }
