@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
-use crate::domain::game::Game;
+use crate::domain::game::game::Game;
+use crate::domain::game::message::GameCommand;
 use crate::domain::player::Player;
 
 pub struct GameManager {
-    games: HashMap<String, Game>,
+    games: HashMap<String, Sender<GameCommand>>,
 }
 
 impl GameManager {

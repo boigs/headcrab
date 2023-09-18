@@ -6,7 +6,7 @@ use crate::domain::game_factory::message::GameFactoryResponse::*;
 
 pub async fn actor_handler(mut rx: Receiver<GameFactoryCommand>) {
     let mut game_manager = GameManager::new();
-    println!("game manager logic");
+
     while let Some(message) = rx.recv().await {
         if let GameFactoryCommand::CreateGame { response_channel } = message {
             println!("Received CreateGame Message");
