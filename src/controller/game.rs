@@ -13,6 +13,7 @@ use crate::domain::game_factory::message::{
     GameFactoryCommand::{self, *},
     GameFactoryResponse::{self, *},
 };
+use crate::domain::player;
 
 #[derive(Deserialize)]
 pub struct AddPlayerRequest {
@@ -69,29 +70,9 @@ pub async fn player_connecting_ws(
     });
 
     match rx.await {
-        Ok(GameActor { game_channel }) => {
-            websocket.on_upgrade(move |socket| handle_socket(socket, nickname, game_channel))
-        }
+        Ok(GameActor { game_channel }) => websocket
+            .on_upgrade(move |socket| player::actor::handler(socket, nickname, game_channel)),
+        Ok(GameNotFound) => StatusCode::NOT_FOUND.into_response(),
         _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
-}
-
-async fn handle_socket(mut socket: WebSocket, nickname: String, game_channel: Sender<GameCommand>) {
-    while let Some(message) = socket.recv().await {
-        if let Ok(message) = message {
-            if process_message(message, &nickname).is_break() {
-                return;
-            }
-        } else {
-            println!("client {nickname} abruptly disconnected");
-            return;
-        }
-        if socket
-            .send(Message::Text(format!("Hi {nickname} times!")))
-            .await
-            .is_err()
-        {
-            println!("error")
-        }
     }
 }

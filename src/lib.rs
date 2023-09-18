@@ -26,7 +26,7 @@ pub fn create_web_server(
     let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
         mpsc::channel(512);
 
-    tokio::spawn(game_factory::actor::actor_handler(receiver));
+    tokio::spawn(game_factory::actor::handler(receiver));
 
     let sender = Arc::new(sender);
 

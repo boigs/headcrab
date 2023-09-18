@@ -4,7 +4,7 @@ use tokio::sync::mpsc::Receiver;
 use crate::domain::game_factory::message::GameFactoryCommand::{self, *};
 use crate::domain::game_factory::message::GameFactoryResponse::*;
 
-pub async fn actor_handler(mut rx: Receiver<GameFactoryCommand>) {
+pub async fn handler(mut rx: Receiver<GameFactoryCommand>) {
     let mut game_manager = GameManager::new();
 
     while let Some(message) = rx.recv().await {
