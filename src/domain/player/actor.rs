@@ -8,7 +8,7 @@ use crate::domain::game::message::{
 
 use super::player::Player;
 
-pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Sender<GameCommand>) {
+pub async fn handler(_socket: WebSocket, nickname: String, game_channel: Sender<GameCommand>) {
     let (tx, mut rx): (Sender<GameResponse>, Receiver<GameResponse>) = mpsc::channel(32);
 
     game_channel
