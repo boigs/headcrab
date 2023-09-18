@@ -1,17 +1,21 @@
-use tokio::sync::oneshot::Sender;
+use tokio::sync::{mpsc::Sender, oneshot::Sender as OneshotSender};
+
+use crate::domain::game::message::GameCommand;
 
 #[derive(Debug)]
 pub enum GameFactoryCommand {
     CreateGame {
-        response_channel: Sender<GameFactoryResponse>,
+        response_channel: OneshotSender<GameFactoryResponse>,
     },
-    AddPlayer {
-        nickname: String,
+    GetGameActor {
+        game_id: String,
+        response_channel: OneshotSender<GameFactoryResponse>,
     },
 }
 
 #[derive(Debug)]
 pub enum GameFactoryResponse {
     GameCreated { game_id: String },
-    PlayerAdded,
+    GameActor { game_channel: Sender<GameCommand> },
+    GameNotFound,
 }
