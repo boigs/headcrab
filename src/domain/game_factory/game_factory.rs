@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 use crate::domain::game::{self, message::GameCommand};
 
-pub struct GameManager {
+pub struct GameFactory {
     game_channels: HashMap<String, Sender<GameCommand>>,
 }
 
-impl GameManager {
+impl GameFactory {
     pub fn new() -> Self {
-        GameManager {
+        GameFactory {
             game_channels: HashMap::new(),
         }
     }
