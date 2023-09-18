@@ -8,6 +8,7 @@ pub enum GameFactoryCommand {
         response_channel: OneshotSender<GameFactoryResponse>,
     },
     GetGameActor {
+        game_id: String,
         response_channel: OneshotSender<GameFactoryResponse>,
     },
 }
@@ -15,5 +16,6 @@ pub enum GameFactoryCommand {
 #[derive(Debug)]
 pub enum GameFactoryResponse {
     GameCreated { game_id: String },
-    GameActor { send_channel: Sender<GameCommand> },
+    GameActor { game_channel: Sender<GameCommand> },
+    GameNotFound,
 }

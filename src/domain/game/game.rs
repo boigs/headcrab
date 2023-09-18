@@ -31,8 +31,9 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::player::player::Player;
+
     use super::Game;
-    use crate::domain::player::Player;
 
     #[test]
     fn add_player_works() {
