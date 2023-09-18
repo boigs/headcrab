@@ -17,16 +17,16 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tower_http::cors::CorsLayer;
 
 use crate::controller::game::create_game;
-use crate::domain::game_manager;
-
-use crate::domain::message::Message;
+use crate::domain::game_factory;
+use crate::domain::game_factory::message::GameFactoryCommand;
 
 pub fn create_web_server(
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let (sender, receiver): (Sender<Message>, Receiver<Message>) = mpsc::channel(512);
+    let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
+        mpsc::channel(512);
 
-    tokio::spawn(game_manager::actor(receiver));
+    tokio::spawn(game_factory::actor::actor_handler(receiver));
 
     let sender = Arc::new(sender);
 

@@ -3,10 +3,12 @@ use std::sync::Arc;
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
+use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::domain::message::Message as DomainMessage;
-use crate::domain::message::Message::{CreateGame, GameCreated};
+use crate::domain::game_factory::message::{
+    GameFactoryCommand::{self, *},
+    GameFactoryResponse::{self, *},
+};
 
 #[derive(Deserialize)]
 pub struct AddPlayerRequest {
@@ -27,13 +29,18 @@ pub struct AddPlayerResponse {
 }
 
 pub async fn create_game(
-    State(sender): State<Arc<Sender<DomainMessage>>>,
+    State(sender): State<Arc<Sender<GameFactoryCommand>>>,
 ) -> (StatusCode, Json<CreateGameResponse>) {
     let (tx, rx): (
-        oneshot::Sender<DomainMessage>,
-        oneshot::Receiver<DomainMessage>,
+        OneshotSender<GameFactoryResponse>,
+        OneshotReceiver<GameFactoryResponse>,
     ) = oneshot::channel();
-    sender.send(CreateGame { sender: tx }).await.unwrap();
+    sender
+        .send(CreateGame {
+            response_channel: tx,
+        })
+        .await
+        .unwrap();
     match rx.await.unwrap() {
         GameCreated { game_id } => (StatusCode::OK, Json(CreateGameResponse { id: game_id })),
         _ => panic!("error at receiving game created"),
