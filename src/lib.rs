@@ -1,5 +1,6 @@
 use axum::Server;
 
+mod actor;
 mod controller;
 mod domain;
 
@@ -16,9 +17,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tower_http::cors::CorsLayer;
 
-use crate::controller::game::{create_game, player_connecting_ws};
-use crate::domain::game_factory;
-use crate::domain::game_factory::message::GameFactoryCommand;
+use crate::actor::message::game_factory::GameFactoryCommand;
 
 pub fn create_web_server(
     listener: TcpListener,
@@ -26,16 +25,16 @@ pub fn create_web_server(
     let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
         mpsc::channel(512);
 
-    tokio::spawn(game_factory::actor::handler(receiver));
+    tokio::spawn(actor::game_factory::handler(receiver));
 
     let sender = Arc::new(sender);
 
     let app = Router::new()
         .route("/health_check", get(health_check))
-        .route("/game", post(create_game))
+        .route("/game", post(controller::routes::create_game))
         .route(
             "/game/:game_id/player/:nickname/ws",
-            get(player_connecting_ws),
+            get(controller::routes::player_connecting_ws),
         )
         .with_state(sender)
         .layer(CorsLayer::permissive());

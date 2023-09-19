@@ -1,8 +1,8 @@
 use crate::domain::game_factory::GameFactory;
 use tokio::sync::mpsc::Receiver;
 
-use crate::domain::game_factory::message::GameFactoryCommand::{self, *};
-use crate::domain::game_factory::message::GameFactoryResponse::*;
+use crate::actor::message::game_factory::GameFactoryCommand::{self, *};
+use crate::actor::message::game_factory::GameFactoryResponse::*;
 
 pub async fn handler(mut rx: Receiver<GameFactoryCommand>) {
     let mut game_factory = GameFactory::new();

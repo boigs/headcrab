@@ -1,9 +1,6 @@
 use crate::domain::player::Player;
 use serde::Serialize;
 
-pub mod actor;
-pub mod message;
-
 #[derive(Debug, Serialize, Clone)]
 pub struct Game {
     players: Vec<Player>,

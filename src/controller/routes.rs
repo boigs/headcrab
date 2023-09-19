@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::domain::game_factory::message::{
+use crate::actor;
+use crate::actor::message::game_factory::{
     GameFactoryCommand::{self, *},
     GameFactoryResponse::{self, *},
 };
-use crate::domain::player;
 
 #[derive(Deserialize)]
 pub struct CreateGameRequest {}
@@ -62,7 +62,7 @@ pub async fn player_connecting_ws(
 
     match rx.await {
         Ok(GameActor { game_channel }) => websocket
-            .on_upgrade(move |socket| player::actor::handler(socket, nickname, game_channel)),
+            .on_upgrade(move |socket| actor::player::handler(socket, nickname, game_channel)),
 
         Ok(GameNotFound) => StatusCode::NOT_FOUND.into_response(),
         _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

@@ -1,6 +1,6 @@
 use tokio::sync::{mpsc::Sender, oneshot::Sender as OneshotSender};
 
-use crate::domain::game::message::GameCommand;
+use crate::actor::message::game::GameCommand;
 
 #[derive(Debug)]
 pub enum GameFactoryCommand {

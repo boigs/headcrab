@@ -2,7 +2,7 @@ use axum::extract::ws::WebSocket;
 use std::time::Duration;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::domain::game::message::{
+use crate::actor::message::game::{
     GameCommand::{self, *},
     GameResponse,
 };
