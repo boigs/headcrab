@@ -1,5 +1,6 @@
 use axum::Server;
 
+mod actor;
 mod controller;
 mod domain;
 
@@ -13,31 +14,22 @@ use axum::{
 use hyper::server::conn::AddrIncoming;
 use std::net::TcpListener;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, Receiver, Sender};
 use tower_http::cors::CorsLayer;
-
-use crate::controller::game::{create_game, player_connecting_ws};
-use crate::domain::game_factory;
-use crate::domain::game_factory::message::GameFactoryCommand;
 
 pub fn create_web_server(
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
-        mpsc::channel(512);
-
-    tokio::spawn(game_factory::actor::handler(receiver));
-
-    let sender = Arc::new(sender);
+    let game_factory_channel = actor::game_factory::start();
+    let game_factory_channel = Arc::new(game_factory_channel);
 
     let app = Router::new()
         .route("/health_check", get(health_check))
-        .route("/game", post(create_game))
+        .route("/game", post(controller::routes::create_game))
         .route(
             "/game/:game_id/player/:nickname/ws",
-            get(player_connecting_ws),
+            get(controller::routes::player_connecting_ws),
         )
-        .with_state(sender)
+        .with_state(game_factory_channel)
         .layer(CorsLayer::permissive());
 
     println!("listening on {}", listener.local_addr().unwrap());
