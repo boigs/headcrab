@@ -13,6 +13,7 @@ pub enum GameFactoryCommand {
     },
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 pub enum GameFactoryResponse {
     GameCreated { game_id: String },

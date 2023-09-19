@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use axum::extract::ws::WebSocket;
 use axum::extract::{Path, WebSocketUpgrade};
 use axum::response::{IntoResponse, Response};
 use axum::{extract::State, http::StatusCode, Json};
@@ -8,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::domain::game::message::GameCommand;
 use crate::domain::game_factory::message::{
     GameFactoryCommand::{self, *},
     GameFactoryResponse::{self, *},
@@ -16,21 +14,11 @@ use crate::domain::game_factory::message::{
 use crate::domain::player;
 
 #[derive(Deserialize)]
-pub struct AddPlayerRequest {
-    nickname: String,
-}
-
-#[derive(Deserialize)]
 pub struct CreateGameRequest {}
 
 #[derive(Serialize)]
 pub struct CreateGameResponse {
     id: String,
-}
-
-#[derive(Serialize)]
-pub struct AddPlayerResponse {
-    nickname: String,
 }
 
 pub async fn create_game(
