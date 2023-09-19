@@ -1,7 +1,17 @@
-use crate::domain::game::Game;
-use tokio::sync::mpsc::Receiver;
+use crate::domain::{game::Game, player::Player};
+use tokio::sync::mpsc::{Receiver, Sender};
 
-use crate::actor::message::game::{GameCommand, GameResponse};
+pub enum GameCommand {
+    AddPlayer {
+        player: Player,
+        response_channel: Sender<GameResponse>,
+    },
+}
+
+pub enum GameResponse {
+    PlayerAdded,
+    _PlayerAlreadyExists,
+}
 
 pub async fn handler(mut rx: Receiver<GameCommand>) {
     let mut game = Game::new();

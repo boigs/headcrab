@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use uuid::Uuid;
 
-use crate::{actor, actor::message::game::GameCommand};
+use crate::{actor, actor::game::GameCommand};
 
 pub struct GameFactory {
     game_channels: HashMap<String, Sender<GameCommand>>,

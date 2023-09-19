@@ -1,8 +1,27 @@
-use crate::domain::game_factory::GameFactory;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::oneshot::Sender as OneshotSender;
 
-use crate::actor::message::game_factory::GameFactoryCommand::{self, *};
-use crate::actor::message::game_factory::GameFactoryResponse::*;
+use crate::actor::game::GameCommand;
+use crate::domain::game_factory::GameFactory;
+
+#[derive(Debug)]
+pub enum GameFactoryCommand {
+    CreateGame {
+        response_channel: OneshotSender<GameFactoryResponse>,
+    },
+    GetGameActor {
+        game_id: String,
+        response_channel: OneshotSender<GameFactoryResponse>,
+    },
+}
+
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug)]
+pub enum GameFactoryResponse {
+    GameCreated { game_id: String },
+    GameActor { game_channel: Sender<GameCommand> },
+    GameNotFound,
+}
 
 /// Runs the GameFactory actor and returns the sender channel to communicate with it.
 pub fn start() -> Sender<GameFactoryCommand> {
@@ -19,18 +38,18 @@ async fn handler(mut rx: Receiver<GameFactoryCommand>) {
 
     while let Some(message) = rx.recv().await {
         match message {
-            CreateGame { response_channel } => {
+            GameFactoryCommand::CreateGame { response_channel } => {
                 let game_id = game_factory.create_new_game();
-                let game_created = GameCreated { game_id };
+                let game_created = GameFactoryResponse::GameCreated { game_id };
                 response_channel.send(game_created).unwrap();
             }
-            GetGameActor {
+            GameFactoryCommand::GetGameActor {
                 game_id,
                 response_channel,
             } => {
                 let response = game_factory.get_game(&game_id).map_or_else(
-                    || GameNotFound,
-                    |channel| GameActor {
+                    || GameFactoryResponse::GameNotFound,
+                    |channel| GameFactoryResponse::GameActor {
                         game_channel: channel.clone(),
                     },
                 );

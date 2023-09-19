@@ -8,7 +8,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
 use crate::actor;
-use crate::actor::message::game_factory::{
+use crate::actor::game_factory::{
     GameFactoryCommand::{self, *},
     GameFactoryResponse::{self, *},
 };
