@@ -14,20 +14,13 @@ use axum::{
 use hyper::server::conn::AddrIncoming;
 use std::net::TcpListener;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, Receiver, Sender};
 use tower_http::cors::CorsLayer;
-
-use crate::actor::message::game_factory::GameFactoryCommand;
 
 pub fn create_web_server(
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
-        mpsc::channel(512);
-
-    tokio::spawn(actor::game_factory::handler(receiver));
-
-    let sender = Arc::new(sender);
+    let game_factory_channel = actor::game_factory::start();
+    let game_factory_channel = Arc::new(game_factory_channel);
 
     let app = Router::new()
         .route("/health_check", get(health_check))
@@ -36,7 +29,7 @@ pub fn create_web_server(
             "/game/:game_id/player/:nickname/ws",
             get(controller::routes::player_connecting_ws),
         )
-        .with_state(sender)
+        .with_state(game_factory_channel)
         .layer(CorsLayer::permissive());
 
     println!("listening on {}", listener.local_addr().unwrap());

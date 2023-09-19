@@ -1,10 +1,20 @@
 use crate::domain::game_factory::GameFactory;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::actor::message::game_factory::GameFactoryCommand::{self, *};
 use crate::actor::message::game_factory::GameFactoryResponse::*;
 
-pub async fn handler(mut rx: Receiver<GameFactoryCommand>) {
+/// Runs the GameFactory actor and returns the sender channel to communicate with it.
+pub fn start() -> Sender<GameFactoryCommand> {
+    let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
+        mpsc::channel(512);
+
+    tokio::spawn(handler(receiver));
+
+    sender
+}
+
+async fn handler(mut rx: Receiver<GameFactoryCommand>) {
     let mut game_factory = GameFactory::new();
 
     while let Some(message) = rx.recv().await {
