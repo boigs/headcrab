@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, WebSocketUpgrade};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::{extract::State, http::StatusCode, Json};
+use axum::routing::{get, post};
+use axum::Router;
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
+use tower_http::cors::CorsLayer;
 
 use crate::actor;
 use crate::actor::game_factory::{
@@ -21,7 +25,22 @@ pub struct CreateGameResponse {
     id: String,
 }
 
-pub async fn create_game(
+pub fn create() -> Router<Arc<Sender<GameFactoryCommand>>> {
+    Router::new()
+        .route("/health", get(health))
+        .route("/game", post(create_game))
+        .route(
+            "/game/:game_id/player/:nickname/ws",
+            get(player_connecting_ws),
+        )
+        .layer(CorsLayer::permissive())
+}
+
+async fn health() -> (StatusCode, String) {
+    (StatusCode::OK, "healthy".to_string())
+}
+
+async fn create_game(
     State(sender): State<Arc<Sender<GameFactoryCommand>>>,
 ) -> (StatusCode, Json<CreateGameResponse>) {
     let (tx, rx): (
@@ -40,7 +59,7 @@ pub async fn create_game(
     }
 }
 
-pub async fn player_connecting_ws(
+async fn player_connecting_ws(
     // Upgrade the request to a WebSocket connection where the server sends
     // messages of type `ServerMsg` and the clients sends `ClientMsg`
     State(sender): State<Arc<Sender<GameFactoryCommand>>>,
