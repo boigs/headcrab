@@ -6,13 +6,13 @@ async fn health_check_works() {
     let base_address = spawn_app();
 
     let response = reqwest::Client::new()
-        .get(format!("{base_address}/health_check"))
+        .get(format!("{base_address}/health"))
         .send()
         .await
         .expect("Failed to execute request.");
 
     assert!(response.status().is_success());
-    assert_eq!(Some(0), response.content_length());
+    assert_eq!("healthy".to_string(), response.text().await.unwrap());
 }
 
 #[derive(Deserialize)]
