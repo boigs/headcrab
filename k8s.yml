@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headcrab-deployment
+  labels:
+    app: headcrab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headcrab
+  template:
+    metadata:
+      labels:
+        app: headcrab
+    spec:
+      containers:
+        - name: headcrab
+          image: localhost:32000/headcrab:0.0.1
+          ports:
+            - containerPort: 4000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headcrab-service
+spec:
+  selector:
+    app: headcrab
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 4000
