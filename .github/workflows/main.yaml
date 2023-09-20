@@ -38,6 +38,7 @@ jobs:
 
   build:
     name: Build and deploy
+    if: github.ref == 'refs/heads/main'
     needs: [test, format, linter]
     runs-on: self-hosted
     steps:
