@@ -1,0 +1,19 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: ['release']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and deploy
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the Docker image
+        run: docker build . --tag localhost:32000/headcrab:0.0.1
+      - name: Push the Docker image to microk8s's registry
+        run: docker push localhost:32000/headcrab:0.0.1
+      - name: Deploy
+        run: microk8s kubectl apply -f k8s.yaml
