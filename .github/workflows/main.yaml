@@ -16,25 +16,34 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --all-features
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cargo Test
+        run: cargo test --all-features
     
   format:
     name: Format Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo fmt --all --check
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cargo Format
+        run: cargo fmt --all --check
 
   linter:
     name: Linter Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo clippy -- -D warnings
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cargo Clippy
+        run: cargo clippy -- -D warnings
 
   build:
     name: Build and deploy
@@ -42,7 +51,8 @@ jobs:
     needs: [test, format, linter]
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v3
+      - name: Clone Repository
+        uses: actions/checkout@v4
       - name: Build the Docker image
         run: docker build . --tag localhost:32000/headcrab:0.0.1
       - name: Push the Docker image to microk8s's registry
