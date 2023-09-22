@@ -56,22 +56,31 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: Create Image Name
-        id: image_name
+      - name: Install Cargo-Get and Cargo-Edit
+        run: cargo install cargo-get cargo-edit
+      - name: Get Current Version
+        id: get_versions
+        # We do a post deploy increment of the version, this means the we consider the current commited version as the next version to release
+        # Increment the patch version but add a release candidate tag to make it explicit that this version has not been released yet
         run: |
-          cargo install cargo-get
-          image_name=$(cargo get package.name):$(cargo get package.version)
-          echo "value=$image_name" >> $GITHUB_OUTPUT
+          current_patch=$(cargo get package.version --patch)
+          current_version=$(cargo get package.version --major --minor --delimiter=".").$current_patch
+          next_version=$(cargo get package.version --major --minor --delimiter=".").$(($current_patch + 1))-rc.1
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+          echo "next_version=$next_version" >> $GITHUB_OUTPUT
+      - name: Get Image Name
+        id: get_image_name
+        run: |
+          image_name=$(cargo get package.name):${{ steps.get_versions.outputs.current_version }}
+          echo "image_name=$image_name" >> $GITHUB_OUTPUT
       - name: Build the Docker image
-        run: docker build . --tag localhost:32000/${{ steps.image_name.outputs.value }}
+        run: docker build . --tag localhost:32000/${{ steps.get_image_name.outputs.image_name }}
       - name: Push the Docker image to microk8s's registry
-        run: docker push localhost:32000/${{ steps.image_name.outputs.value }}
+        run: docker push localhost:32000/${{ steps.get_image_name.outputs.image_name }}
       - name: Deploy
         run: microk8s kubectl apply -f k8s.yaml
       - name: Increment version for next release 
-        run: |
-          cargo install cargo-edit
-          cargo set-version --bump patch
+        run: cargo set-version ${{ steps.get_versions.outputs.next_version }}
       - name: Commit new version
         run: |
           git config user.name github-actions
