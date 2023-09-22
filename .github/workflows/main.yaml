@@ -54,9 +54,28 @@ jobs:
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Create Image Name
+        id: image_name
+        run: |
+          cargo install cargo-get
+          image_name=$(cargo get package.name):$(cargo get package.version)
+          echo "value=$image_name" >> $GITHUB_OUTPUT
       - name: Build the Docker image
-        run: docker build . --tag localhost:32000/headcrab:0.0.1
+        run: docker build . --tag localhost:32000/${{ steps.image_name.outputs.value }}
       - name: Push the Docker image to microk8s's registry
-        run: docker push localhost:32000/headcrab:0.0.1
+        run: docker push localhost:32000/${{ steps.image_name.outputs.value }}
       - name: Deploy
         run: microk8s kubectl apply -f k8s.yaml
+      - name: Increment version for next release 
+        run: |
+          cargo install cargo-edit
+          cargo set-version --bump patch
+      - name: Commit new version
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "[AUTO] Increment version for next deployment"
+          git push
