@@ -11,6 +11,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_VERSION: 1.72.1
 
 jobs:
   test:
@@ -20,7 +21,11 @@ jobs:
       - name: Clone Repository
         uses: actions/checkout@v4
       - name: Install Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - name: Setup Rust Cache
+        uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43
       - name: Cargo Test
         run: cargo test --all-features
     
@@ -31,7 +36,10 @@ jobs:
       - name: Clone Repository
         uses: actions/checkout@v4
       - name: Install Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt
       - name: Cargo Format
         run: cargo fmt --all --check
 
@@ -42,7 +50,12 @@ jobs:
       - name: Clone Repository
         uses: actions/checkout@v4
       - name: Install Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy
+      - name: Setup Rust Cache
+        uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43
       - name: Cargo Clippy
         run: cargo clippy -- -D warnings
 
@@ -55,7 +68,9 @@ jobs:
       - name: Clone Repository
         uses: actions/checkout@v4
       - name: Install Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
       - name: Install Cargo-Get and Cargo-Edit
         run: cargo install cargo-get cargo-edit
       - name: Get Current Version
