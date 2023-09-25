@@ -1,0 +1,8 @@
+# When executing commands such as cargo run, cargo will read this file and set
+# different types of configurations. In this file, we're setting the ENVIRONMENT
+# variable to "dev", because locally we execute the program with cargo run. In
+# the CI/CD pipeline, it will be set the appropriate environment variable,
+# overriding this one.
+
+[env]
+ENVIRONMENT = "dev"
