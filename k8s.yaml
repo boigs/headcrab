@@ -21,7 +21,7 @@ spec:
             - containerPort: 4000
           env:
             - name: ENVIRONMENT
-              value: prod
+              value: breakingchange
 ---
 apiVersion: v1
 kind: Service

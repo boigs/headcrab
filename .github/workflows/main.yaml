@@ -95,8 +95,10 @@ jobs:
       - name: Set version to deploy in k8s.yaml
         run: sed -i -E "s/headcrab:version/${{ steps.get_image_name.outputs.image_name }}/g" k8s.yaml
       - name: Deploy
-        run: microk8s kubectl apply -f k8s.yaml
-      - name: Increment version for next release 
+        run: |
+          microk8s kubectl apply -f k8s.yaml
+          microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s
+      - name: Increment version for next release
         run: cargo set-version ${{ steps.get_versions.outputs.next_version }}
       - name: Commit new version
         run: |
