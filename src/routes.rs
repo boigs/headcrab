@@ -9,10 +9,10 @@ mod game;
 mod health;
 
 pub fn create_router() -> Router<Arc<Sender<GameFactoryCommand>>> {
-    let is_dev_environment = match std::env::var("ENVIRONMENT").as_ref().map(String::as_ref) {
-        Ok("dev") => true,
-        _ => false,
-    };
+    let is_dev_environment = matches!(
+        std::env::var("ENVIRONMENT").as_ref().map(String::as_ref),
+        Ok("dev"),
+    );
 
     Router::new()
         .route("/health", get(health::get))
