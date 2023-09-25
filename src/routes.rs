@@ -1,4 +1,5 @@
 use crate::actor::game_factory::GameFactoryCommand;
+use crate::config::Config;
 use axum::routing::{get, post};
 use axum::Router;
 use std::sync::Arc;
@@ -8,12 +9,7 @@ use tower_http::cors::CorsLayer;
 mod game;
 mod health;
 
-pub fn create_router() -> Router<Arc<Sender<GameFactoryCommand>>> {
-    let is_dev_environment = matches!(
-        std::env::var("ENVIRONMENT").as_ref().map(String::as_ref),
-        Ok("dev"),
-    );
-
+pub fn create_router(config: Config) -> Router<Arc<Sender<GameFactoryCommand>>> {
     Router::new()
         .route("/health", get(health::get))
         .route("/game", post(game::create))
@@ -21,7 +17,8 @@ pub fn create_router() -> Router<Arc<Sender<GameFactoryCommand>>> {
             "/game/:game_id/player/:nickname/ws",
             get(game::connect_player_to_websocket),
         )
-        .layer(if is_dev_environment {
+        .layer(if config.allow_cors {
+            println!("CorsLayer Permissive");
             CorsLayer::permissive()
         } else {
             CorsLayer::default()
