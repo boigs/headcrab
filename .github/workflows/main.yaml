@@ -75,7 +75,7 @@ jobs:
         run: cargo install cargo-get cargo-edit
       - name: Get Current Version
         id: get_versions
-        # We do a post deploy increment of the version, this means the we consider the current commited version as the next version to release
+        # We do a post deploy increment of the version, this means the we consider the current committed version as the next version to release
         # Increment the patch version but add a release candidate tag to make it explicit that this version has not been released yet
         run: |
           current_patch=$(cargo get package.version --patch)
