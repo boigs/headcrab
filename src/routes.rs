@@ -9,21 +9,21 @@ mod game;
 mod health;
 
 pub fn create_router() -> Router<Arc<Sender<GameFactoryCommand>>> {
-    let mut router = Router::new()
+    let is_dev_environment = match std::env::var("ENVIRONMENT").as_ref().map(String::as_ref) {
+        Ok("dev") => true,
+        _ => false,
+    };
+
+    Router::new()
         .route("/health", get(health::get))
         .route("/game", post(game::create))
         .route(
             "/game/:game_id/player/:nickname/ws",
             get(game::connect_player_to_websocket),
-        );
-
-    // TODO replace this with config and not bare environment variables
-    if let Ok(environment) = std::env::var("ENVIRONMENT") {
-        if environment == "dev" {
-            println!("Allowing CORS");
-            router = router.layer(CorsLayer::permissive());
-        }
-    }
-
-    router
+        )
+        .layer(if is_dev_environment {
+            CorsLayer::permissive()
+        } else {
+            CorsLayer::default()
+        })
 }
