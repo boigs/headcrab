@@ -16,9 +16,12 @@ spec:
     spec:
       containers:
         - name: headcrab
-          image: localhost:32000/headcrab:0.0.1
+          image: localhost:32000/headcrab:version
           ports:
             - containerPort: 4000
+          env:
+            - name: ENVIRONMENT
+              value: prod
 ---
 apiVersion: v1
 kind: Service
