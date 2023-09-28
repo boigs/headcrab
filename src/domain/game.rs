@@ -11,12 +11,21 @@ impl Game {
         Game { players: vec![] }
     }
 
-    pub fn _players(&self) -> &[Player] {
+    pub fn players(&self) -> &[Player] {
         &self.players
     }
 
-    pub fn add_player(&mut self, player: Player) {
-        self.players.push(player);
+    pub fn add_player(&mut self, player: Player) -> Result<(), ()> {
+        if self
+            .players
+            .iter()
+            .any(|current| player.nickname == current.nickname)
+        {
+            Err(())
+        } else {
+            self.players.push(player);
+            Ok(())
+        }
     }
 
     pub fn _remove_player(&mut self, nickname: &str) -> Option<Player> {
@@ -41,8 +50,8 @@ mod tests {
 
         game.add_player(player.clone());
 
-        assert_eq!(game._players().len(), 1);
-        assert_eq!(game._players().first().unwrap(), &player);
+        assert_eq!(game.players().len(), 1);
+        assert_eq!(game.players().first().unwrap(), &player);
     }
 
     #[test]
@@ -54,12 +63,12 @@ mod tests {
         game.add_player(player.clone());
         game.add_player(other_player.clone());
 
-        assert_eq!(game._players().len(), 2);
+        assert_eq!(game.players().len(), 2);
 
         let removed = game._remove_player(&player.nickname).unwrap();
 
-        assert_eq!(game._players().len(), 1);
-        assert_eq!(game._players().first().unwrap(), &other_player);
+        assert_eq!(game.players().len(), 1);
+        assert_eq!(game.players().first().unwrap(), &other_player);
         assert_eq!(removed, player);
     }
 
