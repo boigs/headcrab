@@ -52,7 +52,7 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
                         game_event_sender
                             .send(GameWideEvent::PlayerList {
                                 players: Vec::from_iter(
-                                    game.players().iter().map(|player| player.clone()),
+                                    game.players().iter().map(|player| (*player).clone()),
                                 ),
                             })
                             .unwrap();

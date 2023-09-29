@@ -1,11 +1,7 @@
 use axum::extract::ws::{Message, WebSocket};
-use std::time::Duration;
 use tokio::{
     select,
-    sync::{
-        broadcast,
-        mpsc::{self, Receiver, Sender},
-    },
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use crate::actor::game::{
@@ -50,10 +46,10 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Send
                     Err(_) => panic!("aaaaaaaa"),
                 }
             },
-            socket_message = socket.recv() => {
+            _socket_message = socket.recv() => {
 
             },
-            game_event = rx.recv() => {
+            _game_event = rx.recv() => {
 
             },
         }
