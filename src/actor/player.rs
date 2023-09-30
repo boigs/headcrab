@@ -43,7 +43,7 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Send
         select! {
             game_wide_message = broadcast_receiver.recv() => {
                 match game_wide_message {
-                    Ok(GameWideEvent::GameState { players }) => socket.send(Message::Text(serde_json::to_string(&GameState { players: players}).unwrap())).await.unwrap(),
+                    Ok(GameWideEvent::GameState { players }) => socket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
                     Err(_) => panic!("aaaaaaaa"),
                 }
             },
