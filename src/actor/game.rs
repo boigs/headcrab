@@ -20,7 +20,7 @@ pub enum GameEvent {
 
 #[derive(Clone, Debug)]
 pub enum GameWideEvent {
-    PlayerList { players: Vec<Player> },
+    GameState { players: Vec<Player> },
 }
 
 pub async fn handler(mut rx: Receiver<GameCommand>) {
@@ -50,7 +50,7 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
                             .unwrap();
 
                         game_event_sender
-                            .send(GameWideEvent::PlayerList {
+                            .send(GameWideEvent::GameState {
                                 players: Vec::from_iter(
                                     game.players().iter().map(|player| (*player).clone()),
                                 ),
