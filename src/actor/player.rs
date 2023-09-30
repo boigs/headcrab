@@ -1,4 +1,5 @@
 use axum::extract::ws::{Message, WebSocket};
+use serde::Serialize;
 use tokio::{
     select,
     sync::mpsc::{self, Receiver, Sender},
@@ -42,7 +43,7 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Send
         select! {
             game_wide_message = broadcast_receiver.recv() => {
                 match game_wide_message {
-                    Ok(GameWideEvent::PlayerList { players }) => socket.send(Message::Text(serde_json::to_string(&players).unwrap())).await.unwrap(),
+                    Ok(GameWideEvent::GameState { players }) => socket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
                     Err(_) => panic!("aaaaaaaa"),
                 }
             },
@@ -54,4 +55,9 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Send
             },
         }
     }
+}
+
+#[derive(Serialize)]
+struct GameState {
+    players: Vec<Player>,
 }

@@ -10,5 +10,5 @@ pub fn spawn_app() -> String {
     let server = headcrab::startup::create_web_server(listener).expect("Failed to bind address.");
     let _ = tokio::spawn(server);
 
-    format!("http://localhost:{}", address.port())
+    format!("localhost:{}", address.port())
 }

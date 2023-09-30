@@ -48,7 +48,7 @@ mod tests {
         let mut game = Game::new();
         let player = Player::new("any-player");
 
-        game.add_player(player.clone());
+        let _ = game.add_player(player.clone());
 
         assert_eq!(game.players().len(), 1);
         assert_eq!(game.players().first().unwrap(), &player);
@@ -60,8 +60,8 @@ mod tests {
         let player = Player::new("any-player");
         let other_player = Player::new("other-player");
 
-        game.add_player(player.clone());
-        game.add_player(other_player.clone());
+        let _ = game.add_player(player.clone());
+        let _ = game.add_player(other_player.clone());
 
         assert_eq!(game.players().len(), 2);
 
