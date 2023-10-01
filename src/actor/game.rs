@@ -37,15 +37,15 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
         match command {
             GameCommand::AddPlayer {
                 player,
-                player_actor: response_channel,
+                player_actor,
             } => {
                 match game.add_player(player) {
-                    Err(_) => response_channel
+                    Err(_) => player_actor
                         .send(GameEvent::PlayerAlreadyExists)
                         .await
                         .unwrap(),
                     Ok(_) => {
-                        response_channel
+                        player_actor
                             .send(GameEvent::PlayerAdded {
                                 broadcast_channel: game_event_sender.subscribe(),
                             })
