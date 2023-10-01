@@ -28,6 +28,7 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_actor: Sender
         3. the user navigated to this game's URL in an attempt to re-join (and there aren't any other players in the game).
         We need:
         1. When the game is closed (on game actor), delete the game from the game factory as well.
+        2. send message through WS telling the client that this game does not exist.
         ");
         // return; // uncomment when todo!() is implemented
     }
