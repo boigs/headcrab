@@ -28,7 +28,7 @@ pub enum GameWideEvent {
 
 pub async fn handler(mut rx: Receiver<GameCommand>) {
     let mut game = Game::new();
-    let (game_event_sender, _): (
+    let (broadcast_channel, _): (
         broadcast::Sender<GameWideEvent>,
         broadcast::Receiver<GameWideEvent>,
     ) = broadcast::channel(32);
@@ -47,12 +47,12 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
                     Ok(_) => {
                         player_actor
                             .send(GameEvent::PlayerAdded {
-                                broadcast_channel: game_event_sender.subscribe(),
+                                broadcast_channel: broadcast_channel.subscribe(),
                             })
                             .await
                             .unwrap();
 
-                        game_event_sender
+                        broadcast_channel
                             .send(GameWideEvent::GameState {
                                 players: Vec::from_iter(
                                     game.players().iter().map(|player| (*player).clone()),
@@ -64,7 +64,7 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
             }
             GameCommand::RemovePlayer { player } => {
                 game.remove_player(&player.nickname);
-                if game_event_sender
+                if broadcast_channel
                     .send(GameWideEvent::GameState {
                         players: Vec::from_iter(
                             game.players().iter().map(|player| (*player).clone()),
