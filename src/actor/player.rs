@@ -63,7 +63,7 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_actor: Sender
                     None => {
                         println!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                         let _ = game_actor.send(GameCommand::RemovePlayer {
-                            player: player.clone(),
+                            player,
                          }).await;
                          return;
                     },
