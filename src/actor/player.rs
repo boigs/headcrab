@@ -19,7 +19,7 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_channel: Send
     game_channel
         .send(AddPlayer {
             player: Player::new(&nickname),
-            response_channel: tx,
+            response_channel: tx.clone(),
         })
         .await
         .unwrap();
