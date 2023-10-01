@@ -7,7 +7,10 @@ use tokio::sync::{
 pub enum GameCommand {
     AddPlayer {
         player: Player,
-        response_channel: Sender<GameEvent>,
+        player_actor: Sender<GameEvent>,
+    },
+    RemovePlayer {
+        player: Player,
     },
 }
 
@@ -34,7 +37,7 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
         match command {
             GameCommand::AddPlayer {
                 player,
-                response_channel,
+                player_actor: response_channel,
             } => {
                 match game.add_player(player) {
                     Err(_) => response_channel
@@ -58,6 +61,18 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
                             .unwrap();
                     }
                 };
+            }
+            GameCommand::RemovePlayer { player } => {
+                game.remove_player(&player.nickname);
+                match game_event_sender.send(GameWideEvent::GameState {
+                    players: Vec::from_iter(game.players().iter().map(|player| (*player).clone())),
+                }) {
+                    Err(_) => {
+                        println!("There are no player actors remaining listening to this game's broadcast messages. Closing game actor.");
+                        return;
+                    }
+                    _ => (),
+                }
             }
         }
     }
