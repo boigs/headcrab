@@ -64,6 +64,9 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
             }
             GameCommand::RemovePlayer { player } => {
                 game.remove_player(&player.nickname);
+                if game.players().is_empty() {
+                    return;
+                }
                 if broadcast_channel
                     .send(GameWideEvent::GameState {
                         players: Vec::from_iter(
@@ -72,7 +75,7 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
                     })
                     .is_err()
                 {
-                    println!("There are no player actors remaining listening to this game's broadcast messages. Closing game actor.");
+                    println!("ERROR: There are no player actors remaining listening to this game's broadcast messages but there are player objects in the game. Closing game actor.");
                     return;
                 }
             }
