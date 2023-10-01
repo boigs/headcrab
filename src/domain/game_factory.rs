@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use std::collections::HashMap;
 
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
@@ -38,7 +38,7 @@ impl GameFactory {
                 .map(char::from)
                 .collect();
             if !self.game_channels.contains_key(&id) {
-                return id
+                return id;
             }
         }
     }
