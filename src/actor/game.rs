@@ -64,14 +64,16 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
             }
             GameCommand::RemovePlayer { player } => {
                 game.remove_player(&player.nickname);
-                match game_event_sender.send(GameWideEvent::GameState {
-                    players: Vec::from_iter(game.players().iter().map(|player| (*player).clone())),
-                }) {
-                    Err(_) => {
-                        println!("There are no player actors remaining listening to this game's broadcast messages. Closing game actor.");
-                        return;
-                    }
-                    _ => (),
+                if game_event_sender
+                    .send(GameWideEvent::GameState {
+                        players: Vec::from_iter(
+                            game.players().iter().map(|player| (*player).clone()),
+                        ),
+                    })
+                    .is_err()
+                {
+                    println!("There are no player actors remaining listening to this game's broadcast messages. Closing game actor.");
+                    return;
                 }
             }
         }

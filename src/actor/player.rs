@@ -14,12 +14,13 @@ pub async fn handler(mut socket: WebSocket, nickname: String, game_actor: Sender
     let player = Player::new(&nickname);
     let (tx, mut rx): (Sender<GameEvent>, Receiver<GameEvent>) = mpsc::channel(32);
 
-    if let Err(_) = game_actor
+    if game_actor
         .send(GameCommand::AddPlayer {
             player: player.clone(),
             player_actor: tx.clone(),
         })
         .await
+        .is_err()
     {
         println!("The game actor is not alive. Can't add player to game.");
         todo!("This line has been reached because:
