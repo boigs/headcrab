@@ -28,7 +28,7 @@ impl Game {
         }
     }
 
-    pub fn _remove_player(&mut self, nickname: &str) -> Option<Player> {
+    pub fn remove_player(&mut self, nickname: &str) -> Option<Player> {
         if let Some(index) = self.players.iter().position(|x| x.nickname == nickname) {
             Some(self.players.remove(index))
         } else {
@@ -65,7 +65,7 @@ mod tests {
 
         assert_eq!(game.players().len(), 2);
 
-        let removed = game._remove_player(&player.nickname).unwrap();
+        let removed = game.remove_player(&player.nickname).unwrap();
 
         assert_eq!(game.players().len(), 1);
         assert_eq!(game.players().first().unwrap(), &other_player);
@@ -76,7 +76,7 @@ mod tests {
     fn remove_non_existing() {
         let mut game = Game::new();
 
-        let removed = game._remove_player("any");
+        let removed = game.remove_player("any");
 
         assert_eq!(removed, None);
     }

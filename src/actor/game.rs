@@ -7,7 +7,10 @@ use tokio::sync::{
 pub enum GameCommand {
     AddPlayer {
         player: Player,
-        response_channel: Sender<GameEvent>,
+        player_actor: Sender<GameEvent>,
+    },
+    RemovePlayer {
+        player: Player,
     },
 }
 
@@ -25,7 +28,7 @@ pub enum GameWideEvent {
 
 pub async fn handler(mut rx: Receiver<GameCommand>) {
     let mut game = Game::new();
-    let (game_event_sender, _): (
+    let (broadcast_channel, _): (
         broadcast::Sender<GameWideEvent>,
         broadcast::Receiver<GameWideEvent>,
     ) = broadcast::channel(32);
@@ -34,22 +37,22 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
         match command {
             GameCommand::AddPlayer {
                 player,
-                response_channel,
+                player_actor,
             } => {
                 match game.add_player(player) {
-                    Err(_) => response_channel
+                    Err(_) => player_actor
                         .send(GameEvent::PlayerAlreadyExists)
                         .await
                         .unwrap(),
                     Ok(_) => {
-                        response_channel
+                        player_actor
                             .send(GameEvent::PlayerAdded {
-                                broadcast_channel: game_event_sender.subscribe(),
+                                broadcast_channel: broadcast_channel.subscribe(),
                             })
                             .await
                             .unwrap();
 
-                        game_event_sender
+                        broadcast_channel
                             .send(GameWideEvent::GameState {
                                 players: Vec::from_iter(
                                     game.players().iter().map(|player| (*player).clone()),
@@ -58,6 +61,23 @@ pub async fn handler(mut rx: Receiver<GameCommand>) {
                             .unwrap();
                     }
                 };
+            }
+            GameCommand::RemovePlayer { player } => {
+                game.remove_player(&player.nickname);
+                if game.players().is_empty() {
+                    return;
+                }
+                if broadcast_channel
+                    .send(GameWideEvent::GameState {
+                        players: Vec::from_iter(
+                            game.players().iter().map(|player| (*player).clone()),
+                        ),
+                    })
+                    .is_err()
+                {
+                    println!("ERROR: There are no player actors remaining listening to this game's broadcast messages but there are player objects in the game. Closing game actor.");
+                    return;
+                }
             }
         }
     }
