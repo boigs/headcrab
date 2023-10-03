@@ -16,7 +16,7 @@ pub fn create_web_server(
 
     let router = routes::create_router(config).with_state(game_factory_channel);
 
-    println!("listening on {}", listener.local_addr().unwrap());
+    println!("INFO: Listening on {}", listener.local_addr().unwrap());
     let server = axum::Server::from_tcp(listener)?.serve(router.into_make_service());
     Ok(server)
 }
