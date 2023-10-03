@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::actor;
 use crate::actor::game_factory::{GameFactoryCommand, GameFactoryResponse};
+use crate::actor::player::PlayerActor;
 use axum::extract::{Path, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -60,10 +60,38 @@ pub async fn connect_player_to_websocket(
         .unwrap();
 
     match rx.await {
-        Ok(GameFactoryResponse::GameActor { game_channel }) => websocket
-            .on_upgrade(move |socket| actor::player::handler(socket, nickname, game_channel)),
-
-        Ok(GameFactoryResponse::GameNotFound) => StatusCode::NOT_FOUND.into_response(),
-        _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Ok(GameFactoryResponse::GameActor { game_channel }) => {
+            match PlayerActor::new(nickname, game_channel).await {
+                Ok(player_actor) => {
+                    websocket.on_upgrade(move |socket| player_actor.handler(socket))
+                }
+                Err(error) => (StatusCode::BAD_REQUEST, error).into_response(),
+            }
+        }
+        Ok(GameFactoryResponse::GameNotFound) => {
+            (StatusCode::NOT_FOUND, "Game not found").into_response()
+        }
+        Err(error) => {
+            println!("ERROR: The Game channel is closed. Error: {error}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("The Game channel is closed. Error: '{error}'."),
+            )
+                .into_response()
+        }
+        Ok(unexpected_response) => {
+            println!(
+                "ERROR: Received an unexpected GameFactoryResponse, error {:?}",
+                unexpected_response
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!(
+                    "Received an unexpected GameFactoryResponse. Response '{:?}'.",
+                    unexpected_response
+                ),
+            )
+                .into_response()
+        }
     }
 }
