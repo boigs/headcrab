@@ -73,7 +73,7 @@ pub async fn connect_player_to_websocket(
         }
         Err(error) => {
             println!("ERROR: The Game channel is closed. Error: {error}");
-            StatusCode::INTERNAL_SERVER_ERROR .into_response()
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Ok(unexpected_response) => {
             println!(

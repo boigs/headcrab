@@ -56,7 +56,7 @@ impl PlayerActor {
                     "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
                 );
                 return Err(
-                    "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
+                    "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
                 );
             }
         };
