@@ -73,25 +73,14 @@ pub async fn connect_player_to_websocket(
         }
         Err(error) => {
             println!("ERROR: The Game channel is closed. Error: {error}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("The Game channel is closed. Error: '{error}'."),
-            )
-                .into_response()
+            StatusCode::INTERNAL_SERVER_ERROR .into_response()
         }
         Ok(unexpected_response) => {
             println!(
                 "ERROR: Received an unexpected GameFactoryResponse, error {:?}",
                 unexpected_response
             );
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!(
-                    "Received an unexpected GameFactoryResponse. Response '{:?}'.",
-                    unexpected_response
-                ),
-            )
-                .into_response()
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

@@ -79,7 +79,7 @@ impl PlayerActor {
                         Ok(GameWideEvent::GameState { players }) => socket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
                         Err(_) => {
                             println!("ERROR: The broadcast channel with the Game has been closed.");
-                            send_error_and_close(socket, "ERROR: The broadcast channel with the Game has been closed.").await;
+                            send_error_and_close(socket, "ERROR: Internal Server Error.").await;
                             return;
                         },
                     }
@@ -88,7 +88,7 @@ impl PlayerActor {
                     match game_event {
                         None => {
                             println!("ERROR: Private channel with Game closed. How did this happen? Did somebody forget calling clone on tx?.");
-                            send_error_and_close(socket, "ERROR: Private channel with Game closed. How did this happen? Did somebody forget calling clone on tx?.").await;
+                            send_error_and_close(socket, "ERROR: Internal Server Error.").await;
                             return;
                         },
                         _ => println!("INFO: Received message from GameActor on the private channel."),
