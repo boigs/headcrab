@@ -19,7 +19,7 @@ async fn two_different_players_can_be_added_to_game() {
 
     let game_id = create_game(&base_address, client).await.id;
 
-    let nickname1 = "dani";
+    let nickname1 = "player1";
     let (_, mut rx1) = open_game_websocket(&base_address, &game_id, nickname1)
         .await
         .expect("WebSocket could not be created.")
@@ -28,7 +28,7 @@ async fn two_different_players_can_be_added_to_game() {
     assert_eq!(game_state.players.len(), 1);
     assert_eq!(game_state.players.first().unwrap().nickname, nickname1);
 
-    let nickname2 = "sergi";
+    let nickname2 = "player2";
     let (_, mut rx2) = open_game_websocket(&base_address, &game_id, nickname2)
         .await
         .expect("WebSocket could not be created.")
@@ -52,7 +52,7 @@ async fn add_player_to_game_fails_when_player_already_exists() {
 
     let game_id = create_game(&base_address, client).await.id;
 
-    let nickname = "dani";
+    let nickname = "player";
     let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
         .expect("WebSocket could not be created.")
