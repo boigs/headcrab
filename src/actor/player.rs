@@ -22,7 +22,7 @@ pub struct PlayerActor {
 }
 
 impl PlayerActor {
-    pub async fn new(nickname: String, game_tx: Sender<GameCommand>) -> Result<Self, String> {
+    pub async fn new(nickname: String, game_tx: Sender<GameCommand>) -> Result<Self, &'static str> {
         let player = Player::new(&nickname);
         let (player_tx, mut player_rx): (Sender<GameEvent>, Receiver<GameEvent>) =
             mpsc::channel(32);
@@ -43,21 +43,20 @@ impl PlayerActor {
             //  1. When the game is closed (on game actor), delete the game from the game factory as well.
             //  2. send message through WS telling the client that this game does not exist.
             println!("ERROR: The Game is not alive. Can't add Player to Game.");
-            return Err("ERROR: The Game is not alive. Can't add Player to Game.".to_string());
+            return Err("ERROR: The Game is not alive. Can't add Player to Game.");
         }
 
         let broadcast_rx = match player_rx.recv().await {
             Some(GameEvent::PlayerAdded { broadcast_channel }) => broadcast_channel,
             Some(GameEvent::PlayerAlreadyExists) => {
-                return Err("ERROR: The Player already exists.".to_string());
+                return Err("ERROR: The Player already exists.");
             }
             _ => {
                 println!(
-                    "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died"
+                    "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
                 );
                 return Err(
                     "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
-                        .to_string(),
                 );
             }
         };
@@ -96,13 +95,13 @@ impl PlayerActor {
                 },
                 socket_message = socket.recv() => {
                     match socket_message {
-                        Some(message) => println!("INFO: Got message from player {}", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
+                        Some(message) => println!("INFO: Got message from player '{}'.", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
                         None => {
                             println!("INFO: WebSocket with player's client closed. Removing player from game and closing player actor.");
                             if self.game_tx.send(GameCommand::RemovePlayer {
                                 player: self.player,
                             }).await.is_err() {
-                                println!("ERROR: Tried to send GameCommand:RemovePlayer but GameActor is not listening");
+                                println!("ERROR: Tried to send GameCommand:RemovePlayer but GameActor is not listening.");
                             };
                             return;
                         },
