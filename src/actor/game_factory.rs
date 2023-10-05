@@ -5,11 +5,11 @@ use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotS
 use crate::actor::game::GameCommand;
 use crate::domain::game_factory::GameFactory;
 
-pub struct GameFactoryActorClient {
+pub struct GameFactoryClient {
     game_factory_tx: Sender<GameFactoryCommand>,
 }
 
-impl GameFactoryActorClient {
+impl GameFactoryClient {
     pub async fn create_game(&self) -> Result<String, String> {
         let (tx, rx): (
             OneshotSender<GameFactoryResponse>,
@@ -88,7 +88,7 @@ pub struct GameFactoryActor {
 
 impl GameFactoryActor {
     /// Runs the GameFactory Actor in background and returns a Client to communicate with it
-    pub fn spawn() -> GameFactoryActorClient {
+    pub fn spawn() -> GameFactoryClient {
         let game_factory = GameFactory::new();
         let (game_factory_tx, game_factory_rx): (
             Sender<GameFactoryCommand>,
@@ -103,7 +103,7 @@ impl GameFactoryActor {
             .start(),
         );
 
-        GameFactoryActorClient { game_factory_tx }
+        GameFactoryClient { game_factory_tx }
     }
 
     async fn start(mut self) {
