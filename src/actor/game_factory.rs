@@ -1,12 +1,12 @@
 use std::fmt::{Display, Formatter};
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::oneshot::Sender as OneshotSender;
+use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
 use crate::actor::game::GameCommand;
 use crate::domain::game_factory::GameFactory;
 
 #[derive(Debug)]
-pub enum GameFactoryCommand {
+enum GameFactoryCommand {
     CreateGame {
         response_channel: OneshotSender<GameFactoryResponse>,
     },
@@ -18,35 +18,86 @@ pub enum GameFactoryCommand {
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
-pub enum GameFactoryResponse {
+enum GameFactoryResponse {
     GameCreated { game_id: String },
     GameActor { game_channel: Sender<GameCommand> },
     GameNotFound,
 }
 
-impl Display for GameFactoryResponse {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "{}",
-            match self {
-                GameFactoryResponse::GameCreated { game_id } =>
-                    format!("GameCreated(game_id: {game_id})"),
-                GameFactoryResponse::GameActor { game_channel: _ } => "GameActor".to_string(),
-                GameFactoryResponse::GameNotFound => "GameNotFound".to_string(),
-            }
-        )
-    }
+pub struct GameFactoryActor {
+    game_factory_tx: Sender<GameFactoryCommand>,
 }
 
-/// Runs the GameFactory actor and returns the sender channel to communicate with it.
-pub fn start() -> Sender<GameFactoryCommand> {
-    let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
-        mpsc::channel(512);
+impl GameFactoryActor {
+    /// Runs the GameFactory actor in background and returns an object to communicate with it
+    pub fn spawn() -> Self {
+        let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
+            mpsc::channel(512);
 
-    tokio::spawn(handler(receiver));
+        tokio::spawn(handler(receiver));
 
-    sender
+        GameFactoryActor {
+            game_factory_tx: sender,
+        }
+    }
+
+    pub async fn create_game(&self) -> Result<String, &'static str> {
+        let (tx, rx): (
+            OneshotSender<GameFactoryResponse>,
+            OneshotReceiver<GameFactoryResponse>,
+        ) = oneshot::channel();
+
+        self.game_factory_tx
+            .send(GameFactoryCommand::CreateGame {
+                response_channel: tx,
+            })
+            .await
+            .unwrap();
+
+        match rx.await {
+            Ok(GameFactoryResponse::GameCreated { game_id }) => Ok(game_id),
+            Ok(_) => Err("Unexpected response from GameFactory."),
+            _ => Err("Error communicating with GameFactory; channel closed."),
+        }
+    }
+
+    pub async fn get_game(&self, game_id: &str) -> Result<Option<Sender<GameCommand>>, String> {
+        let (tx, rx): (
+            OneshotSender<GameFactoryResponse>,
+            OneshotReceiver<GameFactoryResponse>,
+        ) = oneshot::channel();
+
+        if self
+            .game_factory_tx
+            .send(GameFactoryCommand::GetGameActor {
+                game_id: game_id.to_string(),
+                response_channel: tx,
+            })
+            .await
+            .is_err()
+        {
+            return Err("ERROR: The GameFactory channel is closed.".to_string());
+        }
+
+        match rx.await {
+            Ok(GameFactoryResponse::GameActor { game_channel }) => Ok(Some(game_channel)),
+            Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
+            Err(error) => {
+                println!("ERROR: The Game channel is closed. Error: {error}.");
+                Err(format!(
+                    "ERROR: The Game channel is closed. Error: {error}."
+                ))
+            }
+            Ok(unexpected_response) => {
+                println!(
+                    "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
+                );
+                Err(format!(
+                    "ERROR: Received an unexpected GameFactoryResponse. Error {unexpected_response}."
+                ))
+            }
+        }
+    }
 }
 
 async fn handler(mut rx: Receiver<GameFactoryCommand>) {
@@ -73,5 +124,20 @@ async fn handler(mut rx: Receiver<GameFactoryCommand>) {
                 response_channel.send(response).unwrap();
             }
         }
+    }
+}
+
+impl Display for GameFactoryResponse {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}",
+            match self {
+                GameFactoryResponse::GameCreated { game_id } =>
+                    format!("GameCreated(game_id: {game_id})"),
+                GameFactoryResponse::GameActor { game_channel: _ } => "GameActor".to_string(),
+                GameFactoryResponse::GameNotFound => "GameNotFound".to_string(),
+            }
+        )
     }
 }
