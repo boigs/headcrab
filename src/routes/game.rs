@@ -20,7 +20,7 @@ pub struct CreateGameResponse {
 pub async fn create(State(game_factory): State<Arc<GameFactoryActor>>) -> Response {
     match game_factory.create_game().await {
         Ok(game_id) => (StatusCode::OK, Json(CreateGameResponse { id: game_id })).into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
