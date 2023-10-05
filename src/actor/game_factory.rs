@@ -5,43 +5,12 @@ use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotS
 use crate::actor::game::GameCommand;
 use crate::domain::game_factory::GameFactory;
 
-#[derive(Debug)]
-enum GameFactoryCommand {
-    CreateGame {
-        response_channel: OneshotSender<GameFactoryResponse>,
-    },
-    GetGameActor {
-        game_id: String,
-        response_channel: OneshotSender<GameFactoryResponse>,
-    },
-}
-
-#[allow(clippy::enum_variant_names)]
-#[derive(Debug)]
-enum GameFactoryResponse {
-    GameCreated { game_id: String },
-    GameActor { game_channel: Sender<GameCommand> },
-    GameNotFound,
-}
-
-pub struct GameFactoryActor {
+pub struct GameFactoryActorClient {
     game_factory_tx: Sender<GameFactoryCommand>,
 }
 
-impl GameFactoryActor {
-    /// Runs the GameFactory actor in background and returns an object to communicate with it
-    pub fn spawn() -> Self {
-        let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
-            mpsc::channel(512);
-
-        tokio::spawn(handler(receiver));
-
-        GameFactoryActor {
-            game_factory_tx: sender,
-        }
-    }
-
-    pub async fn create_game(&self) -> Result<String, &'static str> {
+impl GameFactoryActorClient {
+    pub async fn create_game(&self) -> Result<String, String> {
         let (tx, rx): (
             OneshotSender<GameFactoryResponse>,
             OneshotReceiver<GameFactoryResponse>,
@@ -56,8 +25,20 @@ impl GameFactoryActor {
 
         match rx.await {
             Ok(GameFactoryResponse::GameCreated { game_id }) => Ok(game_id),
-            Ok(_) => Err("Unexpected response from GameFactory."),
-            _ => Err("Error communicating with GameFactory; channel closed."),
+            Ok(unexpected_response) => {
+                println!(
+                    "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
+                );
+                Err(format!(
+                    "ERROR: Received an unexpected GameFactoryResponse. Error {unexpected_response}."
+                ))
+            }
+            Err(error) => {
+                println!("ERROR: The Game channel is closed. Error: {error}.");
+                Err(format!(
+                    "ERROR: The Game channel is closed. Error: {error}."
+                ))
+            }
         }
     }
 
@@ -82,12 +63,6 @@ impl GameFactoryActor {
         match rx.await {
             Ok(GameFactoryResponse::GameActor { game_channel }) => Ok(Some(game_channel)),
             Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
-            Err(error) => {
-                println!("ERROR: The Game channel is closed. Error: {error}.");
-                Err(format!(
-                    "ERROR: The Game channel is closed. Error: {error}."
-                ))
-            }
             Ok(unexpected_response) => {
                 println!(
                     "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
@@ -96,35 +71,83 @@ impl GameFactoryActor {
                     "ERROR: Received an unexpected GameFactoryResponse. Error {unexpected_response}."
                 ))
             }
+            Err(error) => {
+                println!("ERROR: The Game channel is closed. Error: {error}.");
+                Err(format!(
+                    "ERROR: The Game channel is closed. Error: {error}."
+                ))
+            }
         }
     }
 }
 
-async fn handler(mut rx: Receiver<GameFactoryCommand>) {
-    let mut game_factory = GameFactory::new();
+pub struct GameFactoryActor {
+    game_factory: GameFactory,
+    game_factory_rx: Receiver<GameFactoryCommand>,
+}
 
-    while let Some(message) = rx.recv().await {
-        match message {
-            GameFactoryCommand::CreateGame { response_channel } => {
-                let game_id = game_factory.create_new_game();
-                let game_created = GameFactoryResponse::GameCreated { game_id };
-                response_channel.send(game_created).unwrap();
+impl GameFactoryActor {
+    /// Runs the GameFactory Actor in background and returns a Client to communicate with it
+    pub fn spawn() -> GameFactoryActorClient {
+        let game_factory = GameFactory::new();
+        let (game_factory_tx, game_factory_rx): (
+            Sender<GameFactoryCommand>,
+            Receiver<GameFactoryCommand>,
+        ) = mpsc::channel(512);
+
+        tokio::spawn(
+            GameFactoryActor {
+                game_factory,
+                game_factory_rx,
             }
-            GameFactoryCommand::GetGameActor {
-                game_id,
-                response_channel,
-            } => {
-                let response = game_factory.get_game(&game_id).map_or_else(
-                    || GameFactoryResponse::GameNotFound,
-                    |channel| GameFactoryResponse::GameActor {
-                        game_channel: channel.clone(),
-                    },
-                );
+            .start(),
+        );
 
-                response_channel.send(response).unwrap();
+        GameFactoryActorClient { game_factory_tx }
+    }
+
+    async fn start(mut self) {
+        while let Some(message) = self.game_factory_rx.recv().await {
+            match message {
+                GameFactoryCommand::CreateGame { response_channel } => {
+                    let game_id = self.game_factory.create_new_game();
+                    let game_created = GameFactoryResponse::GameCreated { game_id };
+                    response_channel.send(game_created).unwrap();
+                }
+                GameFactoryCommand::GetGameActor {
+                    game_id,
+                    response_channel,
+                } => {
+                    let response = self.game_factory.get_game(&game_id).map_or_else(
+                        || GameFactoryResponse::GameNotFound,
+                        |channel| GameFactoryResponse::GameActor {
+                            game_channel: channel.clone(),
+                        },
+                    );
+                    response_channel.send(response).unwrap();
+                }
             }
         }
     }
+}
+
+#[derive(Debug)]
+enum GameFactoryCommand {
+    CreateGame {
+        response_channel: OneshotSender<GameFactoryResponse>,
+    },
+    GetGameActor {
+        game_id: String,
+        response_channel: OneshotSender<GameFactoryResponse>,
+    },
+}
+
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug)]
+enum GameFactoryResponse {
+    GameCreated { game_id: String },
+    GameActor { game_channel: Sender<GameCommand> },
+    GameNotFound,
 }
 
 impl Display for GameFactoryResponse {

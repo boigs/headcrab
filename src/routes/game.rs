@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::actor::game_factory::GameFactoryActor;
+use crate::actor::game_factory::GameFactoryActorClient;
 use crate::actor::player::PlayerActor;
 use crate::websocket::send_error_and_close;
 use axum::extract::{Path, WebSocketUpgrade};
@@ -17,7 +17,7 @@ pub struct CreateGameResponse {
     id: String,
 }
 
-pub async fn create(State(game_factory): State<Arc<GameFactoryActor>>) -> Response {
+pub async fn create(State(game_factory): State<Arc<GameFactoryActorClient>>) -> Response {
     match game_factory.create_game().await {
         Ok(game_id) => (StatusCode::OK, Json(CreateGameResponse { id: game_id })).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
@@ -25,7 +25,7 @@ pub async fn create(State(game_factory): State<Arc<GameFactoryActor>>) -> Respon
 }
 
 pub async fn connect_player_to_websocket(
-    State(game_factory): State<Arc<GameFactoryActor>>,
+    State(game_factory): State<Arc<GameFactoryActorClient>>,
     Path((game_id, nickname)): Path<(String, String)>,
     websocket_upgrade: WebSocketUpgrade,
 ) -> Response {
