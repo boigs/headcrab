@@ -31,8 +31,7 @@ pub async fn connect_player_to_websocket(
 ) -> Response {
     websocket_upgrade.on_upgrade(move |websocket| async move {
         match game_factory.get_game(&game_id).await {
-            Ok(Some(game_tx)) => PlayerActor::create(nickname, game_tx, websocket).await,
-            Ok(None) => send_error_and_close(websocket, "Game not found").await,
+            Ok(game) => PlayerActor::create(nickname, game, websocket).await,
             Err(error) => send_error_and_close(websocket, &error).await,
         }
     })

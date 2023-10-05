@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::actor::game::GameCommand;
+use crate::actor::game::GameClient;
 use crate::domain::game_factory::GameFactory;
 
 pub struct GameFactoryClient {
@@ -42,7 +42,7 @@ impl GameFactoryClient {
         }
     }
 
-    pub async fn get_game(&self, game_id: &str) -> Result<Option<Sender<GameCommand>>, String> {
+    pub async fn get_game(&self, game_id: &str) -> Result<GameClient, String> {
         let (tx, rx): (
             OneshotSender<GameFactoryResponse>,
             OneshotReceiver<GameFactoryResponse>,
@@ -61,7 +61,7 @@ impl GameFactoryClient {
         }
 
         match rx.await {
-            Ok(GameFactoryResponse::GameActor { game_channel }) => Ok(Some(game_channel)),
+            Ok(GameFactoryResponse::GameActor { game }) => Ok(game),
             Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
             Ok(unexpected_response) => {
                 println!(
@@ -120,9 +120,7 @@ impl GameFactoryActor {
                 } => {
                     let response = self.game_factory.get_game(&game_id).map_or_else(
                         || GameFactoryResponse::GameNotFound,
-                        |channel| GameFactoryResponse::GameActor {
-                            game_channel: channel.clone(),
-                        },
+                        |game| GameFactoryResponse::GameActor { game: game.clone() },
                     );
                     response_channel.send(response).unwrap();
                 }
@@ -146,7 +144,7 @@ enum GameFactoryCommand {
 #[derive(Debug)]
 enum GameFactoryResponse {
     GameCreated { game_id: String },
-    GameActor { game_channel: Sender<GameCommand> },
+    GameActor { game: GameClient },
     GameNotFound,
 }
 
@@ -158,7 +156,7 @@ impl Display for GameFactoryResponse {
             match self {
                 GameFactoryResponse::GameCreated { game_id } =>
                     format!("GameCreated(game_id: {game_id})"),
-                GameFactoryResponse::GameActor { game_channel: _ } => "GameActor".to_string(),
+                GameFactoryResponse::GameActor { game: _ } => "GameActor".to_string(),
                 GameFactoryResponse::GameNotFound => "GameNotFound".to_string(),
             }
         )

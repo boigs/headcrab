@@ -2,12 +2,10 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use std::collections::HashMap;
 
-use tokio::sync::mpsc::{self, Receiver, Sender};
-
-use crate::{actor, actor::game::GameCommand};
+use crate::actor::game::{GameActor, GameClient};
 
 pub struct GameFactory {
-    game_channels: HashMap<String, Sender<GameCommand>>,
+    game_channels: HashMap<String, GameClient>,
 }
 
 impl GameFactory {
@@ -18,15 +16,13 @@ impl GameFactory {
     }
 
     pub fn create_new_game(&mut self) -> String {
-        let (tx, rx): (Sender<GameCommand>, Receiver<GameCommand>) = mpsc::channel(128);
-        tokio::spawn(actor::game::handler(rx));
         let id = self.create_unique_game_id();
-        self.game_channels.insert(id.clone(), tx);
+        self.game_channels.insert(id.clone(), GameActor::spawn());
 
         id
     }
 
-    pub fn get_game(&self, game_id: &str) -> Option<&Sender<GameCommand>> {
+    pub fn get_game(&self, game_id: &str) -> Option<&GameClient> {
         self.game_channels.get(game_id)
     }
 
