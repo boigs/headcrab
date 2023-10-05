@@ -1,4 +1,4 @@
-use crate::actor::game_factory::GameFactoryClient;
+use crate::actor::game_factory::client::GameFactoryClient;
 use crate::config::Config;
 use axum::routing::{get, post};
 use axum::Router;

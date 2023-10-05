@@ -2,7 +2,8 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use std::collections::HashMap;
 
-use crate::actor::game::{GameActor, GameClient};
+use crate::actor::game::client::GameClient;
+use crate::actor::game::GameActor;
 
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,

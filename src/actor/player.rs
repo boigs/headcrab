@@ -2,10 +2,11 @@ use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
 use tokio::select;
 
-use crate::actor::game::{GameClient, GameWideEventReceiver};
+use crate::actor::game::client::GameClient;
+use crate::actor::game::client::GameWideEventReceiver;
+use crate::actor::game::GameWideEvent;
 use crate::domain::player::Player;
 
-use crate::actor::game::GameWideEvent;
 use crate::websocket::send_error_and_close;
 
 pub struct PlayerActor {
