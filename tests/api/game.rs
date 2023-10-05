@@ -22,7 +22,6 @@ async fn two_different_players_can_be_added_to_game() {
     let nickname1 = "player1";
     let (_, mut rx1) = open_game_websocket(&base_address, &game_id, nickname1)
         .await
-        .expect("WebSocket could not be created.")
         .split();
     let game_state: GameState = receive_game_sate(&mut rx1).await;
     assert_eq!(game_state.players.len(), 1);
@@ -31,7 +30,6 @@ async fn two_different_players_can_be_added_to_game() {
     let nickname2 = "player2";
     let (_, mut rx2) = open_game_websocket(&base_address, &game_id, nickname2)
         .await
-        .expect("WebSocket could not be created.")
         .split();
     let game_state: GameState = receive_game_sate(&mut rx2).await;
     assert_eq!(game_state.players.len(), 2);
@@ -55,15 +53,16 @@ async fn add_player_to_game_fails_when_player_already_exists() {
     let nickname = "player";
     let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
-        .expect("WebSocket could not be created.")
         .split();
     let game_state: GameState = receive_game_sate(&mut rx).await;
     assert_eq!(game_state.players.len(), 1);
     assert_eq!(game_state.players.first().unwrap().nickname, nickname);
 
-    assert!(open_game_websocket(&base_address, &game_id, nickname)
+    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
-        .is_err());
+        .split();
+    let error = receive_error(&mut rx).await;
+    assert!(error.contains("Player already exists"));
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
@@ -87,15 +86,13 @@ async fn open_game_websocket(
     base_address: &str,
     game_id: &str,
     nickname: &str,
-) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, String> {
-    match tokio_tungstenite::connect_async(format!(
+) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
+    tokio_tungstenite::connect_async(format!(
         "ws://{base_address}/game/{game_id}/player/{nickname}/ws"
     ))
     .await
-    {
-        Ok((websocket, _)) => Ok(websocket),
-        Err(error) => Err(error.to_string()),
-    }
+    .expect("WebSocket could not be created.")
+    .0
 }
 
 // It's important for the receiver to be a reference, otherwise this method takes ownership of it and when it ends it closes the websocket
@@ -109,6 +106,16 @@ async fn receive_game_sate(
     };
 
     serde_json::from_str(&response).expect("Could not deserialize the GameState response.")
+}
+
+async fn receive_error(
+    receiver: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+) -> String {
+    match receiver.next().await {
+        Some(Ok(message)) => message.into_text().expect("Message was not a text"),
+        Some(Err(error)) => panic!("Websocket returned an error {}", error),
+        _ => panic!("Websocket closed before expected."),
+    }
 }
 
 #[derive(Deserialize)]

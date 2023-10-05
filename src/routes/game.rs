@@ -18,9 +18,7 @@ pub struct CreateGameResponse {
     id: String,
 }
 
-pub async fn create(
-    State(sender): State<Arc<Sender<GameFactoryCommand>>>,
-) -> (StatusCode, Json<CreateGameResponse>) {
+pub async fn create(State(sender): State<Arc<Sender<GameFactoryCommand>>>) -> Response {
     let (tx, rx): (
         OneshotSender<GameFactoryResponse>,
         OneshotReceiver<GameFactoryResponse>,
@@ -33,7 +31,7 @@ pub async fn create(
         .unwrap();
     match rx.await.unwrap() {
         GameFactoryResponse::GameCreated { game_id } => {
-            (StatusCode::OK, Json(CreateGameResponse { id: game_id }))
+            (StatusCode::OK, Json(CreateGameResponse { id: game_id })).into_response()
         }
         _ => panic!("error at receiving game created"),
     }
@@ -46,41 +44,5 @@ pub async fn connect_player_to_websocket(
     Path((game_id, nickname)): Path<(String, String)>,
     websocket: WebSocketUpgrade,
 ) -> Response {
-    let (tx, rx): (
-        OneshotSender<GameFactoryResponse>,
-        OneshotReceiver<GameFactoryResponse>,
-    ) = oneshot::channel();
-
-    sender
-        .send(GameFactoryCommand::GetGameActor {
-            game_id,
-            response_channel: tx,
-        })
-        .await
-        .unwrap();
-
-    match rx.await {
-        Ok(GameFactoryResponse::GameActor { game_channel }) => {
-            match PlayerActor::new(nickname, game_channel).await {
-                Ok(player_actor) => {
-                    websocket.on_upgrade(move |socket| player_actor.handler(socket))
-                }
-                Err(error) => (StatusCode::BAD_REQUEST, error).into_response(),
-            }
-        }
-        Ok(GameFactoryResponse::GameNotFound) => {
-            (StatusCode::NOT_FOUND, "Game not found").into_response()
-        }
-        Err(error) => {
-            println!("ERROR: The Game channel is closed. Error: {error}");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-        Ok(unexpected_response) => {
-            println!(
-                "ERROR: Received an unexpected GameFactoryResponse, error {:?}",
-                unexpected_response
-            );
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
+    websocket.on_upgrade(move |socket| PlayerActor::create(nickname, game_id, sender, socket))
 }
