@@ -48,7 +48,6 @@ impl GameFactoryActor {
         ) = oneshot::channel();
 
         self.game_factory_tx
-            .clone()
             .send(GameFactoryCommand::CreateGame {
                 response_channel: tx,
             })
@@ -69,7 +68,6 @@ impl GameFactoryActor {
 
         if self
             .game_factory_tx
-            .clone()
             .send(GameFactoryCommand::GetGameActor {
                 game_id: game_id.to_string(),
                 response_channel: tx,
