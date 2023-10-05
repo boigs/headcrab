@@ -20,12 +20,12 @@ pub struct CreateGameResponse {
     id: String,
 }
 
-pub async fn create(State(sender): State<Arc<Sender<GameFactoryCommand>>>) -> Response {
+pub async fn create(State(game_factory_tx): State<Arc<Sender<GameFactoryCommand>>>) -> Response {
     let (tx, rx): (
         OneshotSender<GameFactoryResponse>,
         OneshotReceiver<GameFactoryResponse>,
     ) = oneshot::channel();
-    sender
+    game_factory_tx
         .send(GameFactoryCommand::CreateGame {
             response_channel: tx,
         })
@@ -42,28 +42,28 @@ pub async fn create(State(sender): State<Arc<Sender<GameFactoryCommand>>>) -> Re
 pub async fn connect_player_to_websocket(
     // Upgrade the request to a WebSocket connection where the server sends
     // messages of type `ServerMsg` and the clients sends `ClientMsg`
-    State(sender): State<Arc<Sender<GameFactoryCommand>>>,
+    State(game_factory_tx): State<Arc<Sender<GameFactoryCommand>>>,
     Path((game_id, nickname)): Path<(String, String)>,
-    websocket: WebSocketUpgrade,
+    websocket_upgrade: WebSocketUpgrade,
 ) -> Response {
-    websocket.on_upgrade(move |socket| async move {
-        match get_game(&game_id, sender).await {
-            Ok(game_tx) => PlayerActor::create(nickname, game_tx, socket).await,
-            Err(error) => send_error_and_close(socket, &error).await,
+    websocket_upgrade.on_upgrade(move |websocket| async move {
+        match get_game(&game_id, game_factory_tx).await {
+            Ok(game_tx) => PlayerActor::create(nickname, game_tx, websocket).await,
+            Err(error) => send_error_and_close(websocket, &error).await,
         }
     })
 }
 
 async fn get_game(
     game_id: &str,
-    sender: Arc<Sender<GameFactoryCommand>>,
+    game_factory_tx: Arc<Sender<GameFactoryCommand>>,
 ) -> Result<Sender<GameCommand>, String> {
     let (tx, rx): (
         OneshotSender<GameFactoryResponse>,
         OneshotReceiver<GameFactoryResponse>,
     ) = oneshot::channel();
 
-    if sender
+    if game_factory_tx
         .send(GameFactoryCommand::GetGameActor {
             game_id: game_id.to_string(),
             response_channel: tx,

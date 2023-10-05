@@ -22,11 +22,11 @@ pub struct PlayerActor {
     player_rx: Receiver<GameEvent>,
     game_tx: Sender<GameCommand>,
     broadcast_rx: broadcast::Receiver<GameWideEvent>,
-    socket: WebSocket,
+    websocket: WebSocket,
 }
 
 impl PlayerActor {
-    pub async fn create(nickname: String, game_tx: Sender<GameCommand>, socket: WebSocket) {
+    pub async fn create(nickname: String, game_tx: Sender<GameCommand>, websocket: WebSocket) {
         let player = Player::new(&nickname);
         match add_player_to_game(&player, &game_tx).await {
             Ok((player_tx, player_rx, broadcast_rx)) => {
@@ -36,12 +36,12 @@ impl PlayerActor {
                     player_rx,
                     game_tx,
                     broadcast_rx,
-                    socket,
+                    websocket,
                 }
                 .start()
                 .await
             }
-            Err(error) => send_error_and_close(socket, error).await,
+            Err(error) => send_error_and_close(websocket, error).await,
         }
     }
 
@@ -50,10 +50,10 @@ impl PlayerActor {
             select! {
                 game_wide_message = self.broadcast_rx.recv() => {
                     match game_wide_message {
-                        Ok(GameWideEvent::GameState { players }) => self.socket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
+                        Ok(GameWideEvent::GameState { players }) => self.websocket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
                         Err(_) => {
                             println!("ERROR: The broadcast channel with the Game has been closed.");
-                            send_error_and_close(self.socket, "ERROR: Internal Server Error.").await;
+                            send_error_and_close(self.websocket, "ERROR: Internal Server Error.").await;
                             return;
                         },
                     }
@@ -62,13 +62,13 @@ impl PlayerActor {
                     match game_event {
                         None => {
                             println!("ERROR: Private channel with Game closed. How did this happen? Did somebody forget calling clone on tx?.");
-                            send_error_and_close(self.socket, "ERROR: Internal Server Error.").await;
+                            send_error_and_close(self.websocket, "ERROR: Internal Server Error.").await;
                             return;
                         },
                         _ => println!("INFO: Received message from GameActor on the private channel."),
                     }
                 },
-                socket_message = self.socket.recv() => {
+                socket_message = self.websocket.recv() => {
                     match socket_message {
                         Some(message) => println!("INFO: Got message from player '{}'.", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
                         None => {
