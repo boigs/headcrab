@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::actor::game_factory::GameFactoryClient;
+use crate::actor::game_factory::client::GameFactoryClient;
 use crate::actor::player::PlayerActor;
 use crate::websocket::send_error_and_close;
 use axum::extract::{Path, WebSocketUpgrade};
