@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot::Sender as OneshotSender;
 
@@ -21,6 +22,21 @@ pub enum GameFactoryResponse {
     GameCreated { game_id: String },
     GameActor { game_channel: Sender<GameCommand> },
     GameNotFound,
+}
+
+impl Display for GameFactoryResponse {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}",
+            match self {
+                GameFactoryResponse::GameCreated { game_id } =>
+                    format!("GameCreated(game_id: {game_id})"),
+                GameFactoryResponse::GameActor { game_channel: _ } => "GameActor".to_string(),
+                GameFactoryResponse::GameNotFound => "GameNotFound".to_string(),
+            }
+        )
+    }
 }
 
 /// Runs the GameFactory actor and returns the sender channel to communicate with it.
