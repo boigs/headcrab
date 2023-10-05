@@ -30,7 +30,7 @@ pub struct GameFactoryActor {
 
 impl GameFactoryActor {
     /// Runs the GameFactory actor in background and returns an object to communicate with it
-    pub fn new() -> Self {
+    pub fn spawn() -> Self {
         let (sender, receiver): (Sender<GameFactoryCommand>, Receiver<GameFactoryCommand>) =
             mpsc::channel(512);
 
@@ -54,9 +54,10 @@ impl GameFactoryActor {
             .await
             .unwrap();
 
-        match rx.await.unwrap() {
-            GameFactoryResponse::GameCreated { game_id } => Ok(game_id),
-            _ => Err("Could not create game, unexpected response from GameFactory"),
+        match rx.await {
+            Ok(GameFactoryResponse::GameCreated { game_id }) => Ok(game_id),
+            Ok(_) => Err("Unexpected response from GameFactory."),
+            _ => Err("Error communicating with GameFactory; channel closed."),
         }
     }
 
