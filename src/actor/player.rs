@@ -45,7 +45,7 @@ impl PlayerActor {
         game_factory_tx: Arc<Sender<GameFactoryCommand>>,
     ) -> Result<Self, String> {
         let game_tx = get_game(game_factory_tx, game_id).await?;
-        let player = Player::new(&nickname);
+        let player = Player::new(nickname);
         let (player_tx, player_rx, broadcast_rx) = add_player_to_game(&player, &game_tx).await?;
         Ok(PlayerActor {
             player,

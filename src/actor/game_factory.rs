@@ -51,6 +51,7 @@ pub fn start() -> Sender<GameFactoryCommand> {
 
 async fn handler(mut rx: Receiver<GameFactoryCommand>) {
     let mut game_factory = GameFactory::new();
+
     while let Some(message) = rx.recv().await {
         match message {
             GameFactoryCommand::CreateGame { response_channel } => {
