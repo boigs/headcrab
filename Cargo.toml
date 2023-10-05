@@ -1,6 +1,6 @@
 [package]
 name = "headcrab"
-version = "0.1.18-rc.1"
+version = "0.1.19-rc.1"
 edition = "2021"
 
 [lib]
