@@ -105,7 +105,9 @@ async fn receive_game_sate(
         _ => panic!("Websocket closed before expected."),
     };
 
-    serde_json::from_str(&response).expect("Could not deserialize the GameState response.")
+    serde_json::from_str(&response).expect(&format!(
+        "Could not deserialize the GameState response. Response: {response}"
+    ))
 }
 
 async fn receive_error(
