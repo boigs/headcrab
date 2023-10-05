@@ -1,12 +1,10 @@
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
-use std::sync::Arc;
 use tokio::{
     select,
     sync::{
         broadcast,
         mpsc::{self, Receiver, Sender},
-        oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender},
     },
 };
 
@@ -14,7 +12,7 @@ use crate::actor::game::{GameCommand, GameEvent};
 use crate::domain::player::Player;
 
 use crate::actor::game::GameWideEvent;
-use crate::actor::game_factory::{GameFactoryCommand, GameFactoryResponse};
+use crate::websocket::send_error_and_close;
 
 pub struct PlayerActor {
     player: Player,
@@ -24,47 +22,38 @@ pub struct PlayerActor {
     player_rx: Receiver<GameEvent>,
     game_tx: Sender<GameCommand>,
     broadcast_rx: broadcast::Receiver<GameWideEvent>,
+    socket: WebSocket,
 }
 
 impl PlayerActor {
-    pub async fn create(
-        nickname: String,
-        game_id: String,
-        game_factory_tx: Arc<Sender<GameFactoryCommand>>,
-        socket: WebSocket,
-    ) {
-        match PlayerActor::create_internal(&nickname, &game_id, game_factory_tx).await {
-            Ok(player_actor) => player_actor.start(socket).await,
-            Err(error) => send_error_and_close(socket, &error).await,
+    pub async fn create(nickname: String, game_tx: Sender<GameCommand>, socket: WebSocket) {
+        let player = Player::new(&nickname);
+        match add_player_to_game(&player, &game_tx).await {
+            Ok((player_tx, player_rx, broadcast_rx)) => {
+                PlayerActor {
+                    player,
+                    player_tx,
+                    player_rx,
+                    game_tx,
+                    broadcast_rx,
+                    socket,
+                }
+                .start()
+                .await
+            }
+            Err(error) => send_error_and_close(socket, error).await,
         }
     }
 
-    async fn create_internal(
-        nickname: &str,
-        game_id: &str,
-        game_factory_tx: Arc<Sender<GameFactoryCommand>>,
-    ) -> Result<Self, String> {
-        let game_tx = get_game(game_factory_tx, game_id).await?;
-        let player = Player::new(nickname);
-        let (player_tx, player_rx, broadcast_rx) = add_player_to_game(&player, &game_tx).await?;
-        Ok(PlayerActor {
-            player,
-            player_tx,
-            player_rx,
-            game_tx,
-            broadcast_rx,
-        })
-    }
-
-    async fn start(mut self, mut socket: WebSocket) {
+    async fn start(mut self) {
         loop {
             select! {
                 game_wide_message = self.broadcast_rx.recv() => {
                     match game_wide_message {
-                        Ok(GameWideEvent::GameState { players }) => socket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
+                        Ok(GameWideEvent::GameState { players }) => self.socket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
                         Err(_) => {
                             println!("ERROR: The broadcast channel with the Game has been closed.");
-                            send_error_and_close(socket, "ERROR: Internal Server Error.").await;
+                            send_error_and_close(self.socket, "ERROR: Internal Server Error.").await;
                             return;
                         },
                     }
@@ -73,13 +62,13 @@ impl PlayerActor {
                     match game_event {
                         None => {
                             println!("ERROR: Private channel with Game closed. How did this happen? Did somebody forget calling clone on tx?.");
-                            send_error_and_close(socket, "ERROR: Internal Server Error.").await;
+                            send_error_and_close(self.socket, "ERROR: Internal Server Error.").await;
                             return;
                         },
                         _ => println!("INFO: Received message from GameActor on the private channel."),
                     }
                 },
-                socket_message = socket.recv() => {
+                socket_message = self.socket.recv() => {
                     match socket_message {
                         Some(message) => println!("INFO: Got message from player '{}'.", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
                         None => {
@@ -94,46 +83,6 @@ impl PlayerActor {
                     }
                 },
             }
-        }
-    }
-}
-
-async fn get_game(
-    sender: Arc<Sender<GameFactoryCommand>>,
-    game_id: &str,
-) -> Result<Sender<GameCommand>, String> {
-    let (tx, rx): (
-        OneshotSender<GameFactoryResponse>,
-        OneshotReceiver<GameFactoryResponse>,
-    ) = oneshot::channel();
-
-    if sender
-        .send(GameFactoryCommand::GetGameActor {
-            game_id: game_id.to_string(),
-            response_channel: tx,
-        })
-        .await
-        .is_err()
-    {
-        return Err("ERROR: The GameFactory channel is closed.".to_string());
-    }
-
-    match rx.await {
-        Ok(GameFactoryResponse::GameActor { game_channel }) => Ok(game_channel),
-        Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
-        Err(error) => {
-            println!("ERROR: The Game channel is closed. Error: {error}.");
-            Err(format!(
-                "ERROR: The Game channel is closed. Error: {error}."
-            ))
-        }
-        Ok(unexpected_response) => {
-            println!(
-                "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
-            );
-            Err(format!(
-                "ERROR: Received an unexpected GameFactoryResponse. Error {unexpected_response}."
-            ))
         }
     }
 }
@@ -184,19 +133,6 @@ async fn add_player_to_game(
     };
 
     Ok((player_tx, player_rx, broadcast_rx))
-}
-
-async fn send_error_and_close(mut websocket: WebSocket, message: &str) {
-    if websocket
-        .send(Message::Text(message.to_string()))
-        .await
-        .is_err()
-    {
-        println!("ERROR: Sent Error '{message}' to the browser but the WebSocket is closed.")
-    }
-    if websocket.close().await.is_err() {
-        println!("ERROR: Could not close WebSocket after sending an error.")
-    }
 }
 
 #[derive(Serialize)]
