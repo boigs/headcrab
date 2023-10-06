@@ -59,9 +59,7 @@ impl GameActor {
                             {
                                 println!("ERROR: Sent GameEvent::PlayerAdded to Player but the channel is closed. Removing the Player.");
                                 self.game.remove_player(&player.nickname);
-                            } else if GameActor::send_game_state(&self.broadcast_tx, &self.game)
-                                .is_err()
-                            {
+                            } else if self.send_game_state().is_err() {
                                 println!("ERROR: Sent GameWideEvent::GameState to Broadcast but the channel is closed. Stopping the Game.");
                                 return;
                             };
@@ -76,7 +74,7 @@ impl GameActor {
                         );
                         return;
                     }
-                    if GameActor::send_game_state(&self.broadcast_tx, &self.game).is_err() {
+                    if self.send_game_state().is_err() {
                         println!("ERROR: There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
                         return;
                     }
@@ -85,12 +83,9 @@ impl GameActor {
         }
     }
 
-    fn send_game_state(
-        broadcast: &broadcast::Sender<GameWideEvent>,
-        game: &Game,
-    ) -> Result<usize, SendError<GameWideEvent>> {
-        broadcast.send(GameWideEvent::GameState {
-            players: Vec::from_iter(game.players().iter().map(|player| (*player).clone())),
+    fn send_game_state(&self) -> Result<usize, SendError<GameWideEvent>> {
+        self.broadcast_tx.send(GameWideEvent::GameState {
+            players: Vec::from_iter(self.game.players().iter().map(|player| (*player).clone())),
         })
     }
 }
