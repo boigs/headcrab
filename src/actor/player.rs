@@ -7,7 +7,7 @@ use crate::actor::game::client::GameWideEventReceiver;
 use crate::actor::game::GameWideEvent;
 use crate::domain::player::Player;
 
-use crate::websocket::send_error_and_close;
+use crate::websocket::{send_error_and_close, send_game_state};
 
 pub struct PlayerActor {
     player: Player,
@@ -39,7 +39,7 @@ impl PlayerActor {
             select! {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     match game_wide_message {
-                        Ok(GameWideEvent::GameState { players }) => self.websocket.send(Message::Text(serde_json::to_string(&GameState { players }).unwrap())).await.unwrap(),
+                        Ok(GameWideEvent::GameState { players }) => send_game_state(&mut self.websocket, players).await,
                         Err(error) => {
                             send_error_and_close(self.websocket, &error).await;
                             return;

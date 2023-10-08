@@ -61,8 +61,10 @@ async fn add_player_to_game_fails_when_player_already_exists() {
     let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
         .split();
-    let error = receive_error(&mut rx).await;
-    assert!(error.contains("Player already exists"));
+
+    assert!(receive_error(&mut rx)
+        .await
+        .contains("Player already exists"));
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
@@ -99,22 +101,28 @@ async fn open_game_websocket(
 async fn receive_game_sate(
     receiver: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
 ) -> GameState {
-    let response = match receiver.next().await {
-        Some(Ok(message)) => message.into_text().expect("Message was not a text"),
+    match receiver.next().await {
+        Some(Ok(message)) => {
+            match serde_json::from_str(message.to_text().expect("Message was not a text")) {
+                Ok(WsMessage::GameState { players }) => GameState { players },
+                _ => panic!("The message was not a WsMessage::GameState"),
+            }
+        }
         Some(Err(error)) => panic!("Websocket returned an error {}", error),
         _ => panic!("Websocket closed before expected."),
-    };
-
-    serde_json::from_str(&response).expect(&format!(
-        "Could not deserialize the GameState response. Response: {response}"
-    ))
+    }
 }
 
 async fn receive_error(
     receiver: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
 ) -> String {
     match receiver.next().await {
-        Some(Ok(message)) => message.into_text().expect("Message was not a text"),
+        Some(Ok(message)) => {
+            match serde_json::from_str(message.to_text().expect("Message was not a text")) {
+                Ok(WsMessage::Error { message }) => message,
+                _ => panic!("The message was not a WsMessage::Error"),
+            }
+        }
         Some(Err(error)) => panic!("Websocket returned an error {}", error),
         _ => panic!("Websocket closed before expected."),
     }
@@ -133,4 +141,11 @@ struct Player {
 #[derive(Deserialize)]
 struct GameCreatedResponse {
     id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+enum WsMessage {
+    Error { message: String },
+    GameState { players: Vec<Player> },
 }
