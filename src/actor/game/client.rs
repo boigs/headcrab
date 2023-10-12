@@ -42,7 +42,7 @@ impl GameClient {
                 Err("ERROR: The Player already exists.".to_string())
             }
             _ => {
-                log::info!(
+                log::error!(
                     "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
                 );
                 Err(
@@ -77,7 +77,7 @@ impl GameWideEventReceiver {
         match self.broadcast_rx.recv().await {
             Ok(game_wide_event) => Ok(game_wide_event),
             Err(error) => {
-                log::info!(
+                log::error!(
                     "ERROR: The broadcast channel with the Game has been closed. Error: {error}."
                 );
                 Err(format!(
