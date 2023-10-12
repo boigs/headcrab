@@ -69,8 +69,8 @@ impl GameActor {
                 GameCommand::RemovePlayer { player } => {
                     self.game.remove_player(&player.nickname);
                     if self.game.players().is_empty() {
-                        println!(
-                            "INFO: Removed Player from the Game, no more Players, stopping the Game."
+                        log::info!(
+                            "Removed Player from the Game, no more Players, stopping the Game."
                         );
                         return;
                     }

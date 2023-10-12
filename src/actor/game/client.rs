@@ -31,22 +31,18 @@ impl GameClient {
             //  1. When the game is closed (on game actor), delete the game from the game factory as well.
             //  2. send message through WS telling the client that this game does not exist.
             log::error!("The Game is not alive. Can't add Player to Game.");
-            return Err("ERROR: The Game is not alive. Can't add Player to Game.".to_string());
+            return Err("The Game is not alive. Can't add Player to Game.".to_string());
         }
 
         match rx.await {
             Ok(GameEvent::PlayerAdded { broadcast_rx }) => {
                 Ok(GameWideEventReceiver { broadcast_rx })
             }
-            Ok(GameEvent::PlayerAlreadyExists) => {
-                Err("ERROR: The Player already exists.".to_string())
-            }
+            Ok(GameEvent::PlayerAlreadyExists) => Err("The Player already exists.".to_string()),
             _ => {
-                println!(
-                    "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
-                );
+                log::error!("Player sent a GameCommand::AddPlayer to Game, but Game channel died.");
                 Err(
-                    "ERROR: Player sent a GameCommand::AddPlayer to Game, but Game channel died."
+                    "Player sent a GameCommand::AddPlayer to Game, but Game channel died."
                         .to_string(),
                 )
             }
@@ -62,7 +58,7 @@ impl GameClient {
             Ok(_) => Ok(()),
             Err(error) => {
                 log::error!("Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}.");
-                Err(format!("ERROR: Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}."))
+                Err(format!("Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}."))
             }
         }
     }
@@ -77,11 +73,9 @@ impl GameWideEventReceiver {
         match self.broadcast_rx.recv().await {
             Ok(game_wide_event) => Ok(game_wide_event),
             Err(error) => {
-                println!(
-                    "ERROR: The broadcast channel with the Game has been closed. Error: {error}."
-                );
+                log::error!("The broadcast channel with the Game has been closed. Error: {error}.");
                 Err(format!(
-                    "ERROR: The broadcast channel with the Game has been closed. Error: {error}."
+                    "The broadcast channel with the Game has been closed. Error: {error}."
                 ))
             }
         }
