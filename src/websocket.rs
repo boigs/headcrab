@@ -14,10 +14,10 @@ pub async fn send_error_and_close(mut websocket: WebSocket, message: &str) {
         .await
         .is_err()
     {
-        println!("ERROR: Sent Error '{message}' to the browser but the WebSocket is closed.")
+        log::error!("Sent Error '{message}' to the browser but the WebSocket is closed.")
     }
     if websocket.close().await.is_err() {
-        println!("ERROR: Could not close WebSocket after sending an error.")
+        log::error!("Could not close WebSocket after sending an error.")
     }
 }
 
@@ -29,7 +29,7 @@ pub async fn send_game_state(websocket: &mut WebSocket, players: Vec<Player>) {
         .await
         .is_err()
     {
-        println!("ERROR: Sent GameState to the browser but the WebSocket is closed.")
+        log::error!("Sent GameState to the browser but the WebSocket is closed.")
     }
 }
 

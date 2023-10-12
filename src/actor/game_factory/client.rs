@@ -34,7 +34,7 @@ impl GameFactoryClient {
                 ))
             }
             Err(error) => {
-                println!("ERROR: The Game channel is closed. Error: {error}.");
+                log::error!("The Game channel is closed. Error: {error}.");
                 Err(format!(
                     "ERROR: The Game channel is closed. Error: {error}."
                 ))
@@ -72,7 +72,7 @@ impl GameFactoryClient {
                 ))
             }
             Err(error) => {
-                println!("ERROR: The Game channel is closed. Error: {error}.");
+                log::error!("The Game channel is closed. Error: {error}.");
                 Err(format!(
                     "ERROR: The Game channel is closed. Error: {error}."
                 ))

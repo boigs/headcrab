@@ -47,7 +47,7 @@ impl GameActor {
                     match self.game.add_player(player.clone()) {
                         Err(_) => {
                             if response_tx.send(GameEvent::PlayerAlreadyExists).is_err() {
-                                println!("ERROR: Sent GameEvent::PlayerAlreadyExists to Player but the channel is closed.");
+                                log::error!("Sent GameEvent::PlayerAlreadyExists to Player but the channel is closed.");
                             }
                         }
                         Ok(_) => {
@@ -57,10 +57,10 @@ impl GameActor {
                                 })
                                 .is_err()
                             {
-                                println!("ERROR: Sent GameEvent::PlayerAdded to Player but the channel is closed. Removing the Player.");
+                                log::error!("Sent GameEvent::PlayerAdded to Player but the channel is closed. Removing the Player.");
                                 self.game.remove_player(&player.nickname);
                             } else if self.send_game_state().is_err() {
-                                println!("ERROR: Sent GameWideEvent::GameState to Broadcast but the channel is closed. Stopping the Game.");
+                                log::error!("Sent GameWideEvent::GameState to Broadcast but the channel is closed. Stopping the Game.");
                                 return;
                             };
                         }
@@ -75,7 +75,7 @@ impl GameActor {
                         return;
                     }
                     if self.send_game_state().is_err() {
-                        println!("ERROR: There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
+                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
                         return;
                     }
                 }
