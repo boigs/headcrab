@@ -26,18 +26,16 @@ impl GameFactoryClient {
         match rx.await {
             Ok(GameFactoryResponse::GameCreated { game_id }) => Ok(game_id),
             Ok(unexpected_response) => {
-                log::info!(
-                    "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
+                log::error!(
+                    "Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
                 );
                 Err(format!(
-                    "ERROR: Received an unexpected GameFactoryResponse. Error {unexpected_response}."
+                    "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
                 ))
             }
             Err(error) => {
                 log::error!("The Game channel is closed. Error: {error}.");
-                Err(format!(
-                    "ERROR: The Game channel is closed. Error: {error}."
-                ))
+                Err(format!("The Game channel is closed. Error: {error}."))
             }
         }
     }
@@ -57,25 +55,23 @@ impl GameFactoryClient {
             .await
             .is_err()
         {
-            return Err("ERROR: The GameFactory channel is closed.".to_string());
+            return Err("The GameFactory channel is closed.".to_string());
         }
 
         match rx.await {
             Ok(GameFactoryResponse::GameActor { game }) => Ok(game),
             Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
             Ok(unexpected_response) => {
-                log::info!(
-                    "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
+                log::error!(
+                    "Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
                 );
                 Err(format!(
-                    "ERROR: Received an unexpected GameFactoryResponse. Error {unexpected_response}."
+                    "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
                 ))
             }
             Err(error) => {
                 log::error!("The Game channel is closed. Error: {error}.");
-                Err(format!(
-                    "ERROR: The Game channel is closed. Error: {error}."
-                ))
+                Err(format!("The Game channel is closed. Error: {error}."))
             }
         }
     }
