@@ -26,7 +26,7 @@ impl GameFactoryClient {
         match rx.await {
             Ok(GameFactoryResponse::GameCreated { game_id }) => Ok(game_id),
             Ok(unexpected_response) => {
-                println!(
+                log::info!(
                     "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
                 );
                 Err(format!(
@@ -64,7 +64,7 @@ impl GameFactoryClient {
             Ok(GameFactoryResponse::GameActor { game }) => Ok(game),
             Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
             Ok(unexpected_response) => {
-                println!(
+                log::info!(
                     "ERROR: Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
                 );
                 Err(format!(

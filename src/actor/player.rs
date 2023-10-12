@@ -52,7 +52,7 @@ impl PlayerActor {
                         None => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                             if let Err(error) = self.game.remove_player(self.player).await {
-                                println!("{error}");
+                                log::error!("{error}");
                             };
                             return;
                         },
