@@ -48,9 +48,9 @@ impl PlayerActor {
                 },
                 socket_message = self.websocket.recv() => {
                     match socket_message {
-                        Some(message) => println!("INFO: Got message from player '{}'.", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
+                        Some(message) => log::info!("Got message from player '{}'.", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
                         None => {
-                            println!("INFO: WebSocket with player's client closed. Removing player from game and closing player actor.");
+                            log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                             if let Err(error) = self.game.remove_player(self.player).await {
                                 println!("{error}");
                             };

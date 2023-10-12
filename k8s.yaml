@@ -22,6 +22,8 @@ spec:
           env:
             - name: ENVIRONMENT
               value: prod
+            - name: RUST_LOG
+              value: headcrab=info
 ---
 apiVersion: v1
 kind: Service

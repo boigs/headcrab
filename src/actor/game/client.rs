@@ -30,7 +30,7 @@ impl GameClient {
             // We need:
             //  1. When the game is closed (on game actor), delete the game from the game factory as well.
             //  2. send message through WS telling the client that this game does not exist.
-            println!("ERROR: The Game is not alive. Can't add Player to Game.");
+            log::error!("The Game is not alive. Can't add Player to Game.");
             return Err("ERROR: The Game is not alive. Can't add Player to Game.".to_string());
         }
 
@@ -61,7 +61,7 @@ impl GameClient {
         {
             Ok(_) => Ok(()),
             Err(error) => {
-                println!("ERROR: Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}.");
+                log::error!("Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}.");
                 Err(format!("ERROR: Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}."))
             }
         }

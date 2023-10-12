@@ -17,7 +17,7 @@ pub fn create_router(config: Config) -> Router<Arc<GameFactoryClient>> {
             get(game::connect_player_to_websocket),
         )
         .layer(if config.allow_cors {
-            println!("INFO: CorsLayer Permissive");
+            log::info!("CorsLayer Permissive");
             CorsLayer::permissive()
         } else {
             CorsLayer::default()
