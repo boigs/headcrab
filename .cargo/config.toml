@@ -6,4 +6,4 @@
 
 [env]
 ENVIRONMENT = "dev"
-RUST_LOG = "headcrab=info"
+LOG = "info"

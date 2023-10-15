@@ -20,7 +20,7 @@ serde_json = "1.0.107"
 tokio = { version = "1.32.0", features = ["full"] }
 tower-http = { version = "0.4.4", features = ["cors"] }
 log = "0.4.20"
-env_logger = "0.10.0"
+std-logger = "0.5.2"
 
 [dev-dependencies]
 futures-util = "0.3.28"
