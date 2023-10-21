@@ -1,6 +1,8 @@
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
+use std::time::Duration;
 use tokio::select;
+use tokio::time::timeout;
 
 use crate::actor::game::client::GameClient;
 use crate::actor::game::client::GameWideEventReceiver;
@@ -46,16 +48,33 @@ impl PlayerActor {
                         },
                     }
                 },
-                socket_message = self.websocket.recv() => {
-                    match socket_message {
-                        Some(message) => log::info!("Got message from player '{}'.", message.unwrap_or(Message::Text("<Empty>".to_string())).into_text().unwrap_or_default()),
-                        None => {
+                timeout_result = timeout(Duration::from_millis(2500), self.websocket.recv()) => {
+                    match timeout_result {
+                        Ok(Some(Ok(Message::Text(txt)))) => match txt.as_str() {
+                            "ping" => {
+                                log::info!("ping");
+                                if self.websocket.send(Message::Text("pong".to_string())).await.is_err() {
+                                    log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
+                                    if let Err(error) = self.game.remove_player(self.player).await {
+                                        log::error!("{error}");
+                                    };
+                                    return;
+                                }
+                            },
+                            _ => log::info!("message"),
+                        },
+                        Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
+                        Ok(Some(Err(_))) | // unprocessable message
+                        Ok(None) | // websocket was closed
+                        Err(_) // timeout was met
+                        => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                             if let Err(error) = self.game.remove_player(self.player).await {
                                 log::error!("{error}");
                             };
                             return;
                         },
+                        Ok(_) => log::warn!("Unexpected type of message received. How did this happen?"),
                     }
                 },
             }
