@@ -52,7 +52,6 @@ impl PlayerActor {
                     match timeout_result {
                         Ok(Some(Ok(Message::Text(txt)))) => match txt.as_str() {
                             "ping" => {
-                                log::info!("ping");
                                 if self.websocket.send(Message::Text("pong".to_string())).await.is_err() {
                                     log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                                     if let Err(error) = self.game.remove_player(self.player).await {
