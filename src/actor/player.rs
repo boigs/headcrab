@@ -12,7 +12,7 @@ use crate::domain::player::Player;
 use crate::websocket::{send_error_and_close, send_game_state};
 
 pub struct PlayerActor {
-    player: Player,
+    nickname: String,
     game: GameClient,
     game_wide_event_receiver: GameWideEventReceiver,
     websocket: WebSocket,
@@ -20,11 +20,10 @@ pub struct PlayerActor {
 
 impl PlayerActor {
     pub async fn create(nickname: String, game: GameClient, websocket: WebSocket) {
-        let player = Player::new(&nickname);
-        match game.add_player(player.clone()).await {
+        match game.add_player(&nickname).await {
             Ok(game_wide_event_receiver) => {
                 PlayerActor {
-                    player,
+                    nickname,
                     game,
                     game_wide_event_receiver,
                     websocket,
@@ -54,7 +53,7 @@ impl PlayerActor {
                             "ping" => {
                                 if self.websocket.send(Message::Text("pong".to_string())).await.is_err() {
                                     log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
-                                    if let Err(error) = self.game.remove_player(self.player).await {
+                                    if let Err(error) = self.game.remove_player(&self.nickname).await {
                                         log::error!("{error}");
                                     };
                                     return;
@@ -68,7 +67,7 @@ impl PlayerActor {
                         Err(_) // timeout was met
                         => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
-                            if let Err(error) = self.game.remove_player(self.player).await {
+                            if let Err(error) = self.game.remove_player(&self.nickname).await {
                                 log::error!("{error}");
                             };
                             return;

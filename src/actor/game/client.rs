@@ -1,4 +1,3 @@
-use crate::domain::player::Player;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
@@ -11,13 +10,13 @@ pub struct GameClient {
 }
 
 impl GameClient {
-    pub async fn add_player(&self, player: Player) -> Result<GameWideEventReceiver, String> {
+    pub async fn add_player(&self, nickname: &str) -> Result<GameWideEventReceiver, String> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         if self
             .game_tx
             .send(GameCommand::AddPlayer {
-                player: player.clone(),
+                nickname: nickname.to_string(),
                 response_tx: tx,
             })
             .await
@@ -27,9 +26,6 @@ impl GameClient {
             //  1. the game exists in the GameFactory actor
             //  2. but the (individual) Game actor has been dropped
             //  3. the user navigated to this game's URL in an attempt to re-join (and there aren't any other players in the game).
-            // We need:
-            //  1. When the game is closed (on game actor), delete the game from the game factory as well.
-            //  2. send message through WS telling the client that this game does not exist.
             log::error!("The Game is not alive. Can't add Player to Game.");
             return Err("The Game is not alive. Can't add Player to Game.".to_string());
         }
@@ -49,10 +45,12 @@ impl GameClient {
         }
     }
 
-    pub async fn remove_player(&self, player: Player) -> Result<(), String> {
+    pub async fn remove_player(&self, nickname: &str) -> Result<(), String> {
         match self
             .game_tx
-            .send(GameCommand::RemovePlayer { player })
+            .send(GameCommand::RemovePlayer {
+                nickname: nickname.to_string(),
+            })
             .await
         {
             Ok(_) => Ok(()),
