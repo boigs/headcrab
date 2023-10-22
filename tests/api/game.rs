@@ -134,6 +134,7 @@ struct GameState {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Player {
     nickname: String,
 }
@@ -144,7 +145,7 @@ struct GameCreatedResponse {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type")]
+#[serde(rename_all = "camelCase", tag = "type")]
 enum WsMessage {
     Error { message: String },
     GameState { players: Vec<Player> },

@@ -34,7 +34,7 @@ pub async fn send_game_state(websocket: &mut WebSocket, players: Vec<Player>) {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(rename_all = "camelCase", tag = "type")]
 enum WsMessage {
     Error { message: String },
     GameState { players: Vec<Player> },

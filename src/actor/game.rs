@@ -41,10 +41,10 @@ impl GameActor {
         while let Some(command) = self.game_rx.recv().await {
             match command {
                 GameCommand::AddPlayer {
-                    player,
+                    nickname,
                     response_tx,
                 } => {
-                    match self.game.add_player(player.clone()) {
+                    match self.game.add_player(&nickname) {
                         Err(_) => {
                             if response_tx.send(GameEvent::PlayerAlreadyExists).is_err() {
                                 log::error!("Sent GameEvent::PlayerAlreadyExists to Player but the channel is closed.");
@@ -58,7 +58,7 @@ impl GameActor {
                                 .is_err()
                             {
                                 log::error!("Sent GameEvent::PlayerAdded to Player but the channel is closed. Removing the Player.");
-                                self.game.remove_player(&player.nickname);
+                                self.game.remove_player(&nickname);
                             } else if self.send_game_state().is_err() {
                                 log::error!("Sent GameWideEvent::GameState to Broadcast but the channel is closed. Stopping the Game.");
                                 return;
@@ -66,8 +66,8 @@ impl GameActor {
                         }
                     };
                 }
-                GameCommand::RemovePlayer { player } => {
-                    self.game.remove_player(&player.nickname);
+                GameCommand::RemovePlayer { nickname } => {
+                    self.game.remove_player(&nickname);
                     if self.game.players().is_empty() {
                         log::info!(
                             "Removed Player from the Game, no more Players, stopping the Game."
@@ -92,11 +92,11 @@ impl GameActor {
 
 enum GameCommand {
     AddPlayer {
-        player: Player,
+        nickname: String,
         response_tx: OneshotSender<GameEvent>,
     },
     RemovePlayer {
-        player: Player,
+        nickname: String,
     },
 }
 
