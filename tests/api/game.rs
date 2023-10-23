@@ -26,6 +26,7 @@ async fn two_different_players_can_be_added_to_game() {
     let game_state: GameState = receive_game_sate(&mut rx1).await;
     assert_eq!(game_state.players.len(), 1);
     assert_eq!(game_state.players.first().unwrap().nickname, nickname1);
+    assert!(game_state.players.first().unwrap().is_host);
 
     let nickname2 = "player2";
     let (_, mut rx2) = open_game_websocket(&base_address, &game_id, nickname2)
@@ -41,6 +42,7 @@ async fn two_different_players_can_be_added_to_game() {
         .players
         .iter()
         .any(|player| player.nickname == nickname2));
+    assert!(!game_state.players.last().unwrap().is_host);
 }
 
 #[tokio::test]
@@ -137,6 +139,7 @@ struct GameState {
 #[serde(rename_all = "camelCase")]
 struct Player {
     nickname: String,
+    is_host: bool,
 }
 
 #[derive(Deserialize)]

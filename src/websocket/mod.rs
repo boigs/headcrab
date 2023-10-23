@@ -1,7 +1,9 @@
+mod message;
+
 use axum::extract::ws::{Message, WebSocket};
-use serde::{Deserialize, Serialize};
 
 use crate::domain::player::Player;
+use message::WsMessage;
 
 pub async fn send_error_and_close(mut websocket: WebSocket, message: &str) {
     if websocket
@@ -24,18 +26,14 @@ pub async fn send_error_and_close(mut websocket: WebSocket, message: &str) {
 pub async fn send_game_state(websocket: &mut WebSocket, players: Vec<Player>) {
     if websocket
         .send(Message::Text(
-            serde_json::to_string(&WsMessage::GameState { players }).unwrap(),
+            serde_json::to_string(&WsMessage::GameState {
+                players: players.into_iter().map(|player| player.into()).collect(),
+            })
+            .unwrap(),
         ))
         .await
         .is_err()
     {
         log::error!("Sent GameState to the browser but the WebSocket is closed.")
     }
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
-enum WsMessage {
-    Error { message: String },
-    GameState { players: Vec<Player> },
 }
