@@ -16,11 +16,11 @@ pub struct PlayerDto {
     is_host: bool,
 }
 
-impl Into<PlayerDto> for Player {
-    fn into(self) -> PlayerDto {
-        PlayerDto {
-            nickname: self.nickname,
-            is_host: self.is_host,
+impl From<Player> for PlayerDto {
+    fn from(val: Player) -> Self {
+        Self {
+            nickname: val.nickname,
+            is_host: val.is_host,
         }
     }
 }
