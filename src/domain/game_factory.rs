@@ -1,5 +1,4 @@
-use rand::distributions::Alphanumeric;
-use rand::Rng;
+use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
 
 use crate::actor::game::client::GameClient;
@@ -29,14 +28,35 @@ impl GameFactory {
 
     fn create_unique_game_id(&self) -> String {
         loop {
-            let id: String = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(5)
-                .map(char::from)
-                .collect();
+            let id = Alphanumeric.sample_string(&mut rand::thread_rng(), 5)
+            .replace("O", "P")
+            .replace("0", "1")
+            .replace("I", "J")
+            .replace("l", "m");
             if !self.game_channels.contains_key(&id) {
                 return id;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GameFactory;
+
+    #[test]
+    fn add_player_works() {
+        let game_factory = GameFactory::new();
+
+        let id = game_factory.create_unique_game_id();
+
+        assert_eq!(id.len(), 5);
+        for char in id.chars() {
+            assert!(
+                ('0'..='9').contains(&char) ||
+                ('A'..='Z').contains(&char) ||
+                ('a'..='z').contains(&char)
+            )
+        }        
     }
 }
