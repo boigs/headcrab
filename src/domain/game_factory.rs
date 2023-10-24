@@ -28,11 +28,12 @@ impl GameFactory {
 
     fn create_unique_game_id(&self) -> String {
         loop {
-            let id = Alphanumeric.sample_string(&mut rand::thread_rng(), 5)
-            .replace("O", "P")
-            .replace("0", "1")
-            .replace("I", "J")
-            .replace("l", "m");
+            let id = Alphanumeric
+                .sample_string(&mut rand::thread_rng(), 5)
+                .replace('O', "P")
+                .replace('0', "1")
+                .replace('I', "J")
+                .replace('l', "m");
             if !self.game_channels.contains_key(&id) {
                 return id;
             }
@@ -53,10 +54,10 @@ mod tests {
         assert_eq!(id.len(), 5);
         for char in id.chars() {
             assert!(
-                ('0'..='9').contains(&char) ||
-                ('A'..='Z').contains(&char) ||
-                ('a'..='z').contains(&char)
+                ('0'..='9').contains(&char)
+                    || ('A'..='Z').contains(&char)
+                    || ('a'..='z').contains(&char)
             )
-        }        
+        }
     }
 }
