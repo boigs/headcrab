@@ -11,6 +11,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  DOCKER_IMAGE_NAME: localhost:32000/headcrab
   RUST_VERSION: 1.73.0
 
 jobs:
@@ -67,43 +68,37 @@ jobs:
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
+
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7
         with:
           toolchain: ${{ env.RUST_VERSION }}
-      - name: Install Cargo-Get and Cargo-Edit
-        run: cargo install cargo-get cargo-edit
-      - name: Get Current Version
-        id: get_versions
-        # We do a post deploy increment of the version, this means the we consider the current committed version as the next version to release
-        # Increment the patch version but add a release candidate tag to make it explicit that this version has not been released yet
-        run: |
-          current_patch=$(cargo get package.version --patch)
-          current_version=$(cargo get package.version --major --minor --delimiter=".").$current_patch
-          next_version=$(cargo get package.version --major --minor --delimiter=".").$(($current_patch + 1))-rc.1
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
-          echo "next_version=$next_version" >> $GITHUB_OUTPUT
-      - name: Get Image Name
-        id: get_image_name
-        run: |
-          image_name=$(cargo get package.name):${{ steps.get_versions.outputs.current_version }}
-          echo "image_name=$image_name" >> $GITHUB_OUTPUT
-      - name: Build the Docker image
-        run: docker build . --tag localhost:32000/${{ steps.get_image_name.outputs.image_name }}
-      - name: Push the Docker image to microk8s's registry
-        run: docker push localhost:32000/${{ steps.get_image_name.outputs.image_name }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Docker Image Metadata
+        id: image-metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE_NAME }}
+          tags: type=sha
+
+      - name: Create Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: .
+          tags: ${{ steps.image-metadata.outputs.tags }}
+          labels: ${{ steps.image-metadata.outputs.labels }}
+          provenance: false
+          
       - name: Set version to deploy in k8s.yaml
-        run: sed -i -E "s/headcrab:version/${{ steps.get_image_name.outputs.image_name }}/g" k8s.yaml
+        run: sed -i -E "s#headcrab_image#${{ env.DOCKER_IMAGE_NAME }}:${{ steps.image-metadata.outputs.version }}#g" k8s.yaml
+        
       - name: Deploy
         run: |
           microk8s kubectl apply -f k8s.yaml
           microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s
-      - name: Increment version for next release
-        run: cargo set-version ${{ steps.get_versions.outputs.next_version }}
-      - name: Commit new version
-        run: |
-          git config user.name github-actions
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock
-          git commit -m "[AUTO] Increment version for next deployment"
-          git push

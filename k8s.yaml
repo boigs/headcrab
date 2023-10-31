@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: headcrab
-          image: localhost:32000/headcrab:version
+          image: headcrab_image
           ports:
             - containerPort: 4000
           env:
