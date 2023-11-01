@@ -1,5 +1,4 @@
 use axum::extract::ws::{Message, WebSocket};
-use serde::Serialize;
 use std::time::Duration;
 use tokio::select;
 use tokio::time::timeout;
@@ -7,8 +6,9 @@ use tokio::time::timeout;
 use crate::actor::game::client::GameClient;
 use crate::actor::game::client::GameWideEventReceiver;
 use crate::actor::game::GameWideEvent;
-use crate::domain::player::Player;
 
+use crate::websocket::message::WsMessageIn;
+use crate::websocket::parse_message;
 use crate::websocket::{send_error_and_close, send_game_state};
 
 pub struct PlayerActor {
@@ -40,7 +40,7 @@ impl PlayerActor {
             select! {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     match game_wide_message {
-                        Ok(GameWideEvent::GameState { players }) => send_game_state(&mut self.websocket, players).await,
+                        Ok(GameWideEvent::GameState { state, players }) => send_game_state(&mut self.websocket, state, players).await,
                         Err(error) => {
                             send_error_and_close(self.websocket, &error).await;
                             return;
@@ -59,7 +59,15 @@ impl PlayerActor {
                                     return;
                                 }
                             },
-                            _ => log::info!("message"),
+                            message => {
+                                match parse_message(message) {
+                                    Ok(WsMessageIn::StartGame) => if let Err(error) = self.game.start_game(&self.nickname).await {
+                                        send_error_and_close(self.websocket, &error).await;
+                                        return;
+                                    },
+                                    Err(_) => log::error!("Unprocessable message '{message}'"),
+                                }
+                            },
                         },
                         Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
                         Ok(Some(Err(_))) | // unprocessable message
@@ -78,9 +86,4 @@ impl PlayerActor {
             }
         }
     }
-}
-
-#[derive(Serialize)]
-struct GameState {
-    players: Vec<Player>,
 }

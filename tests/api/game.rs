@@ -1,8 +1,8 @@
 use crate::helpers::spawn_app;
-use futures_util::stream::{SplitStream, StreamExt};
-use serde::Deserialize;
+use futures_util::stream::{SplitStream, StreamExt, SplitSink};
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 
 #[tokio::test]
 async fn create_game_works() {
@@ -69,6 +69,28 @@ async fn add_player_to_game_fails_when_player_already_exists() {
         .contains("Player already exists"));
 }
 
+#[tokio::test]
+async fn game_can_be_started() {
+    let base_address = spawn_app();
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&base_address, client).await.id;
+
+    let nickname = "player";
+    let (tx, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+        .await
+        .split();
+    let game_state: GameState = receive_game_sate(&mut rx).await;
+    assert_eq!(game_state.state, "lobby");
+
+    let (mut tx, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+        .await
+        .split();
+    assert!(receive_error(&mut rx)
+        .await
+        .contains("Player already exists"));
+}
+
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
     let response = client
         .post(format!("http://{base_address}/game"))
@@ -99,6 +121,12 @@ async fn open_game_websocket(
     .0
 }
 
+async fn send_message(
+    sender: &SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>
+) {
+    "".to
+}
+
 // It's important for the receiver to be a reference, otherwise this method takes ownership of it and when it ends it closes the websocket
 async fn receive_game_sate(
     receiver: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
@@ -106,7 +134,7 @@ async fn receive_game_sate(
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
-                Ok(WsMessage::GameState { players }) => GameState { players },
+                Ok(WsMessageOut::GameState { state, players }) => GameState { state, players },
                 _ => panic!("The message was not a WsMessage::GameState"),
             }
         }
@@ -121,7 +149,7 @@ async fn receive_error(
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
-                Ok(WsMessage::Error { message }) => message,
+                Ok(WsMessageOut::Error { message }) => message,
                 _ => panic!("The message was not a WsMessage::Error"),
             }
         }
@@ -132,6 +160,7 @@ async fn receive_error(
 
 #[derive(Deserialize)]
 struct GameState {
+    state: String,
     players: Vec<Player>,
 }
 
@@ -149,7 +178,13 @@ struct GameCreatedResponse {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
-enum WsMessage {
+enum WsMessageOut {
     Error { message: String },
-    GameState { players: Vec<Player> },
+    GameState { state: String, players: Vec<Player> },
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
+enum WsMessageIn {
+    StartGame,
 }

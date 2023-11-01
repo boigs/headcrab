@@ -60,6 +60,22 @@ impl GameClient {
             }
         }
     }
+
+    pub async fn start_game(&self, nickname: &str) -> Result<(), String> {
+        match self
+            .game_tx
+            .send(GameCommand::StartGame {
+                nickname: nickname.to_string(),
+            })
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                log::error!("Tried to send GameCommand:StartGame but GameActor is not listening. Error: {error}.");
+                Err(format!("Tried to send GameCommand:StartGame but GameActor is not listening. Error: {error}."))
+            }
+        }
+    }
 }
 
 pub struct GameWideEventReceiver {
