@@ -1,9 +1,18 @@
 use config::ConfigError;
 use serde::Deserialize;
+use serde_aux::prelude::deserialize_number_from_string;
 
 #[derive(Deserialize)]
 pub struct Config {
+    pub application: ApplicationSettings,
     pub allow_cors: bool,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct ApplicationSettings {
+    pub host: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub port: u16,
 }
 
 impl Config {
