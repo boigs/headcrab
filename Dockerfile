@@ -16,7 +16,7 @@ COPY . .
 RUN cargo build --release --bin headcrab
 
 
-FROM debian:12.2-slim AS runtime
+FROM debian:12.2-slim AS final
 WORKDIR /app
 COPY --from=builder /app/target/release/headcrab /usr/local/bin
 COPY config config
