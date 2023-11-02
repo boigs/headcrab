@@ -1,17 +1,17 @@
-FROM rust:1.72.1
+FROM rust:1.72.1 as base
 
+
+FROM base as build
 WORKDIR /app
+COPY . .
+RUN cargo build --release
 
-COPY Cargo.toml ./
-COPY Cargo.lock ./
 
-COPY config config
-
-COPY src src
-
-RUN cargo build -r
+FROM base as final
+WORKDIR /app
+COPY --from=build /app/target/release/headcrab .
 
 ENV ENVIRONMENT="inject a value via the compose/k8s file, or docker run --env or --env_file"
 ENV RUST_LOG="inject a value via the compose/k8s file, or docker run --env or --env_file"
 
-ENTRYPOINT ["./target/release/headcrab"]
+ENTRYPOINT ["./headcrab"]

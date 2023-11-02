@@ -69,8 +69,7 @@ jobs:
         run: cargo clippy -- -D warnings
 
   build-deploy:
-    name: Build and Deploy
-    if: github.ref == 'refs/heads/main'
+    name: ${{ github.ref_name == 'main' && 'Build and Deploy' || 'Build' }}
     needs: [test, format, linter]
     runs-on: self-hosted
     steps:
