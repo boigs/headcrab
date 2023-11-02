@@ -96,7 +96,7 @@ jobs:
       - name: Create Docker Image
         uses: docker/build-push-action@v5
         with:
-          push: true
+          push: ${{ github.ref_name == 'main' }}
           context: .
           target: final
           tags: ${{ steps.image-metadata.outputs.tags }}
@@ -104,9 +104,11 @@ jobs:
           provenance: false
 
       - name: Set version to deploy in k8s.yaml
+        if: ${{ github.ref_name == 'main' }}
         run: sed -i -E "s#headcrab_image#${{ env.DOCKER_IMAGE_NAME }}:${{ steps.image-metadata.outputs.version }}#g" k8s.yaml
         
       - name: Deploy
+        if: ${{ github.ref_name == 'main' }}
         run: |
           microk8s kubectl apply -f k8s.yaml
           microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s
