@@ -98,6 +98,7 @@ jobs:
         with:
           push: true
           context: .
+          target: final
           tags: ${{ steps.image-metadata.outputs.tags }}
           labels: ${{ steps.image-metadata.outputs.labels }}
           provenance: false

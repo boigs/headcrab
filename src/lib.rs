@@ -1,5 +1,5 @@
 mod actor;
-mod config;
+pub mod config;
 mod domain;
 mod routes;
 pub mod startup;
