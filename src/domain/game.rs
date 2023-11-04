@@ -19,7 +19,7 @@ impl Game {
     }
 
     pub fn state(&self) -> &GameFsmState {
-        &self.fsm.state()
+        self.fsm.state()
     }
 
     pub fn players(&self) -> &[Player] {

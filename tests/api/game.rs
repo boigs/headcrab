@@ -1,8 +1,11 @@
 use crate::helpers::spawn_app;
-use futures_util::stream::{SplitStream, StreamExt, SplitSink};
+use futures_util::{
+    stream::{SplitSink, SplitStream, StreamExt},
+    SinkExt,
+};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
+use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 #[tokio::test]
 async fn create_game_works() {
@@ -77,18 +80,20 @@ async fn game_can_be_started() {
     let game_id = create_game(&base_address, client).await.id;
 
     let nickname = "player";
-    let (tx, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
-        .await
-        .split();
-    let game_state: GameState = receive_game_sate(&mut rx).await;
-    assert_eq!(game_state.state, "lobby");
-
     let (mut tx, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
         .split();
-    assert!(receive_error(&mut rx)
-        .await
-        .contains("Player already exists"));
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+
+    send_start_game(
+        &mut tx,
+        WsMessageIn::StartGame {
+            amount_of_rounds: 5,
+        },
+    )
+    .await;
+
+    assert_eq!(receive_game_sate(&mut rx).await.state, "ChooseWord");
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
@@ -121,10 +126,16 @@ async fn open_game_websocket(
     .0
 }
 
-async fn send_message(
-    sender: &SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>
+async fn send_start_game(
+    websocket: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    message: WsMessageIn,
 ) {
-    "".to
+    websocket
+        .send(Message::Text(
+            serde_json::to_string(&message).expect("Could not serialize message"),
+        ))
+        .await
+        .expect("Could not send message");
 }
 
 // It's important for the receiver to be a reference, otherwise this method takes ownership of it and when it ends it closes the websocket
@@ -186,5 +197,6 @@ enum WsMessageOut {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
 enum WsMessageIn {
-    StartGame,
+    #[serde(rename_all = "camelCase")]
+    StartGame { amount_of_rounds: u8 },
 }
