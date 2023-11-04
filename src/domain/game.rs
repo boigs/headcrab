@@ -1,14 +1,25 @@
+use crate::domain::game_fsm::{GameFsm, GameFsmInput};
 use crate::domain::player::Player;
-use serde::Serialize;
 
-#[derive(Debug, Serialize, Clone)]
+use rust_fsm::StateMachine;
+
+use super::game_fsm::GameFsmState;
+
 pub struct Game {
+    fsm: StateMachine<GameFsm>,
     players: Vec<Player>,
 }
 
 impl Game {
     pub fn new() -> Self {
-        Game { players: vec![] }
+        Game {
+            fsm: StateMachine::new(),
+            players: vec![],
+        }
+    }
+
+    pub fn state(&self) -> &GameFsmState {
+        self.fsm.state()
     }
 
     pub fn players(&self) -> &[Player] {
@@ -40,9 +51,32 @@ impl Game {
         }
     }
 
+    pub fn start_game(&mut self, nickname: &str) {
+        if self.is_host(nickname) {
+            self.process_event(&GameFsmInput::StartGame)
+        }
+    }
+
     fn assign_host(&mut self) {
         if !self.players.is_empty() && self.players.iter().all(|player| !player.is_host) {
             self.players.first_mut().unwrap().is_host = true;
+        }
+    }
+
+    fn is_host(&self, nickname: &str) -> bool {
+        self.players
+            .first()
+            .map(|player| player.nickname == nickname)
+            .unwrap_or(false)
+    }
+
+    fn process_event(&mut self, event: &GameFsmInput) {
+        if let Err(error) = self.fsm.consume(event) {
+            log::error!(
+                "The fsm in state {:?} can't transition with an event {:?}. Error = {error}",
+                self.fsm.state(),
+                event
+            );
         }
     }
 }
