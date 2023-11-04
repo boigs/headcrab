@@ -17,7 +17,8 @@ pub enum WsMessageOut {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum WsMessageIn {
-    StartGame,
+    #[serde(rename_all = "camelCase")]
+    StartGame { amount_of_rounds: u8 },
 }
 
 #[derive(Serialize)]
@@ -38,10 +39,10 @@ impl From<Player> for PlayerDto {
 
 pub fn state_to_string(state: GameFsmState) -> String {
     match state {
-        GameFsmState::ChooseWord => "ChooseWord".to_string(),
-        GameFsmState::EndOfGame => "EndOfGame".to_string(),
         GameFsmState::Lobby => "Lobby".to_string(),
+        GameFsmState::ChooseWord => "ChooseWord".to_string(),
+        /*GameFsmState::EndOfGame => "EndOfGame".to_string(),
         GameFsmState::PlayersWritingWords => "PlayersWritingWords".to_string(),
-        GameFsmState::WordCounting => "WordCounting".to_string(),
+        GameFsmState::WordCounting => "WordCounting".to_string(),*/
     }
 }

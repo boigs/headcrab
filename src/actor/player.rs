@@ -61,11 +61,13 @@ impl PlayerActor {
                             },
                             message => {
                                 match parse_message(message) {
-                                    Ok(WsMessageIn::StartGame) => if let Err(error) = self.game.start_game(&self.nickname).await {
+                                    Ok(WsMessageIn::StartGame {amount_of_rounds}) => if let Err(error) = self.game.start_game(&self.nickname).await {
                                         send_error_and_close(self.websocket, &error).await;
                                         return;
+                                    } else {
+                                        log::info!("Started game with amount of rounds {amount_of_rounds}");
                                     },
-                                    Err(_) => log::error!("Unprocessable message '{message}'"),
+                                    Err(err) => log::error!("Unprocessable message '{message}, error: {err}'"),
                                 }
                             },
                         },

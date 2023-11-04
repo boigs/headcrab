@@ -41,6 +41,6 @@ pub async fn send_game_state(websocket: &mut WebSocket, state: GameFsmState, pla
     }
 }
 
-pub fn parse_message(message: &str) -> Result<WsMessageIn, ()> {
-    serde_json::from_str(message).map_err(|_| ())
+pub fn parse_message(message: &str) -> Result<WsMessageIn, serde_json::Error> {
+    serde_json::from_str(message)
 }

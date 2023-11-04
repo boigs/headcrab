@@ -13,7 +13,7 @@ state_machine! {
     pub GameFsm(Lobby)
 
     Lobby(StartGame) => ChooseWord,
-    ChooseWord(WordChosen) => PlayersWritingWords,
+    /*ChooseWord(WordChosen) => PlayersWritingWords,
     PlayersWritingWords => {
         TimesUp => WordCounting,
         PlayersFinished => WordCounting
@@ -21,5 +21,5 @@ state_machine! {
     WordCounting => {
         LastRound => EndOfGame,
         NotLastRound => ChooseWord
-    },
+    },*/
 }
