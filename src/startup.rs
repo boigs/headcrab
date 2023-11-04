@@ -9,9 +9,9 @@ use std::net::TcpListener;
 use std::sync::Arc;
 
 pub fn create_web_server(
+    config: Config,
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let config = Config::get().expect("ERROR: Unable to get the Config.");
     let game_factory = Arc::new(GameFactoryActor::spawn());
 
     let router = routes::create_router(config).with_state(game_factory);
