@@ -4,17 +4,12 @@ use std::collections::HashMap;
 use crate::actor::game::client::GameClient;
 use crate::actor::game::GameActor;
 
+#[derive(Default)]
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,
 }
 
 impl GameFactory {
-    pub fn new() -> Self {
-        GameFactory {
-            game_channels: HashMap::new(),
-        }
-    }
-
     pub fn create_new_game(&mut self) -> String {
         let id = self.create_unique_game_id();
         self.game_channels.insert(id.clone(), GameActor::spawn());
@@ -47,7 +42,7 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let game_factory = GameFactory::new();
+        let game_factory = GameFactory::default();
 
         let id = game_factory.create_unique_game_id();
 

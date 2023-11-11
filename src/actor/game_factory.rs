@@ -17,7 +17,7 @@ pub struct GameFactoryActor {
 impl GameFactoryActor {
     /// Runs the GameFactory Actor in background and returns a Client to communicate with it
     pub fn spawn() -> GameFactoryClient {
-        let game_factory = GameFactory::new();
+        let game_factory = GameFactory::default();
         let (game_factory_tx, game_factory_rx): (
             Sender<GameFactoryCommand>,
             Receiver<GameFactoryCommand>,

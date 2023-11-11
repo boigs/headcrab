@@ -19,7 +19,7 @@ pub struct GameActor {
 
 impl GameActor {
     pub fn spawn() -> GameClient {
-        let game = Game::new();
+        let game = Game::default();
         let (game_tx, game_rx): (Sender<GameCommand>, Receiver<GameCommand>) = mpsc::channel(128);
         let (broadcast_tx, _): (
             broadcast::Sender<GameWideEvent>,
