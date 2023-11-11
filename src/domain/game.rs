@@ -5,19 +5,13 @@ use rust_fsm::StateMachine;
 
 use super::game_fsm::GameFsmState;
 
+#[derive(Default)]
 pub struct Game {
     fsm: StateMachine<GameFsm>,
     players: Vec<Player>,
 }
 
 impl Game {
-    pub fn new() -> Self {
-        Game {
-            fsm: StateMachine::new(),
-            players: vec![],
-        }
-    }
-
     pub fn state(&self) -> &GameFsmState {
         self.fsm.state()
     }
