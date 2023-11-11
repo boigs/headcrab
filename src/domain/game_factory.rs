@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let game_factory = GameFactory::new();
+        let game_factory = GameFactory::default();
 
         let id = game_factory.create_unique_game_id();
 

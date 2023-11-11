@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let mut game = Game::new();
+        let mut game = Game::default();
 
         let _ = game.add_player("player");
 
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn remove_player_works() {
-        let mut game = Game::new();
+        let mut game = Game::default();
 
         let _ = game.add_player("any-player");
         let _ = game.add_player("other-player");
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn remove_non_existing() {
-        let mut game = Game::new();
+        let mut game = Game::default();
 
         let removed = game.remove_player("player");
 
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn only_first_player_added_is_host() {
-        let mut game = Game::new();
+        let mut game = Game::default();
 
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn host_player_is_reelected_when_removed() {
-        let mut game = Game::new();
+        let mut game = Game::default();
 
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
