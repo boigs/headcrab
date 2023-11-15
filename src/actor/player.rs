@@ -9,6 +9,7 @@ use crate::actor::game::GameWideEvent;
 
 use crate::websocket::message::WsMessageIn;
 use crate::websocket::parse_message;
+use crate::websocket::send_chat_message;
 use crate::websocket::{send_error_and_close, send_game_state};
 
 pub struct PlayerActor {
@@ -41,6 +42,7 @@ impl PlayerActor {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     match game_wide_message {
                         Ok(GameWideEvent::GameState { state, players }) => send_game_state(&mut self.websocket, state, players).await,
+                        Ok(GameWideEvent::ChatText { text }) => send_chat_message(&mut self.websocket, &text).await,
                         Err(error) => {
                             send_error_and_close(self.websocket, &error).await;
                             return;
@@ -66,6 +68,9 @@ impl PlayerActor {
                                         return;
                                     } else {
                                         log::info!("Started game with amount of rounds {amount_of_rounds}");
+                                    },
+                                    Ok(WsMessageIn::ChatText {text}) => if self.game.send_chat_message(&text).await.is_err() {
+                                        log::info!("Could not send chat message to game {text}");
                                     },
                                     Err(err) => log::error!("Unprocessable message '{message}, error: {err}'"),
                                 }

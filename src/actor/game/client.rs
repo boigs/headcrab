@@ -76,6 +76,21 @@ impl GameClient {
             }
         }
     }
+
+    pub async fn send_chat_message(&self, text: &str) -> Result<(), String> {
+        match self
+            .game_tx
+            .send(GameCommand::AddChatMessage {
+                text: text.to_string(),
+            })
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                Err(format!("Tried to send GameCommand::AddChatMessage but GameActor is not listening. Error: {error}."))
+            }
+        }
+    }
 }
 
 pub struct GameWideEventReceiver {

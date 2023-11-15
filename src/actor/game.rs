@@ -87,6 +87,16 @@ impl GameActor {
                         return;
                     }
                 }
+                GameCommand::AddChatMessage { text } => {
+                    if self
+                        .broadcast_tx
+                        .send(GameWideEvent::ChatText { text })
+                        .is_err()
+                    {
+                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
+                        return;
+                    }
+                }
             }
         }
     }
@@ -110,6 +120,9 @@ enum GameCommand {
     StartGame {
         nickname: String,
     },
+    AddChatMessage {
+        text: String,
+    },
 }
 
 #[derive(Debug)]
@@ -125,5 +138,8 @@ pub enum GameWideEvent {
     GameState {
         state: GameFsmState,
         players: Vec<Player>,
+    },
+    ChatText {
+        text: String,
     },
 }
