@@ -41,6 +41,23 @@ pub async fn send_game_state(websocket: &mut WebSocket, state: GameFsmState, pla
     }
 }
 
+pub async fn send_chat_message(websocket: &mut WebSocket, text: &str) {
+    log::info!("Message {text}");
+
+    if websocket
+        .send(Message::Text(
+            serde_json::to_string(&WsMessageOut::ChatText {
+                text: text.to_string(),
+            })
+            .unwrap(),
+        ))
+        .await
+        .is_err()
+    {
+        log::error!("Sent ChatMessage to the browser but the WebSocket is closed.")
+    }
+}
+
 pub fn parse_message(message: &str) -> Result<WsMessageIn, serde_json::Error> {
     serde_json::from_str(message)
 }
