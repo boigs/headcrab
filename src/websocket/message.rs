@@ -13,6 +13,7 @@ pub enum WsMessageOut {
         players: Vec<PlayerDto>,
     },
     ChatMessage {
+        sender: String,
         content: String,
     },
 }

@@ -42,7 +42,7 @@ impl PlayerActor {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     match game_wide_message {
                         Ok(GameWideEvent::GameState { state, players }) => send_game_state(&mut self.websocket, state, players).await,
-                        Ok(GameWideEvent::ChatMessage { content }) => send_chat_message(&mut self.websocket, &content).await,
+                        Ok(GameWideEvent::ChatMessage { sender, content }) => send_chat_message(&mut self.websocket, &sender, &content).await,
                         Err(error) => {
                             send_error_and_close(self.websocket, &error).await;
                             return;
@@ -69,7 +69,7 @@ impl PlayerActor {
                                     } else {
                                         log::info!("Started game with amount of rounds {amount_of_rounds}");
                                     },
-                                    Ok(WsMessageIn::ChatMessage {content}) => if self.game.send_chat_message(&content).await.is_err() {
+                                    Ok(WsMessageIn::ChatMessage {content}) => if self.game.send_chat_message(&self.nickname, &content).await.is_err() {
                                         log::info!("Could not send chat message to game {content}");
                                     },
                                     Err(err) => log::error!("Unprocessable message '{message}, error: {err}'"),
