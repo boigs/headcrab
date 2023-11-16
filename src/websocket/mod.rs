@@ -41,13 +41,11 @@ pub async fn send_game_state(websocket: &mut WebSocket, state: GameFsmState, pla
     }
 }
 
-pub async fn send_chat_message(websocket: &mut WebSocket, text: &str) {
-    log::info!("Message {text}");
-
+pub async fn send_chat_message(websocket: &mut WebSocket, content: &str) {
     if websocket
         .send(Message::Text(
-            serde_json::to_string(&WsMessageOut::ChatText {
-                text: text.to_string(),
+            serde_json::to_string(&WsMessageOut::ChatMessage {
+                content: content.to_string(),
             })
             .unwrap(),
         ))
