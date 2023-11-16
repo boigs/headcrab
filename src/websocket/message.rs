@@ -12,8 +12,8 @@ pub enum WsMessageOut {
         state: String,
         players: Vec<PlayerDto>,
     },
-    ChatText {
-        text: String,
+    ChatMessage {
+        content: String,
     },
 }
 
@@ -21,9 +21,12 @@ pub enum WsMessageOut {
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
-    StartGame { amount_of_rounds: u8 },
-    #[serde(rename_all = "camelCase")]
-    ChatText { text: String },
+    StartGame {
+        amount_of_rounds: u8,
+    },
+    ChatMessage {
+        content: String,
+    },
 }
 
 #[derive(Serialize)]
