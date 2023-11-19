@@ -1,5 +1,6 @@
 pub mod client;
 
+use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
 use crate::domain::{game::Game, player::Player};
 use tokio::sync::broadcast::error::SendError;
@@ -46,9 +47,14 @@ impl GameActor {
                     response_tx,
                 } => {
                     match self.game.add_player(&nickname) {
-                        Err(_) => {
-                            if response_tx.send(GameEvent::PlayerAlreadyExists).is_err() {
-                                log::error!("Sent GameEvent::PlayerAlreadyExists to Player but the channel is closed.");
+                        Err(error) => {
+                            if response_tx
+                                .send(GameEvent::Error {
+                                    error: error.clone(),
+                                })
+                                .is_err()
+                            {
+                                log::error!("Sent GameEvent::Error {error} to Player but the channel is closed.");
                             }
                         }
                         Ok(_) => {
@@ -131,7 +137,9 @@ enum GameEvent {
     PlayerAdded {
         broadcast_rx: broadcast::Receiver<GameWideEvent>,
     },
-    PlayerAlreadyExists,
+    Error {
+        error: Error,
+    },
 }
 
 #[derive(Clone, Debug)]

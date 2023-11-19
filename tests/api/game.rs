@@ -67,9 +67,7 @@ async fn add_player_to_game_fails_when_player_already_exists() {
         .await
         .split();
 
-    assert!(receive_error(&mut rx)
-        .await
-        .contains("Player already exists"));
+    assert!(receive_error(&mut rx).await.eq("PLAYER_ALREADY_EXISTS"));
 }
 
 #[tokio::test]
@@ -160,7 +158,15 @@ async fn receive_error(
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
-                Ok(WsMessageOut::Error { message }) => message,
+                Ok(WsMessageOut::Error {
+                    r#type,
+                    title,
+                    detail,
+                }) => {
+                    assert!(!title.is_empty());
+                    assert!(!detail.is_empty());
+                    r#type
+                }
                 _ => panic!("The message was not a WsMessage::Error"),
             }
         }
@@ -188,14 +194,21 @@ struct GameCreatedResponse {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(rename_all = "camelCase", tag = "kind")]
 enum WsMessageOut {
-    Error { message: String },
-    GameState { state: String, players: Vec<Player> },
+    Error {
+        r#type: String,
+        title: String,
+        detail: String,
+    },
+    GameState {
+        state: String,
+        players: Vec<Player>,
+    },
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(rename_all = "camelCase", tag = "kind")]
 enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     StartGame { amount_of_rounds: u8 },

@@ -438,6 +438,7 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "std-logger",
+ "thiserror",
  "tokio",
  "tokio-tungstenite",
  "tower-http",

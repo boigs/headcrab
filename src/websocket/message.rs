@@ -3,10 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::domain::{game_fsm::GameFsmState, player::Player};
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(rename_all = "camelCase", tag = "kind")]
 pub enum WsMessageOut {
     Error {
-        message: String,
+        r#type: String,
+        title: String,
+        detail: String,
     },
     GameState {
         state: String,
@@ -19,7 +21,7 @@ pub enum WsMessageOut {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(rename_all = "camelCase", tag = "kind")]
 pub enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     StartGame {

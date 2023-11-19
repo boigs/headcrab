@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use crate::actor::game::client::GameClient;
 use crate::actor::game::GameActor;
 
+use crate::domain::error::Error;
+
 #[derive(Default)]
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,
@@ -17,8 +19,11 @@ impl GameFactory {
         id
     }
 
-    pub fn get_game(&self, game_id: &str) -> Option<&GameClient> {
-        self.game_channels.get(game_id)
+    pub fn get_game(&self, game_id: &str) -> Result<&GameClient, Error> {
+        match self.game_channels.get(game_id) {
+            Some(game) => Ok(game),
+            None => Err(Error::GameDoesNotExist(game_id.to_string())),
+        }
     }
 
     fn create_unique_game_id(&self) -> String {
