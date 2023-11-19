@@ -2,6 +2,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
 use crate::actor::game::client::GameClient;
+use crate::domain::error::Error;
 
 use super::{GameFactoryCommand, GameFactoryResponse};
 
@@ -40,7 +41,7 @@ impl GameFactoryClient {
         }
     }
 
-    pub async fn get_game(&self, game_id: &str) -> Result<GameClient, String> {
+    pub async fn get_game(&self, game_id: &str) -> Result<GameClient, Error> {
         let (tx, rx): (
             OneshotSender<GameFactoryResponse>,
             OneshotReceiver<GameFactoryResponse>,
@@ -55,23 +56,27 @@ impl GameFactoryClient {
             .await
             .is_err()
         {
-            return Err("The GameFactory channel is closed.".to_string());
+            return Err(Error::Internal(
+                "The GameFactory channel is closed.".to_string(),
+            ));
         }
 
         match rx.await {
             Ok(GameFactoryResponse::GameActor { game }) => Ok(game),
-            Ok(GameFactoryResponse::GameNotFound) => Err("Game not found.".to_string()),
+            Ok(GameFactoryResponse::Error { error }) => Err(error),
             Ok(unexpected_response) => {
                 log::error!(
                     "Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
                 );
-                Err(format!(
+                Err(Error::Internal(format!(
                     "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
-                ))
+                )))
             }
             Err(error) => {
                 log::error!("The Game channel is closed. Error: {error}.");
-                Err(format!("The Game channel is closed. Error: {error}."))
+                Err(Error::Internal(format!(
+                    "The Game channel is closed. Error: {error}."
+                )))
             }
         }
     }

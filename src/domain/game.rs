@@ -1,6 +1,7 @@
 use crate::domain::game_fsm::{GameFsm, GameFsmInput};
 use crate::domain::player::Player;
 
+use crate::domain::error::Error;
 use rust_fsm::StateMachine;
 
 use super::game_fsm::GameFsmState;
@@ -20,13 +21,13 @@ impl Game {
         &self.players
     }
 
-    pub fn add_player(&mut self, nickname: &str) -> Result<(), ()> {
+    pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
         if self
             .players
             .iter()
             .any(|player| nickname == player.nickname)
         {
-            Err(())
+            Err(Error::PlayerAlreadyExists(nickname.to_string()))
         } else {
             let new_player = Player::new(nickname);
             self.players.push(new_player);

@@ -23,6 +23,7 @@ log = "0.4.20"
 std-logger = "0.5.2"
 rust-fsm = "0.6.1"
 serde-aux = "4.2.0"
+thiserror = "1.0.50"
 
 [dev-dependencies]
 futures-util = "0.3.28"

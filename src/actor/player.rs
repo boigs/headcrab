@@ -32,7 +32,7 @@ impl PlayerActor {
                 .start()
                 .await
             }
-            Err(error) => send_error_and_close(websocket, &error).await,
+            Err(error) => send_error_and_close(websocket, error).await,
         }
     }
 
@@ -44,7 +44,7 @@ impl PlayerActor {
                         Ok(GameWideEvent::GameState { state, players }) => send_game_state(&mut self.websocket, state, players).await,
                         Ok(GameWideEvent::ChatMessage { sender, content }) => send_chat_message(&mut self.websocket, &sender, &content).await,
                         Err(error) => {
-                            send_error_and_close(self.websocket, &error).await;
+                            send_error_and_close(self.websocket, error).await;
                             return;
                         },
                     }
@@ -64,7 +64,7 @@ impl PlayerActor {
                             message => {
                                 match parse_message(message) {
                                     Ok(WsMessageIn::StartGame {amount_of_rounds}) => if let Err(error) = self.game.start_game(&self.nickname).await {
-                                        send_error_and_close(self.websocket, &error).await;
+                                        send_error_and_close(self.websocket, error).await;
                                         return;
                                     } else {
                                         log::info!("Started game with amount of rounds {amount_of_rounds}");

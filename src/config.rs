@@ -2,6 +2,8 @@ use config::ConfigError;
 use serde::Deserialize;
 use serde_aux::prelude::deserialize_number_from_string;
 
+use crate::domain::error::Error;
+
 #[derive(Deserialize)]
 pub struct Config {
     pub application: ApplicationSettings,
@@ -58,15 +60,15 @@ impl Environment {
 }
 
 impl TryFrom<String> for Environment {
-    type Error = String;
+    type Error = crate::domain::error::Error;
 
     fn try_from(string: String) -> Result<Self, Self::Error> {
         match string.to_lowercase().as_str() {
             DEV => Ok(Self::Dev),
             PROD => Ok(Self::Prod),
-            other => Err(format!(
+            other => Err(Error::Internal(format!(
                 "{other} is not a supported environment. Use either `{DEV}` or `{PROD}`.",
-            )),
+            ))),
         }
     }
 }

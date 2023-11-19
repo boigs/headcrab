@@ -5,6 +5,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot::Sender as OneshotSender;
 
 use crate::actor::game::client::GameClient;
+use crate::domain::error::Error;
 use crate::domain::game_factory::GameFactory;
 
 use self::client::GameFactoryClient;
@@ -47,7 +48,7 @@ impl GameFactoryActor {
                     response_channel,
                 } => {
                     let response = self.game_factory.get_game(&game_id).map_or_else(
-                        || GameFactoryResponse::GameNotFound,
+                        |error| GameFactoryResponse::Error { error },
                         |game| GameFactoryResponse::GameActor { game: game.clone() },
                     );
                     response_channel.send(response).unwrap();
@@ -73,7 +74,7 @@ enum GameFactoryCommand {
 enum GameFactoryResponse {
     GameCreated { game_id: String },
     GameActor { game: GameClient },
-    GameNotFound,
+    Error { error: Error },
 }
 
 impl Display for GameFactoryResponse {
@@ -85,7 +86,7 @@ impl Display for GameFactoryResponse {
                 GameFactoryResponse::GameCreated { game_id } =>
                     format!("GameCreated(game_id: {game_id})"),
                 GameFactoryResponse::GameActor { game: _ } => "GameActor".to_string(),
-                GameFactoryResponse::GameNotFound => "GameNotFound".to_string(),
+                GameFactoryResponse::Error { error } => format!("Error '{error}'").to_string(),
             }
         )
     }
