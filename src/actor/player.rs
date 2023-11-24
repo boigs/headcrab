@@ -7,10 +7,13 @@ use crate::actor::game::client::GameClient;
 use crate::actor::game::client::GameWideEventReceiver;
 use crate::actor::game::GameWideEvent;
 
+use crate::domain::error::Error;
+use crate::websocket::message::state_to_string;
 use crate::websocket::message::WsMessageIn;
+use crate::websocket::message::WsMessageOut;
 use crate::websocket::parse_message;
-use crate::websocket::send_chat_message;
-use crate::websocket::{send_error_and_close, send_game_state};
+use crate::websocket::send_error_and_close;
+use crate::websocket::send_message;
 
 pub struct PlayerActor {
     nickname: String,
@@ -41,10 +44,22 @@ impl PlayerActor {
             select! {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     match game_wide_message {
-                        Ok(GameWideEvent::GameState { state, players }) => send_game_state(&mut self.websocket, state, players).await,
-                        Ok(GameWideEvent::ChatMessage { sender, content }) => send_chat_message(&mut self.websocket, &sender, &content).await,
+                        Ok(GameWideEvent::GameState { state, players }) => if let Err(error) = send_message(&mut self.websocket, &WsMessageOut::GameState {
+                            state: state_to_string(state),
+                            players: players.into_iter().map(|player| player.into()).collect(),
+                        }).await {
+                            self.disconnect_player(error).await;
+                            return;
+                        },
+                        Ok(GameWideEvent::ChatMessage { sender, content }) => if let Err(error) = send_message(&mut self.websocket, &WsMessageOut::ChatMessage {
+                            sender: sender.to_string(),
+                            content: content.to_string(),
+                        }).await {
+                            self.disconnect_player(error).await;
+                            return;
+                        },
                         Err(error) => {
-                            send_error_and_close(self.websocket, error).await;
+                            self.disconnect_player(error).await;
                             return;
                         },
                     }
@@ -53,26 +68,24 @@ impl PlayerActor {
                     match timeout_result {
                         Ok(Some(Ok(Message::Text(txt)))) => match txt.as_str() {
                             "ping" => {
-                                if self.websocket.send(Message::Text("pong".to_string())).await.is_err() {
-                                    log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
-                                    if let Err(error) = self.game.remove_player(&self.nickname).await {
-                                        log::error!("{error}");
-                                    };
+                                if let Err(error) = send_message(&mut self.websocket, "pong").await {
+                                    self.disconnect_player(error).await;
                                     return;
                                 }
                             },
                             message => {
                                 match parse_message(message) {
                                     Ok(WsMessageIn::StartGame {amount_of_rounds}) => if let Err(error) = self.game.start_game(&self.nickname).await {
-                                        send_error_and_close(self.websocket, error).await;
+                                        self.disconnect_player(error).await;
                                         return;
                                     } else {
                                         log::info!("Started game with amount of rounds {amount_of_rounds}");
                                     },
-                                    Ok(WsMessageIn::ChatMessage {content}) => if self.game.send_chat_message(&self.nickname, &content).await.is_err() {
-                                        log::info!("Could not send chat message to game {content}");
+                                    Ok(WsMessageIn::ChatMessage {content}) => if let Err(error) = self.game.send_chat_message(&self.nickname, &content).await {
+                                        self.disconnect_player(error).await;
+                                        return;
                                     },
-                                    Err(err) => log::error!("Unprocessable message '{message}, error: {err}'"),
+                                    Err(_) => {}
                                 }
                             },
                         },
@@ -82,9 +95,7 @@ impl PlayerActor {
                         Err(_) // timeout was met
                         => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
-                            if let Err(error) = self.game.remove_player(&self.nickname).await {
-                                log::error!("{error}");
-                            };
+                            self.disconnect_player(Error::WebsocketClosed("Lost connection with the player's client.".to_string())).await;
                             return;
                         },
                         Ok(_) => log::warn!("Unexpected type of message received. How did this happen?"),
@@ -92,5 +103,11 @@ impl PlayerActor {
                 },
             }
         }
+    }
+
+    async fn disconnect_player(self, error: Error) {
+        // We can't recover from an error when removing the player
+        let _ = self.game.remove_player(&self.nickname).await;
+        send_error_and_close(self.websocket, error).await;
     }
 }

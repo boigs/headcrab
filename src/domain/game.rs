@@ -53,22 +53,25 @@ impl Game {
     }
 
     fn assign_host(&mut self) {
-        if !self.players.is_empty() && self.players.iter().all(|player| !player.is_host) {
-            self.players.first_mut().unwrap().is_host = true;
+        if self.players.iter().all(|player| !player.is_host) {
+            if let Some(first_player) = self.players.first_mut() {
+                first_player.is_host = true;
+            }
         }
     }
 
     fn is_host(&self, nickname: &str) -> bool {
         self.players
-            .first()
-            .map(|player| player.nickname == nickname)
+            .iter()
+            .find(|player| player.nickname == nickname)
+            .map(|player| player.is_host)
             .unwrap_or(false)
     }
 
     fn process_event(&mut self, event: &GameFsmInput) {
         if let Err(error) = self.fsm.consume(event) {
             log::error!(
-                "The fsm in state {:?} can't transition with an event {:?}. Error = {error}",
+                "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
                 self.fsm.state(),
                 event
             );
@@ -99,7 +102,9 @@ mod tests {
 
         assert_eq!(game.players().len(), 2);
 
-        let removed = game.remove_player("any-player").unwrap();
+        let removed = game
+            .remove_player("any-player")
+            .expect("No player has been removed.");
 
         assert_eq!(game.players().len(), 1);
         assert_eq!(game.players()[0].nickname, "other-player");

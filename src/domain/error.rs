@@ -8,4 +8,13 @@ pub enum Error {
     PlayerAlreadyExists(String),
     #[error("Internal Error '{0}'")]
     Internal(String),
+    #[error("The websocket with the player is closed '{0}'")]
+    WebsocketClosed(String),
+}
+
+impl Error {
+    pub fn log_and_create_internal(message: &str) -> Error {
+        log::error!("{message}");
+        Error::Internal(message.to_string())
+    }
 }

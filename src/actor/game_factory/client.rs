@@ -11,7 +11,7 @@ pub struct GameFactoryClient {
 }
 
 impl GameFactoryClient {
-    pub async fn create_game(&self) -> Result<String, String> {
+    pub async fn create_game(&self) -> Result<String, Error> {
         let (tx, rx): (
             OneshotSender<GameFactoryResponse>,
             OneshotReceiver<GameFactoryResponse>,
@@ -22,22 +22,20 @@ impl GameFactoryClient {
                 response_channel: tx,
             })
             .await
-            .unwrap();
+            .map_err(|error| {
+                Error::log_and_create_internal(&format!(
+                    "The GameFactory is not alive. Can't create Game. Error: '{error}'"
+                ))
+            })?;
 
         match rx.await {
             Ok(GameFactoryResponse::GameCreated { game_id }) => Ok(game_id),
-            Ok(unexpected_response) => {
-                log::error!(
-                    "Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
-                );
-                Err(format!(
-                    "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
-                ))
-            }
-            Err(error) => {
-                log::error!("The Game channel is closed. Error: {error}.");
-                Err(format!("The Game channel is closed. Error: {error}."))
-            }
+            Ok(unexpected_response) => Err(Error::log_and_create_internal(&format!(
+                "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
+            ))),
+            Err(error) => Err(Error::log_and_create_internal(&format!(
+                "The GameFactory channel is closed. Error: {error}."
+            ))),
         }
     }
 
@@ -47,37 +45,27 @@ impl GameFactoryClient {
             OneshotReceiver<GameFactoryResponse>,
         ) = oneshot::channel();
 
-        if self
-            .game_factory_tx
+        self.game_factory_tx
             .send(GameFactoryCommand::GetGameActor {
                 game_id: game_id.to_string(),
                 response_channel: tx,
             })
             .await
-            .is_err()
-        {
-            return Err(Error::Internal(
-                "The GameFactory channel is closed.".to_string(),
-            ));
-        }
+            .map_err(|error| {
+                Error::log_and_create_internal(&format!(
+                    "The GameFactory channel is closed. Error: '{error}'."
+                ))
+            })?;
 
         match rx.await {
             Ok(GameFactoryResponse::GameActor { game }) => Ok(game),
             Ok(GameFactoryResponse::Error { error }) => Err(error),
-            Ok(unexpected_response) => {
-                log::error!(
-                    "Received an unexpected GameFactoryResponse. Response: {unexpected_response}.",
-                );
-                Err(Error::Internal(format!(
-                    "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
-                )))
-            }
-            Err(error) => {
-                log::error!("The Game channel is closed. Error: {error}.");
-                Err(Error::Internal(format!(
-                    "The Game channel is closed. Error: {error}."
-                )))
-            }
+            Ok(unexpected_response) => Err(Error::log_and_create_internal(&format!(
+                "Received an unexpected GameFactoryResponse. Error {unexpected_response}."
+            ))),
+            Err(error) => Err(Error::log_and_create_internal(&format!(
+                "The GameFactory channel is closed. Error: {error}."
+            ))),
         }
     }
 }

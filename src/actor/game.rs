@@ -54,7 +54,7 @@ impl GameActor {
                                 })
                                 .is_err()
                             {
-                                log::error!("Sent GameEvent::Error {error} to Player but the channel is closed.");
+                                log::error!("Sent GameEvent::Error to Player but the response channel is closed.");
                             }
                         }
                         Ok(_) => {
@@ -64,42 +64,44 @@ impl GameActor {
                                 })
                                 .is_err()
                             {
-                                log::error!("Sent GameEvent::PlayerAdded to Player but the channel is closed. Removing the Player.");
+                                log::error!("Sent GameEvent::PlayerAdded to Player but the response channel is closed. Removing the Player.");
                                 self.game.remove_player(&nickname);
-                            } else if self.send_game_state().is_err() {
-                                log::error!("Sent GameWideEvent::GameState to Broadcast but the channel is closed. Stopping the Game.");
+                                continue;
+                            }
+
+                            if let Err(error) = self.send_game_state() {
+                                log::error!("Sent GameWideEvent::GameState to Broadcast but the response channel is closed. Stopping the Game. Error: {error}");
                                 return;
                             };
                         }
                     };
                 }
                 GameCommand::RemovePlayer { nickname } => {
-                    self.game.remove_player(&nickname);
+                    let _ = self.game.remove_player(&nickname);
                     if self.game.players().is_empty() {
                         log::info!(
                             "Removed Player from the Game, no more Players, stopping the Game."
                         );
                         return;
                     }
-                    if self.send_game_state().is_err() {
-                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
+                    if let Err(error) = self.send_game_state() {
+                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
                         return;
                     }
                 }
                 GameCommand::StartGame { nickname } => {
                     self.game.start_game(&nickname);
-                    if self.send_game_state().is_err() {
-                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
+                    if let Err(error) = self.send_game_state() {
+                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
                         return;
                     }
                 }
                 GameCommand::AddChatMessage { sender, content } => {
-                    if self
+                    if let Err(error) = self
                         .broadcast_tx
                         .send(GameWideEvent::ChatMessage { sender, content })
-                        .is_err()
                     {
-                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game.");
+                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
                         return;
                     }
                 }
