@@ -12,5 +12,8 @@ async fn health_check_works() {
         .expect("Failed to execute request.");
 
     assert!(response.status().is_success());
-    assert_eq!("healthy".to_string(), response.text().await.unwrap());
+    assert_eq!(
+        "healthy".to_string(),
+        response.text().await.expect("The response is not text.")
+    );
 }

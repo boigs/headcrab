@@ -1,63 +1,43 @@
 pub mod message;
 
 use axum::extract::ws::{Message, WebSocket};
+use serde::Serialize;
 
 use crate::domain::error::Error;
-use crate::domain::{game_fsm::GameFsmState, player::Player};
 use message::WsMessageOut;
 
-use self::message::{state_to_string, WsMessageIn};
+use self::message::WsMessageIn;
 
 pub async fn send_error_and_close(mut websocket: WebSocket, error: Error) {
-    if websocket
-        .send(Message::Text(
-            // TODO: send a proper error
-            serde_json::to_string(&error_to_ws_error(error.clone())).unwrap(),
-        ))
-        .await
-        .is_err()
-    {
-        log::error!("Sent Error '{error}' to the browser but the WebSocket is closed.")
-    }
-    if websocket.close().await.is_err() {
-        log::error!("Could not close WebSocket after sending an error.")
+    // We are closing the websocket, ignore if there's any error sending the last message
+    let _ = send_message(&mut websocket, &error_to_ws_error(error.clone())).await;
+    if let Err(error) = websocket.close().await {
+        log::error!("Could not close WebSocket after sending an error. Error: '{error}'.")
     }
 }
 
-pub async fn send_game_state(websocket: &mut WebSocket, state: GameFsmState, players: Vec<Player>) {
-    if websocket
-        .send(Message::Text(
-            serde_json::to_string(&WsMessageOut::GameState {
-                state: state_to_string(state),
-                players: players.into_iter().map(|player| player.into()).collect(),
-            })
-            .unwrap(),
+pub fn parse_message(message: &str) -> Result<WsMessageIn, Error> {
+    serde_json::from_str(message).map_err(|error| {
+        Error::log_and_create_internal(&format!(
+            "Unprocessable message. Message> '{message}', Error: '{error}'."
         ))
-        .await
-        .is_err()
-    {
-        log::error!("Sent GameState to the browser but the WebSocket is closed.")
-    }
+    })
 }
 
-pub async fn send_chat_message(websocket: &mut WebSocket, sender: &str, content: &str) {
-    if websocket
-        .send(Message::Text(
-            serde_json::to_string(&WsMessageOut::ChatMessage {
-                sender: sender.to_string(),
-                content: content.to_string(),
-            })
-            .unwrap(),
+pub async fn send_message<T>(websocket: &mut WebSocket, value: &T) -> Result<(), Error>
+where
+    T: ?Sized + Serialize,
+{
+    let message = serde_json::to_string(value).map_err(|error| {
+        Error::log_and_create_internal(&format!(
+            "Could not serialize the message. Error: '{error}'."
         ))
-        .await
-        .is_err()
-    {
-        log::error!("Sent ChatMessage to the browser but the WebSocket is closed.")
-    }
-}
+    })?;
 
-pub fn parse_message(message: &str) -> Result<WsMessageIn, serde_json::Error> {
-    serde_json::from_str(message)
+    websocket
+        .send(Message::Text(message))
+        .await
+        .map_err(|error| Error::WebsocketClosed(error.to_string()))
 }
 
 fn error_to_ws_error(error: Error) -> WsMessageOut {
@@ -75,6 +55,11 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
         Error::Internal(_) => WsMessageOut::Error {
             r#type: "INTERNAL_SERVER".to_string(),
             title: "Internal Server error".to_string(),
+            detail: error.to_string(),
+        },
+        Error::WebsocketClosed(_) => WsMessageOut::Error {
+            r#type: "WEBSOCKET_CLOSED".to_string(),
+            title: "The player websocket is closed".to_string(),
             detail: error.to_string(),
         },
     }

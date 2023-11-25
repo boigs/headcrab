@@ -16,7 +16,12 @@ pub fn create_web_server(
 
     let router = routes::create_router(config).with_state(game_factory);
 
-    log::info!("Listening on {}", listener.local_addr().unwrap());
+    log::info!(
+        "Listening on {}",
+        listener
+            .local_addr()
+            .expect("Can't get the local address of the listener.")
+    );
     let server = axum::Server::from_tcp(listener)?.serve(router.into_make_service());
     Ok(server)
 }

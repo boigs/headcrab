@@ -41,7 +41,11 @@ impl GameFactoryActor {
                 GameFactoryCommand::CreateGame { response_channel } => {
                     let game_id = self.game_factory.create_new_game();
                     let game_created = GameFactoryResponse::GameCreated { game_id };
-                    response_channel.send(game_created).unwrap();
+                    if let Err(error) = response_channel.send(game_created) {
+                        log::error!(
+                            "The GameFactory response channel is closed. Error: '{error}'."
+                        );
+                    }
                 }
                 GameFactoryCommand::GetGameActor {
                     game_id,
@@ -51,7 +55,11 @@ impl GameFactoryActor {
                         |error| GameFactoryResponse::Error { error },
                         |game| GameFactoryResponse::GameActor { game: game.clone() },
                     );
-                    response_channel.send(response).unwrap();
+                    if let Err(error) = response_channel.send(response) {
+                        log::error!(
+                            "The GameFactory response channel is closed. Error: '{error}'."
+                        );
+                    }
                 }
             }
         }

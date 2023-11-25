@@ -66,7 +66,7 @@ impl TryFrom<String> for Environment {
         match string.to_lowercase().as_str() {
             DEV => Ok(Self::Dev),
             PROD => Ok(Self::Prod),
-            other => Err(Error::Internal(format!(
+            other => Err(Error::log_and_create_internal(&format!(
                 "{other} is not a supported environment. Use either `{DEV}` or `{PROD}`.",
             ))),
         }
