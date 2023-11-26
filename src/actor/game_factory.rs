@@ -13,6 +13,7 @@ use self::client::GameFactoryClient;
 pub struct GameFactoryActor {
     game_factory: GameFactory,
     game_factory_rx: Receiver<GameFactoryCommand>,
+    game_factory_tx: Sender<GameFactoryCommand>,
 }
 
 impl GameFactoryActor {
@@ -28,6 +29,7 @@ impl GameFactoryActor {
             GameFactoryActor {
                 game_factory,
                 game_factory_rx,
+                game_factory_tx: game_factory_tx.clone(),
             }
             .start(),
         );
@@ -39,13 +41,18 @@ impl GameFactoryActor {
         while let Some(message) = self.game_factory_rx.recv().await {
             match message {
                 GameFactoryCommand::CreateGame { response_channel } => {
-                    let game_id = self.game_factory.create_new_game();
+                    let game_id = self.game_factory.create_new_game(GameFactoryClient {
+                        game_factory_tx: self.game_factory_tx.clone(),
+                    });
                     let game_created = GameFactoryResponse::GameCreated { game_id };
                     if let Err(error) = response_channel.send(game_created) {
                         log::error!(
                             "The GameFactory response channel is closed. Error: '{error}'."
                         );
                     }
+                }
+                GameFactoryCommand::RemoveGame { game_id } => {
+                    let _ = self.game_factory.remove_game(&game_id);
                 }
                 GameFactoryCommand::GetGameActor {
                     game_id,
@@ -70,6 +77,9 @@ impl GameFactoryActor {
 enum GameFactoryCommand {
     CreateGame {
         response_channel: OneshotSender<GameFactoryResponse>,
+    },
+    RemoveGame {
+        game_id: String,
     },
     GetGameActor {
         game_id: String,

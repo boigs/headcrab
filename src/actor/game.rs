@@ -12,15 +12,18 @@ use tokio::sync::{
 
 use self::client::GameClient;
 
+use super::game_factory::client::GameFactoryClient;
+
 pub struct GameActor {
     game: Game,
     game_rx: Receiver<GameCommand>,
     broadcast_tx: broadcast::Sender<GameWideEvent>,
+    game_factory: GameFactoryClient,
 }
 
 impl GameActor {
-    pub fn spawn() -> GameClient {
-        let game = Game::default();
+    pub fn spawn(id: &str, game_factory: GameFactoryClient) -> GameClient {
+        let game = Game::new(id);
         let (game_tx, game_rx): (Sender<GameCommand>, Receiver<GameCommand>) = mpsc::channel(128);
         let (broadcast_tx, _): (
             broadcast::Sender<GameWideEvent>,
@@ -32,6 +35,7 @@ impl GameActor {
                 game,
                 game_rx,
                 broadcast_tx,
+                game_factory,
             }
             .start(),
         );
@@ -71,7 +75,7 @@ impl GameActor {
 
                             if let Err(error) = self.send_game_state() {
                                 log::error!("Sent GameWideEvent::GameState to Broadcast but the response channel is closed. Stopping the Game. Error: {error}");
-                                return;
+                                return self.stop_game().await;
                             };
                         }
                     };
@@ -82,18 +86,18 @@ impl GameActor {
                         log::info!(
                             "Removed Player from the Game, no more Players, stopping the Game."
                         );
-                        return;
+                        return self.stop_game().await;
                     }
                     if let Err(error) = self.send_game_state() {
                         log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
-                        return;
+                        return self.stop_game().await;
                     }
                 }
                 GameCommand::StartGame { nickname } => {
                     self.game.start_game(&nickname);
                     if let Err(error) = self.send_game_state() {
                         log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
-                        return;
+                        return self.stop_game().await;
                     }
                 }
                 GameCommand::AddChatMessage { sender, content } => {
@@ -102,7 +106,7 @@ impl GameActor {
                         .send(GameWideEvent::ChatMessage { sender, content })
                     {
                         log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
-                        return;
+                        return self.stop_game().await;
                     }
                 }
             }
@@ -114,6 +118,13 @@ impl GameActor {
             state: self.game.state().clone(),
             players: Vec::from_iter(self.game.players().iter().map(|player| (*player).clone())),
         })
+    }
+
+    async fn stop_game(self) {
+        let game_id = self.game.id();
+        if let Err(error) = self.game_factory.remove_game(&game_id).await {
+            log::error!("The GameFactory channel is closed, can't remove the Game. GameId: '{game_id}', Error: '{error}'.");
+        }
     }
 }
 

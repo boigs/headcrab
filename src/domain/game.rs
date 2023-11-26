@@ -6,13 +6,25 @@ use rust_fsm::StateMachine;
 
 use super::game_fsm::GameFsmState;
 
-#[derive(Default)]
 pub struct Game {
+    id: String,
     fsm: StateMachine<GameFsm>,
     players: Vec<Player>,
 }
 
 impl Game {
+    pub fn new(id: &str) -> Self {
+        Self {
+            id: id.to_string(),
+            fsm: StateMachine::default(),
+            players: Vec::default(),
+        }
+    }
+
+    pub fn id(&self) -> String {
+        self.id.clone()
+    }
+
     pub fn state(&self) -> &GameFsmState {
         self.fsm.state()
     }
@@ -85,7 +97,7 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let mut game = Game::default();
+        let mut game = Game::new("id");
 
         let _ = game.add_player("player");
 
@@ -95,7 +107,7 @@ mod tests {
 
     #[test]
     fn remove_player_works() {
-        let mut game = Game::default();
+        let mut game = Game::new("id");
 
         let _ = game.add_player("any-player");
         let _ = game.add_player("other-player");
@@ -113,7 +125,7 @@ mod tests {
 
     #[test]
     fn remove_non_existing() {
-        let mut game = Game::default();
+        let mut game = Game::new("id");
 
         let removed = game.remove_player("player");
 
@@ -122,7 +134,7 @@ mod tests {
 
     #[test]
     fn only_first_player_added_is_host() {
-        let mut game = Game::default();
+        let mut game = Game::new("id");
 
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
@@ -133,7 +145,7 @@ mod tests {
 
     #[test]
     fn host_player_is_reelected_when_removed() {
-        let mut game = Game::default();
+        let mut game = Game::new("id");
 
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
