@@ -12,7 +12,7 @@ use tokio::sync::{
 
 use self::client::GameClient;
 
-use super::game_factory::client::GameFactoryClient;
+use crate::actor::game_factory::client::GameFactoryClient;
 
 pub struct GameActor {
     game: Game,
