@@ -21,8 +21,8 @@ impl Game {
         }
     }
 
-    pub fn id(&self) -> String {
-        self.id.clone()
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn state(&self) -> &GameFsmState {

@@ -122,7 +122,7 @@ impl GameActor {
 
     async fn stop_game(self) {
         let game_id = self.game.id();
-        if let Err(error) = self.game_factory.remove_game(&game_id).await {
+        if let Err(error) = self.game_factory.remove_game(game_id).await {
             log::error!("The GameFactory channel is closed, can't remove the Game. GameId: '{game_id}', Error: '{error}'.");
         }
     }
