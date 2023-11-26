@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::actor::game::client::GameClient;
 use crate::actor::game::GameActor;
 
+use crate::actor::game_factory::client::GameFactoryClient;
 use crate::domain::error::Error;
 
 #[derive(Default)]
@@ -12,11 +13,16 @@ pub struct GameFactory {
 }
 
 impl GameFactory {
-    pub fn create_new_game(&mut self) -> String {
+    pub fn create_new_game(&mut self, game_factory: GameFactoryClient) -> String {
         let id = self.create_unique_game_id();
-        self.game_channels.insert(id.clone(), GameActor::spawn());
+        self.game_channels
+            .insert(id.clone(), GameActor::spawn(&id, game_factory));
 
         id
+    }
+
+    pub fn remove_game(&mut self, game_id: &str) -> Option<GameClient> {
+        self.game_channels.remove(game_id)
     }
 
     pub fn get_game(&self, game_id: &str) -> Result<&GameClient, Error> {

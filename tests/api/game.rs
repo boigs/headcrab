@@ -94,6 +94,27 @@ async fn game_can_be_started() {
     assert_eq!(receive_game_sate(&mut rx).await.state, "ChooseWord");
 }
 
+#[tokio::test]
+async fn game_is_removed_when_all_players_leave() {
+    let base_address = spawn_app();
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&base_address, client).await.id;
+    let nickname = "player1";
+    let (tx, rx) = open_game_websocket(&base_address, &game_id, nickname)
+        .await
+        .split();
+    // Drop the references to the websocket so that it gets closed and the server removes the player from the game
+    drop(tx);
+    drop(rx);
+
+    let nickname = "player2";
+    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+        .await
+        .split();
+    assert!(receive_error(&mut rx).await.eq("GAME_DOES_NOT_EXIST"));
+}
+
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
     let response = client
         .post(format!("http://{base_address}/game"))

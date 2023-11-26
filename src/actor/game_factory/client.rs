@@ -39,6 +39,19 @@ impl GameFactoryClient {
         }
     }
 
+    pub async fn remove_game(&self, game_id: &str) -> Result<(), Error> {
+        self.game_factory_tx
+            .send(GameFactoryCommand::RemoveGame {
+                game_id: game_id.to_string(),
+            })
+            .await
+            .map_err(|error| {
+                Error::log_and_create_internal(&format!(
+                    "The GameFactory channel is closed. Error: '{error}'."
+                ))
+            })
+    }
+
     pub async fn get_game(&self, game_id: &str) -> Result<GameClient, Error> {
         let (tx, rx): (
             OneshotSender<GameFactoryResponse>,
