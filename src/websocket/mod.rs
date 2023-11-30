@@ -33,9 +33,12 @@ where
             "Could not serialize the message. Error: '{error}'."
         ))
     })?;
+    send_message_string(websocket, &message).await
+}
 
+pub async fn send_message_string(websocket: &mut WebSocket, value: &str) -> Result<(), Error> {
     websocket
-        .send(Message::Text(message))
+        .send(Message::Text(value.to_string()))
         .await
         .map_err(|error| Error::WebsocketClosed(error.to_string()))
 }

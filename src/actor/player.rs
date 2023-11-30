@@ -14,6 +14,7 @@ use crate::websocket::message::WsMessageOut;
 use crate::websocket::parse_message;
 use crate::websocket::send_error_and_close;
 use crate::websocket::send_message;
+use crate::websocket::send_message_string;
 
 pub struct PlayerActor {
     nickname: String,
@@ -69,7 +70,7 @@ impl PlayerActor {
                     match timeout_result {
                         Ok(Some(Ok(Message::Text(txt)))) => match txt.as_str() {
                             "ping" => {
-                                if let Err(error) = send_message(&mut self.websocket, "pong").await {
+                                if let Err(error) = send_message_string(&mut self.websocket, "pong").await {
                                     self.disconnect_player(error).await;
                                     return;
                                 }
