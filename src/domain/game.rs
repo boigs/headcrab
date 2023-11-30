@@ -2,8 +2,8 @@ use crate::domain::game_fsm::{GameFsm, GameFsmInput};
 use crate::domain::player::Player;
 
 use crate::domain::error::Error;
-use crate::domain::round::Round;
 use crate::domain::game_fsm::GameFsmState;
+use crate::domain::round::Round;
 
 use rust_fsm::StateMachine;
 
@@ -69,7 +69,10 @@ impl Game {
         if self.is_host(nickname) {
             self.process_event(&GameFsmInput::StartGame)
         } else {
-            Err(Error::CommandNotAllowed(nickname.to_string(), "start_game".to_string()))
+            Err(Error::CommandNotAllowed(
+                nickname.to_string(),
+                "start_game".to_string(),
+            ))
         }
     }
 
@@ -91,21 +94,19 @@ impl Game {
 
     fn process_event(&mut self, event: &GameFsmInput) -> Result<(), Error> {
         match self.fsm.consume(event) {
-            Ok(_) => {
-                match self.fsm.state() {
-                    GameFsmState::CreatingNewRound => {
-                        self.start_new_round();
-                        self.process_event(&GameFsmInput::StartRound)
-                    },
-                    GameFsmState::PlayersWritingWords => Ok(()),
-                    GameFsmState::Lobby => Ok(()),
+            Ok(_) => match self.fsm.state() {
+                GameFsmState::CreatingNewRound => {
+                    self.start_new_round();
+                    self.process_event(&GameFsmInput::StartRound)
                 }
+                GameFsmState::PlayersWritingWords => Ok(()),
+                GameFsmState::Lobby => Ok(()),
             },
-            Err(error) => {
-                Err(Error::log_and_create_internal(&format!("The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
+            Err(error) => Err(Error::log_and_create_internal(&format!(
+                "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
                 self.fsm.state(),
-                event)))
-            },
+                event
+            ))),
         }
     }
 
@@ -192,7 +193,7 @@ mod tests {
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
 
-        assert!(game.start_game("first_player").is_ok());        
+        assert!(game.start_game("first_player").is_ok());
     }
 
     #[test]
@@ -202,7 +203,7 @@ mod tests {
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
 
-        assert!(game.start_game("second_player").is_err());    
+        assert!(game.start_game("second_player").is_err());
     }
 
     #[test]
@@ -212,14 +213,14 @@ mod tests {
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
 
-        assert!(game.start_game("second_player").is_err());    
+        assert!(game.start_game("second_player").is_err());
     }
 
     #[test]
     fn game_starts_in_lobby() {
         let game = Game::new("id");
 
-        assert_eq!(game.state(), &GameFsmState::Lobby);  
+        assert_eq!(game.state(), &GameFsmState::Lobby);
     }
 
     #[test]

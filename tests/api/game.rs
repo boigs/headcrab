@@ -167,7 +167,15 @@ async fn receive_game_sate(
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
-                Ok(WsMessageOut::GameState { state, players , rounds }) => GameState { state, players, rounds },
+                Ok(WsMessageOut::GameState {
+                    state,
+                    players,
+                    rounds,
+                }) => GameState {
+                    state,
+                    players,
+                    rounds,
+                },
                 _ => panic!("The message was not a WsMessage::GameState"),
             }
         }

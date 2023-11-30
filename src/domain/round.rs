@@ -6,7 +6,7 @@ pub struct Round {
 impl Round {
     pub fn new(word: &str) -> Self {
         Round {
-            word: word.to_string()
+            word: word.to_string(),
         }
     }
 }

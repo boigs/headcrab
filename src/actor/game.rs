@@ -97,7 +97,7 @@ impl GameActor {
                 GameCommand::StartGame { nickname } => {
                     if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
                         return self.stop_game().await;
-                    }                    
+                    }
                     if let Err(error) = self.send_game_state() {
                         log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
                         return self.stop_game().await;
@@ -120,7 +120,7 @@ impl GameActor {
         self.broadcast_tx.send(GameWideEvent::GameState {
             state: self.game.state().clone(),
             players: self.game.players().to_vec(),
-            rounds: self.game.rounds().to_vec()
+            rounds: self.game.rounds().to_vec(),
         })
     }
 

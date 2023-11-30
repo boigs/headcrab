@@ -57,9 +57,7 @@ pub struct RoundDto {
 
 impl From<Round> for RoundDto {
     fn from(val: Round) -> Self {
-        Self {
-           word: val.word,
-        }
+        Self { word: val.word }
     }
 }
 
