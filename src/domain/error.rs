@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum Error {
+    #[error("The player '{0}' cannot execute command '{1}'")]
+    CommandNotAllowed(String, String),
     #[error("The game with id '{0}' does not exist")]
     GameDoesNotExist(String),
     #[error("The player with nickname '{0}' already exists")]

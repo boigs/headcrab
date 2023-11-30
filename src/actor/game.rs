@@ -2,6 +2,7 @@ pub mod client;
 
 use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
+use crate::domain::round::Round;
 use crate::domain::{game::Game, player::Player};
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
@@ -94,7 +95,9 @@ impl GameActor {
                     }
                 }
                 GameCommand::StartGame { nickname } => {
-                    self.game.start_game(&nickname);
+                    if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
+                        return self.stop_game().await;
+                    }
                     if let Err(error) = self.send_game_state() {
                         log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
                         return self.stop_game().await;
@@ -116,7 +119,8 @@ impl GameActor {
     fn send_game_state(&self) -> Result<usize, SendError<GameWideEvent>> {
         self.broadcast_tx.send(GameWideEvent::GameState {
             state: self.game.state().clone(),
-            players: Vec::from_iter(self.game.players().iter().map(|player| (*player).clone())),
+            players: self.game.players().to_vec(),
+            rounds: self.game.rounds().to_vec(),
         })
     }
 
@@ -160,6 +164,7 @@ pub enum GameWideEvent {
     GameState {
         state: GameFsmState,
         players: Vec<Player>,
+        rounds: Vec<Round>,
     },
     ChatMessage {
         sender: String,

@@ -9,10 +9,11 @@ use rust_fsm::state_machine;
  * Fin Partida
  */
 state_machine! {
-    derive(Debug, Clone)
+    derive(Debug, Clone, PartialEq)
     pub GameFsm(Lobby)
 
-    Lobby(StartGame) => ChooseWord,
+    Lobby(StartGame) => CreatingNewRound,
+    CreatingNewRound(StartRound) => PlayersWritingWords,
     /*ChooseWord(WordChosen) => PlayersWritingWords,
     PlayersWritingWords => {
         TimesUp => WordCounting,
