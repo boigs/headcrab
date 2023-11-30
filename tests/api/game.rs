@@ -91,7 +91,10 @@ async fn game_can_be_started() {
     )
     .await;
 
-    assert_eq!(receive_game_sate(&mut rx).await.state, "ChooseWord");
+    let game_state = receive_game_sate(&mut rx).await;
+    assert_eq!(game_state.state, "PlayersWritingWords");
+    assert_eq!(game_state.rounds.len(), 1);
+    assert!(!game_state.rounds.first().unwrap().word.is_empty());
 }
 
 #[tokio::test]
@@ -164,7 +167,7 @@ async fn receive_game_sate(
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
-                Ok(WsMessageOut::GameState { state, players }) => GameState { state, players },
+                Ok(WsMessageOut::GameState { state, players , rounds }) => GameState { state, players, rounds },
                 _ => panic!("The message was not a WsMessage::GameState"),
             }
         }
@@ -200,6 +203,7 @@ async fn receive_error(
 struct GameState {
     state: String,
     players: Vec<Player>,
+    rounds: Vec<Round>,
 }
 
 #[derive(Deserialize)]
@@ -207,6 +211,12 @@ struct GameState {
 struct Player {
     nickname: String,
     is_host: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Round {
+    word: String,
 }
 
 #[derive(Deserialize)]
@@ -225,6 +235,7 @@ enum WsMessageOut {
     GameState {
         state: String,
         players: Vec<Player>,
+        rounds: Vec<Round>,
     },
 }
 

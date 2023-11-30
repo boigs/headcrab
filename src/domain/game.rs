@@ -2,14 +2,16 @@ use crate::domain::game_fsm::{GameFsm, GameFsmInput};
 use crate::domain::player::Player;
 
 use crate::domain::error::Error;
-use rust_fsm::StateMachine;
+use crate::domain::round::Round;
+use crate::domain::game_fsm::GameFsmState;
 
-use super::game_fsm::GameFsmState;
+use rust_fsm::StateMachine;
 
 pub struct Game {
     id: String,
     fsm: StateMachine<GameFsm>,
     players: Vec<Player>,
+    rounds: Vec<Round>,
 }
 
 impl Game {
@@ -18,6 +20,7 @@ impl Game {
             id: id.to_string(),
             fsm: StateMachine::default(),
             players: Vec::default(),
+            rounds: Vec::default(),
         }
     }
 
@@ -31,6 +34,10 @@ impl Game {
 
     pub fn players(&self) -> &[Player] {
         &self.players
+    }
+
+    pub fn rounds(&self) -> &[Round] {
+        &self.rounds
     }
 
     pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
@@ -58,9 +65,11 @@ impl Game {
         }
     }
 
-    pub fn start_game(&mut self, nickname: &str) {
+    pub fn start_game(&mut self, nickname: &str) -> Result<(), Error> {
         if self.is_host(nickname) {
             self.process_event(&GameFsmInput::StartGame)
+        } else {
+            Err(Error::CommandNotAllowed(nickname.to_string(), "start_game".to_string()))
         }
     }
 
@@ -80,19 +89,41 @@ impl Game {
             .unwrap_or(false)
     }
 
-    fn process_event(&mut self, event: &GameFsmInput) {
-        if let Err(error) = self.fsm.consume(event) {
-            log::error!(
-                "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
+    fn process_event(&mut self, event: &GameFsmInput) -> Result<(), Error> {
+        match self.fsm.consume(event) {
+            Ok(_) => {
+                match self.fsm.state() {
+                    GameFsmState::CreatingNewRound => {
+                        self.start_new_round();
+                        self.process_event(&GameFsmInput::StartRound)
+                    },
+                    GameFsmState::PlayersWritingWords => Ok(()),
+                    GameFsmState::Lobby => Ok(()),
+                }
+            },
+            Err(error) => {
+                Err(Error::log_and_create_internal(&format!("The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
                 self.fsm.state(),
-                event
-            );
+                event)))
+            },
         }
+    }
+
+    fn start_new_round(&mut self) {
+        let word = Game::choose_random_word();
+        let round = Round::new(&word);
+        self.rounds.push(round);
+    }
+
+    fn choose_random_word() -> String {
+        "alien".to_string()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::game_fsm::GameFsmState;
+
     use super::Game;
 
     #[test]
@@ -152,5 +183,53 @@ mod tests {
         let _ = game.remove_player("first_player");
 
         assert!(game.players()[0].is_host);
+    }
+
+    #[test]
+    fn host_player_can_start_game() {
+        let mut game = Game::new("id");
+
+        let _ = game.add_player("first_player");
+        let _ = game.add_player("second_player");
+
+        assert!(game.start_game("first_player").is_ok());        
+    }
+
+    #[test]
+    fn non_host_player_cannot_start_game() {
+        let mut game = Game::new("id");
+
+        let _ = game.add_player("first_player");
+        let _ = game.add_player("second_player");
+
+        assert!(game.start_game("second_player").is_err());    
+    }
+
+    #[test]
+    fn round_is_initialized() {
+        let mut game = Game::new("id");
+
+        let _ = game.add_player("first_player");
+        let _ = game.add_player("second_player");
+
+        assert!(game.start_game("second_player").is_err());    
+    }
+
+    #[test]
+    fn game_starts_in_lobby() {
+        let game = Game::new("id");
+
+        assert_eq!(game.state(), &GameFsmState::Lobby);  
+    }
+
+    #[test]
+    fn game_initializes_first_round() {
+        let mut game = Game::new("id");
+        let _ = game.add_player("first_player");
+        let _ = game.start_game("first_player");
+
+        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+        assert_eq!(game.rounds().len(), 1);
+        assert!(!game.rounds().first().unwrap().word.is_empty());
     }
 }

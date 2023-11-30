@@ -44,9 +44,10 @@ impl PlayerActor {
             select! {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     match game_wide_message {
-                        Ok(GameWideEvent::GameState { state, players }) => if let Err(error) = send_message(&mut self.websocket, &WsMessageOut::GameState {
+                        Ok(GameWideEvent::GameState { state, players, rounds }) => if let Err(error) = send_message(&mut self.websocket, &WsMessageOut::GameState {
                             state: state_to_string(state),
                             players: players.into_iter().map(|player| player.into()).collect(),
+                            rounds: rounds.into_iter().map(|round| round.into()).collect(),
                         }).await {
                             self.disconnect_player(error).await;
                             return;
