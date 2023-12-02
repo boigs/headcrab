@@ -6,4 +6,4 @@
 
 [env]
 ENVIRONMENT = "dev"
-LOG = "debug"
+LOG = "info"
