@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Player {
     pub nickname: String,
     pub is_host: bool,
+    pub is_connected: bool,
 }
 
 impl Player {
@@ -11,6 +12,7 @@ impl Player {
         Player {
             nickname: String::from(nickname),
             is_host: false,
+            is_connected: true,
         }
     }
 }

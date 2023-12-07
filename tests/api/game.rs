@@ -98,7 +98,7 @@ async fn game_can_be_started() {
 }
 
 #[tokio::test]
-async fn game_is_removed_when_all_players_leave() {
+async fn game_is_still_alive_when_all_players_leave() {
     let base_address = spawn_app();
     let client = reqwest::Client::new();
 
@@ -107,7 +107,8 @@ async fn game_is_removed_when_all_players_leave() {
     let (tx, rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
         .split();
-    // Drop the references to the websocket so that it gets closed and the server removes the player from the game
+
+    // Drop the references to the websocket so that it gets closed and the server disconnects the player from the game
     drop(tx);
     drop(rx);
 
@@ -115,7 +116,12 @@ async fn game_is_removed_when_all_players_leave() {
     let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
         .await
         .split();
-    assert!(receive_error(&mut rx).await.eq("GAME_DOES_NOT_EXIST"));
+
+    let game_state = receive_game_sate(&mut rx).await;
+    assert!(game_state.state.eq("Lobby"));
+    assert_eq!(game_state.players.len(), 2);
+    assert_eq!(game_state.players.get(0).unwrap().is_connected, false);
+    assert_eq!(game_state.players.get(1).unwrap().is_connected, true);
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
@@ -219,6 +225,7 @@ struct GameState {
 struct Player {
     nickname: String,
     is_host: bool,
+    is_connected: bool,
 }
 
 #[derive(Deserialize)]

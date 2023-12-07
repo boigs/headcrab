@@ -41,27 +41,31 @@ impl Game {
     }
 
     pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
-        if self
-            .players
-            .iter()
-            .any(|player| nickname == player.nickname)
-        {
-            Err(Error::PlayerAlreadyExists(nickname.to_string()))
+        if let Some(player) = self.players.iter_mut().find(|x| x.nickname == nickname) {
+            if player.is_connected {
+                return Err(Error::PlayerAlreadyExists(nickname.to_string()));
+            } else {
+                player.is_connected = true;
+            }
         } else {
             let new_player = Player::new(nickname);
             self.players.push(new_player);
-            self.assign_host();
-            Ok(())
         }
+
+        self.assign_host();
+        Ok(())
     }
 
-    pub fn remove_player(&mut self, nickname: &str) -> Option<Player> {
-        if let Some(index) = self.players.iter().position(|x| x.nickname == nickname) {
-            let removed_player = self.players.remove(index);
+    pub fn disconnect_player(&mut self, nickname: &str) -> Result<(), Error> {
+        if let Some(player) = self.players.iter_mut().find(|x| x.nickname == nickname) {
+            player.is_connected = false;
+            player.is_host = false;
             self.assign_host();
-            Some(removed_player)
+            Ok(())
         } else {
-            None
+            Err(Error::log_and_create_internal(&format!(
+                "Tried to disconnect player '{nickname}' but it does not exist."
+            )))
         }
     }
 
@@ -78,7 +82,7 @@ impl Game {
 
     fn assign_host(&mut self) {
         if self.players.iter().all(|player| !player.is_host) {
-            if let Some(first_player) = self.players.first_mut() {
+            if let Some(first_player) = self.players.iter_mut().find(|player| player.is_connected) {
                 first_player.is_host = true;
             }
         }
@@ -138,30 +142,31 @@ mod tests {
     }
 
     #[test]
-    fn remove_player_works() {
+    fn disconnect_player_works() {
         let mut game = Game::new("id");
 
         let _ = game.add_player("any-player");
         let _ = game.add_player("other-player");
 
         assert_eq!(game.players().len(), 2);
+        assert!(game.players()[0].is_connected);
+        assert!(game.players()[1].is_connected);
 
-        let removed = game
-            .remove_player("any-player")
+        game.disconnect_player("any-player")
             .expect("No player has been removed.");
 
-        assert_eq!(game.players().len(), 1);
-        assert_eq!(game.players()[0].nickname, "other-player");
-        assert_eq!(removed.nickname, "any-player");
+        assert_eq!(game.players().len(), 2);
+        assert!(!game.players()[0].is_connected);
+        assert!(game.players()[1].is_connected);
     }
 
     #[test]
-    fn remove_non_existing() {
+    fn disconnect_non_existing() {
         let mut game = Game::new("id");
 
-        let removed = game.remove_player("player");
+        let removed = game.disconnect_player("player");
 
-        assert_eq!(removed, None);
+        assert!(removed.is_err());
     }
 
     #[test]
@@ -176,14 +181,15 @@ mod tests {
     }
 
     #[test]
-    fn host_player_is_reelected_when_removed() {
+    fn host_player_is_reelected_when_disconnected() {
         let mut game = Game::new("id");
 
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
-        let _ = game.remove_player("first_player");
+        let _ = game.disconnect_player("first_player");
 
-        assert!(game.players()[0].is_host);
+        assert!(!game.players()[0].is_host);
+        assert!(game.players()[1].is_host);
     }
 
     #[test]
