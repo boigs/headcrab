@@ -70,47 +70,28 @@ impl GameActor {
                                 .is_err()
                             {
                                 log::error!("Sent GameEvent::PlayerAdded to Player but the response channel is closed. Removing the Player.");
-                                self.game.remove_player(&nickname);
+                                let _ = self.game.disconnect_player(&nickname);
                                 continue;
                             }
 
-                            if let Err(error) = self.send_game_state() {
-                                log::error!("Sent GameWideEvent::GameState to Broadcast but the response channel is closed. Stopping the Game. Error: {error}");
-                                return self.stop_game().await;
-                            };
+                            let _ = self.send_game_state();
                         }
                     };
                 }
-                GameCommand::RemovePlayer { nickname } => {
-                    let _ = self.game.remove_player(&nickname);
-                    if self.game.players().is_empty() {
-                        log::info!(
-                            "Removed Player from the Game, no more Players, stopping the Game."
-                        );
-                        return self.stop_game().await;
-                    }
-                    if let Err(error) = self.send_game_state() {
-                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
-                        return self.stop_game().await;
-                    }
+                GameCommand::DisconnectPlayer { nickname } => {
+                    let _ = self.game.disconnect_player(&nickname);
+                    let _ = self.send_game_state();
                 }
                 GameCommand::StartGame { nickname } => {
                     if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
                         return self.stop_game().await;
                     }
-                    if let Err(error) = self.send_game_state() {
-                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
-                        return self.stop_game().await;
-                    }
+                    let _ = self.send_game_state();
                 }
                 GameCommand::AddChatMessage { sender, content } => {
-                    if let Err(error) = self
+                    let _ = self
                         .broadcast_tx
-                        .send(GameWideEvent::ChatMessage { sender, content })
-                    {
-                        log::error!("There are no Players remaining listening to this game's broadcast messages but there are player objects in the game. Stopping the Game. Error: '{error}'.");
-                        return self.stop_game().await;
-                    }
+                        .send(GameWideEvent::ChatMessage { sender, content });
                 }
             }
         }
@@ -137,7 +118,7 @@ enum GameCommand {
         nickname: String,
         response_tx: OneshotSender<GameEvent>,
     },
-    RemovePlayer {
+    DisconnectPlayer {
         nickname: String,
     },
     StartGame {

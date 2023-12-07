@@ -38,6 +38,7 @@ pub enum WsMessageIn {
 pub struct PlayerDto {
     nickname: String,
     is_host: bool,
+    is_connected: bool,
 }
 
 impl From<Player> for PlayerDto {
@@ -45,6 +46,7 @@ impl From<Player> for PlayerDto {
         Self {
             nickname: val.nickname,
             is_host: val.is_host,
+            is_connected: val.is_connected,
         }
     }
 }

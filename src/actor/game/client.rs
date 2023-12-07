@@ -44,7 +44,7 @@ impl GameClient {
     pub async fn remove_player(&self, nickname: &str) -> Result<(), Error> {
         self
             .game_tx
-            .send(GameCommand::RemovePlayer {
+            .send(GameCommand::DisconnectPlayer {
                 nickname: nickname.to_string(),
             })
             .await
