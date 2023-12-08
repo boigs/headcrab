@@ -132,7 +132,6 @@ async fn game_is_closed_after_inactivity_timeout() {
     env::set_var("ENVIRONMENT", "test");
 
     let config = Config::get().unwrap();
-    log::info!("########{}", config.inactivity_timeout_seconds);
     let base_address = spawn_app();
     let client = reqwest::Client::new();
 
