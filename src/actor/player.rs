@@ -8,6 +8,7 @@ use crate::actor::game::client::GameWideEventReceiver;
 use crate::actor::game::GameWideEvent;
 
 use crate::domain::error::Error;
+use crate::metrics::CONNECTED_PLAYERS;
 use crate::websocket::message::state_to_string;
 use crate::websocket::message::WsMessageIn;
 use crate::websocket::message::WsMessageOut;
@@ -41,6 +42,8 @@ impl PlayerActor {
     }
 
     async fn start(mut self) {
+        CONNECTED_PLAYERS.inc();
+
         loop {
             select! {
                 game_wide_message = self.game_wide_event_receiver.next() => {
@@ -111,5 +114,6 @@ impl PlayerActor {
         // We can't recover from an error when removing the player
         let _ = self.game.remove_player(&self.nickname).await;
         send_error_and_close(self.websocket, error).await;
+        CONNECTED_PLAYERS.dec();
     }
 }

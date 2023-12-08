@@ -7,6 +7,7 @@ use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
 use crate::domain::round::Round;
 use crate::domain::{game::Game, player::Player};
+use crate::metrics::ACTIVE_GAMES;
 use tokio::select;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
@@ -59,6 +60,7 @@ impl GameActor {
     }
 
     async fn start(mut self) {
+        ACTIVE_GAMES.inc();
         let mut inactivity_timer = self.new_inactivity_timer().await;
 
         loop {
@@ -124,6 +126,7 @@ impl GameActor {
             }
         }
         self.stop_game().await;
+        ACTIVE_GAMES.dec();
     }
 
     fn send_game_state(&self) -> Result<usize, SendError<GameWideEvent>> {
