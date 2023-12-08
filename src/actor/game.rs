@@ -73,7 +73,7 @@ impl GameActor {
                 },
                 command = self.game_rx.recv() => {
                     if command.is_none() {
-                        log::error!("All the game_tx have been disposed.");
+                        log::error!("All the game_tx have been disposed. Stopping the game.");
                         break;
                     }
                     match command.unwrap() {
@@ -110,6 +110,7 @@ impl GameActor {
                         }
                         GameCommand::StartGame { nickname } => {
                             if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
+                                log::error!("Failed to start the game. Stopping the game.");
                                 break;
                             }
                         }
