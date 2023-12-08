@@ -19,16 +19,12 @@ use self::client::GameClient;
 
 use crate::actor::game_factory::client::GameFactoryClient;
 
-fn default_timeout() -> Interval {
-    time::interval(Duration::from_secs(5 * 60))
-}
-
 pub struct GameActor {
     game: Game,
     game_rx: Receiver<GameCommand>,
     broadcast_tx: broadcast::Sender<GameWideEvent>,
     game_factory: GameFactoryClient,
-    timeout: Interval,
+    inactivity_timeout: Interval,
 }
 
 impl GameActor {
@@ -46,7 +42,7 @@ impl GameActor {
                 game_rx,
                 broadcast_tx,
                 game_factory,
-                timeout: default_timeout(),
+                inactivity_timeout: default_inactivity_timeout(),
             }
             .start(),
         );
@@ -54,18 +50,18 @@ impl GameActor {
         GameClient { game_tx }
     }
 
-    async fn reset_timeout(&mut self) {
-        let mut timeout = default_timeout();
+    async fn reset_inactivity_timeout(&mut self) {
+        let mut timeout = default_inactivity_timeout();
         // Skip the first instant tick
         timeout.tick().await;
-        self.timeout = timeout;
+        self.inactivity_timeout = timeout;
     }
 
     async fn start(mut self) {
-        self.reset_timeout().await;
+        self.reset_inactivity_timeout().await;
         loop {
             select! {
-                _ = self.timeout.tick() => {
+                _ = self.inactivity_timeout.tick() => {
                     if self.game.all_players_are_disconnected() {
                         log::info!("Stopping game after timeout.");
                         break;
@@ -121,7 +117,7 @@ impl GameActor {
                         }
                     }
                     let _ = self.send_game_state();
-                    self.reset_timeout().await;
+                    self.reset_inactivity_timeout().await;
                 }
             }
         }
@@ -142,6 +138,10 @@ impl GameActor {
             log::error!("The GameFactory channel is closed, can't remove the Game. GameId: '{game_id}', Error: '{error}'.");
         }
     }
+}
+
+fn default_inactivity_timeout() -> Interval {
+    time::interval(Duration::from_secs(5 * 60))
 }
 
 enum GameCommand {
