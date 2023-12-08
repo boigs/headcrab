@@ -1,4 +1,4 @@
-use std::{ops::Add, time::Duration};
+use std::time::Duration;
 
 use crate::helpers::spawn_app;
 use futures_util::{
@@ -141,7 +141,7 @@ async fn game_is_closed_after_inactivity_timeout() {
     drop(tx);
 
     // Wait until the game is closed
-    sleep(app.inactivity_timeout.add(Duration::from_secs(1))).await;
+    sleep(app.inactivity_timeout + Duration::from_secs(1)).await;
 
     // Try to connect to the same game again
     let nickname = "player2";
