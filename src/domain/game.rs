@@ -41,7 +41,7 @@ impl Game {
     }
 
     pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
-        if let Some(player) = self.players.iter_mut().find(|x| x.nickname == nickname) {
+        if let Some(player) = self.get_player_mut(nickname) {
             if player.is_connected {
                 return Err(Error::PlayerAlreadyExists(nickname.to_string()));
             } else {
@@ -57,7 +57,7 @@ impl Game {
     }
 
     pub fn disconnect_player(&mut self, nickname: &str) -> Result<(), Error> {
-        if let Some(player) = self.players.iter_mut().find(|x| x.nickname == nickname) {
+        if let Some(player) = self.get_player_mut(nickname) {
             player.is_connected = false;
             player.is_host = false;
             self.assign_host();
@@ -80,18 +80,28 @@ impl Game {
         }
     }
 
+    fn get_player(&self, nickname: &str) -> Option<&Player> {
+        self.players
+            .iter()
+            .find(|player| player.nickname == nickname)
+    }
+
+    fn get_player_mut(&mut self, nickname: &str) -> Option<&mut Player> {
+        self.players
+            .iter_mut()
+            .find(|player| player.nickname == nickname)
+    }
+
     fn assign_host(&mut self) {
         if self.players.iter().all(|player| !player.is_host) {
-            if let Some(first_player) = self.players.iter_mut().find(|player| player.is_connected) {
-                first_player.is_host = true;
+            if let Some(player) = self.players.iter_mut().find(|player| player.is_connected) {
+                player.is_host = true;
             }
         }
     }
 
     fn is_host(&self, nickname: &str) -> bool {
-        self.players
-            .iter()
-            .find(|player| player.nickname == nickname)
+        self.get_player(nickname)
             .map(|player| player.is_host)
             .unwrap_or(false)
     }
