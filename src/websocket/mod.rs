@@ -11,9 +11,8 @@ use self::message::WsMessageIn;
 pub async fn send_error_and_close(mut websocket: WebSocket, error: Error) {
     // We are closing the websocket, ignore if there's any error sending the last message
     let _ = send_message(&mut websocket, &error_to_ws_error(error.clone())).await;
-    if let Err(error) = websocket.close().await {
-        log::error!("Could not close WebSocket after sending an error. Error: '{error}'.")
-    }
+    // The websocket might already be closed, if so, ignore the error
+    let _ = websocket.close().await;
 }
 
 pub fn parse_message(message: &str) -> Result<WsMessageIn, Error> {
