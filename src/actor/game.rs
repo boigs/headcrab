@@ -2,6 +2,7 @@ pub mod client;
 
 use std::time::Duration;
 
+use crate::config::Config;
 use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
 use crate::domain::round::Round;
@@ -24,7 +25,7 @@ pub struct GameActor {
     game_rx: Receiver<GameCommand>,
     broadcast_tx: broadcast::Sender<GameWideEvent>,
     game_factory: GameFactoryClient,
-    inactivity_timeout: Interval,
+    inactivity_timeout_seconds: u64,
 }
 
 impl GameActor {
@@ -35,6 +36,12 @@ impl GameActor {
             broadcast::Sender<GameWideEvent>,
             broadcast::Receiver<GameWideEvent>,
         ) = broadcast::channel(32);
+        let config = if let Ok(config) = Config::get() {
+            config
+        } else {
+            log::error!("Configuration could not be loaded while creating game actor");
+            panic!();
+        };
 
         tokio::spawn(
             GameActor {
@@ -42,7 +49,7 @@ impl GameActor {
                 game_rx,
                 broadcast_tx,
                 game_factory,
-                inactivity_timeout: default_inactivity_timeout(),
+                inactivity_timeout_seconds: config.inactivity_timeout_seconds,
             }
             .start(),
         );
@@ -50,18 +57,19 @@ impl GameActor {
         GameClient { game_tx }
     }
 
-    async fn reset_inactivity_timeout(&mut self) {
-        let mut timeout = default_inactivity_timeout();
+    async fn new_inactivity_timer(&mut self) -> Interval {
+        let mut timeout = time::interval(Duration::from_secs(self.inactivity_timeout_seconds));
         // Skip the first instant tick
         timeout.tick().await;
-        self.inactivity_timeout = timeout;
+        timeout
     }
 
     async fn start(mut self) {
-        self.reset_inactivity_timeout().await;
+        let mut inactivity_timer = self.new_inactivity_timer().await;
+
         loop {
             select! {
-                _ = self.inactivity_timeout.tick() => {
+                _ = inactivity_timer.tick() => {
                     if self.game.all_players_are_disconnected() {
                         log::info!("Stopping game after timeout.");
                         break;
@@ -117,7 +125,7 @@ impl GameActor {
                         }
                     }
                     let _ = self.send_game_state();
-                    self.reset_inactivity_timeout().await;
+                    inactivity_timer = self.new_inactivity_timer().await;
                 }
             }
         }
@@ -138,10 +146,6 @@ impl GameActor {
             log::error!("The GameFactory channel is closed, can't remove the Game. GameId: '{game_id}', Error: '{error}'.");
         }
     }
-}
-
-fn default_inactivity_timeout() -> Interval {
-    time::interval(Duration::from_secs(5 * 60))
 }
 
 enum GameCommand {

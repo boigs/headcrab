@@ -1,3 +1,4 @@
 application:
   host: 127.0.0.1
 allow_cors: true
+inactivity_timeout_seconds: 10

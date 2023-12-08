@@ -1,10 +1,13 @@
+use std::{env, time::Duration};
+
 use crate::helpers::spawn_app;
 use futures_util::{
     stream::{SplitSink, SplitStream, StreamExt},
     SinkExt,
 };
+use headcrab::config::Config;
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, time};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 #[tokio::test]
@@ -124,6 +127,39 @@ async fn game_is_still_alive_when_all_players_leave() {
     assert_eq!(game_state.players.get(1).unwrap().is_connected, true);
 }
 
+#[tokio::test]
+async fn game_is_closed_after_inactivity_timeout() {
+    env::set_var("ENVIRONMENT", "test");
+
+    let config = Config::get().unwrap();
+    log::info!("########{}", config.inactivity_timeout_seconds);
+    let base_address = spawn_app();
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&base_address, client).await.id;
+    let nickname = "player1";
+    let (tx, _) = open_game_websocket(&base_address, &game_id, nickname)
+        .await
+        .split();
+
+    // Drop the references to the websocket so that it gets closed and the server disconnects the player from the game
+    drop(tx);
+
+    // Wait until the game is closed
+    sleep(config.inactivity_timeout_seconds + 1).await;
+
+    // Try to connect to the same game again
+    let nickname = "player2";
+    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+        .await
+        .split();
+
+    let error = receive_error(&mut rx).await;
+    assert_eq!(&error, "GAME_DOES_NOT_EXIST");
+
+    env::remove_var("ENVIRONMENT");
+}
+
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
     let response = client
         .post(format!("http://{base_address}/game"))
@@ -211,6 +247,12 @@ async fn receive_error(
         Some(Err(error)) => panic!("Websocket returned an error {}", error),
         _ => panic!("Websocket closed before expected."),
     }
+}
+
+async fn sleep(seconds: u64) {
+    let mut timer = time::interval(Duration::from_secs(seconds));
+    timer.tick().await;
+    timer.tick().await;
 }
 
 #[derive(Deserialize)]

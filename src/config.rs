@@ -8,6 +8,7 @@ use crate::domain::error::Error;
 pub struct Config {
     pub application: ApplicationSettings,
     pub allow_cors: bool,
+    pub inactivity_timeout_seconds: u64,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -45,16 +46,19 @@ impl Config {
 enum Environment {
     Dev,
     Prod,
+    Test,
 }
 
 const DEV: &str = "dev";
 const PROD: &str = "prod";
+const TEST: &str = "test";
 
 impl Environment {
     fn as_str(&self) -> &'static str {
         match self {
             Environment::Dev => DEV,
             Environment::Prod => PROD,
+            Environment::Test => TEST,
         }
     }
 }
@@ -66,6 +70,7 @@ impl TryFrom<String> for Environment {
         match string.to_lowercase().as_str() {
             DEV => Ok(Self::Dev),
             PROD => Ok(Self::Prod),
+            TEST => Ok(Self::Test),
             other => Err(Error::log_and_create_internal(&format!(
                 "{other} is not a supported environment. Use either `{DEV}` or `{PROD}`.",
             ))),
