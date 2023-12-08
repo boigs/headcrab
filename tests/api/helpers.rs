@@ -28,6 +28,6 @@ pub fn spawn_app() -> TestApp {
 
     TestApp {
         base_address: format!("localhost:{}", address.port()),
-        inactivity_timeout: Duration::from_secs(config.game.inactivity_timeout_seconds),
+        inactivity_timeout: config.game.inactivity_timeout(),
     }
 }

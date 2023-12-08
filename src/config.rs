@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use config::ConfigError;
 use serde::Deserialize;
 use serde_aux::prelude::deserialize_number_from_string;
@@ -21,6 +23,12 @@ pub struct ApplicationSettings {
 #[derive(serde::Deserialize, Clone)]
 pub struct GameSettings {
     pub inactivity_timeout_seconds: u64,
+}
+
+impl GameSettings {
+    pub fn inactivity_timeout(&self) -> Duration {
+        Duration::from_secs(self.inactivity_timeout_seconds)
+    }
 }
 
 impl Config {

@@ -43,7 +43,7 @@ impl GameActor {
                 game_rx,
                 broadcast_tx,
                 game_factory,
-                inactivity_timeout: Duration::from_secs(settings.inactivity_timeout_seconds),
+                inactivity_timeout: settings.inactivity_timeout(),
             }
             .start(),
         );
