@@ -40,6 +40,10 @@ impl Game {
         &self.rounds
     }
 
+    pub fn all_players_are_disconnected(&self) -> bool {
+        self.players.iter().all(|player| !player.is_connected)
+    }
+
     pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
         if let Some(player) = self.get_player_mut(nickname) {
             if player.is_connected {
@@ -248,5 +252,32 @@ mod tests {
         assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
         assert_eq!(game.rounds().len(), 1);
         assert!(!game.rounds().first().unwrap().word.is_empty());
+    }
+
+    #[test]
+    fn all_players_are_disconnected_is_false() {
+        let mut game = Game::new("id");
+        let _ = game.add_player("first_player");
+        let _ = game.add_player("second_player");
+
+        assert!(!game.all_players_are_disconnected());
+    }
+
+    #[test]
+    fn all_players_are_disconnected_is_true() {
+        let mut game = Game::new("id");
+        let _ = game.add_player("first_player");
+        let _ = game.add_player("second_player");
+        let _ = game.disconnect_player("first_player");
+        let _ = game.disconnect_player("second_player");
+
+        assert!(game.all_players_are_disconnected());
+    }
+
+    #[test]
+    fn all_players_are_disconnected_is_true_when_empty_players() {
+        let game = Game::new("id");
+
+        assert!(game.all_players_are_disconnected());
     }
 }

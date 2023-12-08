@@ -1,15 +1,19 @@
 pub mod client;
 
+use std::time::Duration;
+
 use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
 use crate::domain::round::Round;
 use crate::domain::{game::Game, player::Player};
+use tokio::select;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
 use tokio::sync::{
     broadcast, mpsc,
     mpsc::{Receiver, Sender},
 };
+use tokio::time::{self, Interval};
 
 use self::client::GameClient;
 
@@ -20,6 +24,7 @@ pub struct GameActor {
     game_rx: Receiver<GameCommand>,
     broadcast_tx: broadcast::Sender<GameWideEvent>,
     game_factory: GameFactoryClient,
+    inactivity_timeout: Interval,
 }
 
 impl GameActor {
@@ -37,6 +42,7 @@ impl GameActor {
                 game_rx,
                 broadcast_tx,
                 game_factory,
+                inactivity_timeout: default_inactivity_timeout(),
             }
             .start(),
         );
@@ -44,57 +50,78 @@ impl GameActor {
         GameClient { game_tx }
     }
 
-    async fn start(mut self) {
-        while let Some(command) = self.game_rx.recv().await {
-            match command {
-                GameCommand::AddPlayer {
-                    nickname,
-                    response_tx,
-                } => {
-                    match self.game.add_player(&nickname) {
-                        Err(error) => {
-                            if response_tx
-                                .send(GameEvent::Error {
-                                    error: error.clone(),
-                                })
-                                .is_err()
-                            {
-                                log::error!("Sent GameEvent::Error to Player but the response channel is closed.");
-                            }
-                        }
-                        Ok(_) => {
-                            if response_tx
-                                .send(GameEvent::PlayerAdded {
-                                    broadcast_rx: self.broadcast_tx.subscribe(),
-                                })
-                                .is_err()
-                            {
-                                log::error!("Sent GameEvent::PlayerAdded to Player but the response channel is closed. Removing the Player.");
-                                let _ = self.game.disconnect_player(&nickname);
-                                continue;
-                            }
+    async fn reset_inactivity_timeout(&mut self) {
+        let mut timeout = default_inactivity_timeout();
+        // Skip the first instant tick
+        timeout.tick().await;
+        self.inactivity_timeout = timeout;
+    }
 
-                            let _ = self.send_game_state();
+    async fn start(mut self) {
+        self.reset_inactivity_timeout().await;
+        loop {
+            select! {
+                _ = self.inactivity_timeout.tick() => {
+                    if self.game.all_players_are_disconnected() {
+                        log::info!("Stopping game after timeout.");
+                        break;
+                    }
+                },
+                command = self.game_rx.recv() => {
+                    if command.is_none() {
+                        log::error!("All the game_tx have been disposed. Stopping the game.");
+                        break;
+                    }
+                    match command.unwrap() {
+                        GameCommand::AddPlayer {
+                            nickname,
+                            response_tx,
+                        } => {
+                            match self.game.add_player(&nickname) {
+                                Err(error) => {
+                                    if response_tx
+                                        .send(GameEvent::Error {
+                                            error: error.clone(),
+                                        })
+                                        .is_err()
+                                    {
+                                        log::error!("Sent GameEvent::Error to Player but the response channel is closed.");
+                                    }
+                                }
+                                Ok(_) => {
+                                    if response_tx
+                                        .send(GameEvent::PlayerAdded {
+                                            broadcast_rx: self.broadcast_tx.subscribe(),
+                                        })
+                                        .is_err()
+                                    {
+                                        log::error!("Sent GameEvent::PlayerAdded to Player but the response channel is closed. Removing the Player.");
+                                        let _ = self.game.disconnect_player(&nickname);
+                                    }
+                                }
+                            };
                         }
-                    };
-                }
-                GameCommand::DisconnectPlayer { nickname } => {
-                    let _ = self.game.disconnect_player(&nickname);
-                    let _ = self.send_game_state();
-                }
-                GameCommand::StartGame { nickname } => {
-                    if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
-                        return self.stop_game().await;
+                        GameCommand::DisconnectPlayer { nickname } => {
+                            let _ = self.game.disconnect_player(&nickname);
+                        }
+                        GameCommand::StartGame { nickname } => {
+                            if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
+                                log::error!("Failed to start the game. Stopping the game.");
+                                break;
+                            }
+                        }
+                        GameCommand::AddChatMessage { sender, content } => {
+                            let _ = self
+                                .broadcast_tx
+                                .send(GameWideEvent::ChatMessage { sender, content });
+                        }
                     }
                     let _ = self.send_game_state();
-                }
-                GameCommand::AddChatMessage { sender, content } => {
-                    let _ = self
-                        .broadcast_tx
-                        .send(GameWideEvent::ChatMessage { sender, content });
+                    self.reset_inactivity_timeout().await;
                 }
             }
         }
+        self.stop_game().await;
     }
 
     fn send_game_state(&self) -> Result<usize, SendError<GameWideEvent>> {
@@ -111,6 +138,10 @@ impl GameActor {
             log::error!("The GameFactory channel is closed, can't remove the Game. GameId: '{game_id}', Error: '{error}'.");
         }
     }
+}
+
+fn default_inactivity_timeout() -> Interval {
+    time::interval(Duration::from_secs(5 * 60))
 }
 
 enum GameCommand {
