@@ -5,6 +5,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot::Sender as OneshotSender;
 
 use crate::actor::game::client::GameClient;
+use crate::config::GameSettings;
 use crate::domain::error::Error;
 use crate::domain::game_factory::GameFactory;
 
@@ -18,8 +19,8 @@ pub struct GameFactoryActor {
 
 impl GameFactoryActor {
     /// Runs the GameFactory Actor in background and returns a Client to communicate with it
-    pub fn spawn() -> GameFactoryClient {
-        let game_factory = GameFactory::default();
+    pub fn spawn(game_settings: GameSettings) -> GameFactoryClient {
+        let game_factory = GameFactory::new(game_settings);
         let (game_factory_tx, game_factory_rx): (
             Sender<GameFactoryCommand>,
             Receiver<GameFactoryCommand>,

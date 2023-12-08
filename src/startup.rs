@@ -12,7 +12,7 @@ pub fn create_web_server(
     config: Config,
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let game_factory = Arc::new(GameFactoryActor::spawn());
+    let game_factory = Arc::new(GameFactoryActor::spawn(config.game.clone()));
 
     let router = routes::create_router(config).with_state(game_factory);
 

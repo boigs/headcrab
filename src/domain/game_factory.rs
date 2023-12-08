@@ -5,18 +5,28 @@ use crate::actor::game::client::GameClient;
 use crate::actor::game::GameActor;
 
 use crate::actor::game_factory::client::GameFactoryClient;
+use crate::config::GameSettings;
 use crate::domain::error::Error;
 
-#[derive(Default)]
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,
+    game_settings: GameSettings,
 }
 
 impl GameFactory {
+    pub fn new(game_settings: GameSettings) -> Self {
+        GameFactory {
+            game_channels: HashMap::default(),
+            game_settings,
+        }
+    }
+
     pub fn create_new_game(&mut self, game_factory: GameFactoryClient) -> String {
         let id = self.create_unique_game_id();
-        self.game_channels
-            .insert(id.clone(), GameActor::spawn(&id, game_factory));
+        self.game_channels.insert(
+            id.clone(),
+            GameActor::spawn(&id, self.game_settings.clone(), game_factory),
+        );
 
         id
     }
@@ -49,11 +59,15 @@ impl GameFactory {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::GameSettings;
+
     use super::GameFactory;
 
     #[test]
     fn add_player_works() {
-        let game_factory = GameFactory::default();
+        let game_factory = GameFactory::new(GameSettings {
+            inactivity_timeout_seconds: 1,
+        });
 
         let id = game_factory.create_unique_game_id();
 

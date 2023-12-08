@@ -1,12 +1,15 @@
+use std::time::Duration;
+
 use config::ConfigError;
 use serde::Deserialize;
 use serde_aux::prelude::deserialize_number_from_string;
 
 use crate::domain::error::Error;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
     pub application: ApplicationSettings,
+    pub game: GameSettings,
     pub allow_cors: bool,
 }
 
@@ -15,6 +18,17 @@ pub struct ApplicationSettings {
     pub host: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct GameSettings {
+    pub inactivity_timeout_seconds: u64,
+}
+
+impl GameSettings {
+    pub fn inactivity_timeout(&self) -> Duration {
+        Duration::from_secs(self.inactivity_timeout_seconds)
+    }
 }
 
 impl Config {
