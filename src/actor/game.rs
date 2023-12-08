@@ -2,6 +2,7 @@ pub mod client;
 
 use std::time::Duration;
 
+use crate::config::GameSettings;
 use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
 use crate::domain::round::Round;
@@ -28,11 +29,7 @@ pub struct GameActor {
 }
 
 impl GameActor {
-    pub fn spawn(
-        id: &str,
-        inactivity_timeout: Duration,
-        game_factory: GameFactoryClient,
-    ) -> GameClient {
+    pub fn spawn(id: &str, settings: GameSettings, game_factory: GameFactoryClient) -> GameClient {
         let game = Game::new(id);
         let (game_tx, game_rx): (Sender<GameCommand>, Receiver<GameCommand>) = mpsc::channel(128);
         let (broadcast_tx, _): (
@@ -46,7 +43,7 @@ impl GameActor {
                 game_rx,
                 broadcast_tx,
                 game_factory,
-                inactivity_timeout,
+                inactivity_timeout: Duration::from_secs(settings.inactivity_timeout_seconds),
             }
             .start(),
         );

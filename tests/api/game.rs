@@ -1,32 +1,31 @@
-use std::{env, time::Duration};
+use std::{ops::Add, time::Duration};
 
 use crate::helpers::spawn_app;
 use futures_util::{
     stream::{SplitSink, SplitStream, StreamExt},
     SinkExt,
 };
-use headcrab::config::Config;
 use serde::{Deserialize, Serialize};
 use tokio::{net::TcpStream, time};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 #[tokio::test]
 async fn create_game_works() {
-    let base_address = spawn_app();
+    let app = spawn_app();
     let client = reqwest::Client::new();
 
-    create_game(&base_address, client).await;
+    create_game(&app.base_address, client).await;
 }
 
 #[tokio::test]
 async fn two_different_players_can_be_added_to_game() {
-    let base_address = spawn_app();
+    let app = spawn_app();
     let client = reqwest::Client::new();
 
-    let game_id = create_game(&base_address, client).await.id;
+    let game_id = create_game(&app.base_address, client).await.id;
 
     let nickname1 = "player1";
-    let (_, mut rx1) = open_game_websocket(&base_address, &game_id, nickname1)
+    let (_, mut rx1) = open_game_websocket(&app.base_address, &game_id, nickname1)
         .await
         .split();
     let game_state: GameState = receive_game_sate(&mut rx1).await;
@@ -35,7 +34,7 @@ async fn two_different_players_can_be_added_to_game() {
     assert!(game_state.players.first().unwrap().is_host);
 
     let nickname2 = "player2";
-    let (_, mut rx2) = open_game_websocket(&base_address, &game_id, nickname2)
+    let (_, mut rx2) = open_game_websocket(&app.base_address, &game_id, nickname2)
         .await
         .split();
     let game_state: GameState = receive_game_sate(&mut rx2).await;
@@ -53,20 +52,20 @@ async fn two_different_players_can_be_added_to_game() {
 
 #[tokio::test]
 async fn add_player_to_game_fails_when_player_already_exists() {
-    let base_address = spawn_app();
+    let app = spawn_app();
     let client = reqwest::Client::new();
 
-    let game_id = create_game(&base_address, client).await.id;
+    let game_id = create_game(&app.base_address, client).await.id;
 
     let nickname = "player";
-    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
     let game_state: GameState = receive_game_sate(&mut rx).await;
     assert_eq!(game_state.players.len(), 1);
     assert_eq!(game_state.players.first().unwrap().nickname, nickname);
 
-    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
 
@@ -75,13 +74,13 @@ async fn add_player_to_game_fails_when_player_already_exists() {
 
 #[tokio::test]
 async fn game_can_be_started() {
-    let base_address = spawn_app();
+    let app = spawn_app();
     let client = reqwest::Client::new();
 
-    let game_id = create_game(&base_address, client).await.id;
+    let game_id = create_game(&app.base_address, client).await.id;
 
     let nickname = "player";
-    let (mut tx, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
     assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
@@ -102,12 +101,12 @@ async fn game_can_be_started() {
 
 #[tokio::test]
 async fn game_is_still_alive_when_all_players_leave() {
-    let base_address = spawn_app();
+    let app = spawn_app();
     let client = reqwest::Client::new();
 
-    let game_id = create_game(&base_address, client).await.id;
+    let game_id = create_game(&app.base_address, client).await.id;
     let nickname = "player1";
-    let (tx, rx) = open_game_websocket(&base_address, &game_id, nickname)
+    let (tx, rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
 
@@ -116,7 +115,7 @@ async fn game_is_still_alive_when_all_players_leave() {
     drop(rx);
 
     let nickname = "player2";
-    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
 
@@ -129,15 +128,12 @@ async fn game_is_still_alive_when_all_players_leave() {
 
 #[tokio::test]
 async fn game_is_closed_after_inactivity_timeout() {
-    env::set_var("ENVIRONMENT", "test");
-
-    let config = Config::get().unwrap();
-    let base_address = spawn_app();
+    let app = spawn_app();
     let client = reqwest::Client::new();
 
-    let game_id = create_game(&base_address, client).await.id;
+    let game_id = create_game(&app.base_address, client).await.id;
     let nickname = "player1";
-    let (tx, _) = open_game_websocket(&base_address, &game_id, nickname)
+    let (tx, _) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
 
@@ -145,18 +141,16 @@ async fn game_is_closed_after_inactivity_timeout() {
     drop(tx);
 
     // Wait until the game is closed
-    sleep(config.inactivity_timeout_seconds + 1).await;
+    sleep(app.inactivity_timeout.add(Duration::from_secs(1))).await;
 
     // Try to connect to the same game again
     let nickname = "player2";
-    let (_, mut rx) = open_game_websocket(&base_address, &game_id, nickname)
+    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
 
     let error = receive_error(&mut rx).await;
     assert_eq!(&error, "GAME_DOES_NOT_EXIST");
-
-    env::remove_var("ENVIRONMENT");
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
@@ -248,8 +242,8 @@ async fn receive_error(
     }
 }
 
-async fn sleep(seconds: u64) {
-    let mut timer = time::interval(Duration::from_secs(seconds));
+async fn sleep(duration: Duration) {
+    let mut timer = time::interval(duration);
     timer.tick().await;
     timer.tick().await;
 }

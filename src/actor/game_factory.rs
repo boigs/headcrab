@@ -1,11 +1,11 @@
 pub mod client;
 
 use std::fmt::{Display, Formatter};
-use std::time::Duration;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot::Sender as OneshotSender;
 
 use crate::actor::game::client::GameClient;
+use crate::config::GameSettings;
 use crate::domain::error::Error;
 use crate::domain::game_factory::GameFactory;
 
@@ -19,8 +19,8 @@ pub struct GameFactoryActor {
 
 impl GameFactoryActor {
     /// Runs the GameFactory Actor in background and returns a Client to communicate with it
-    pub fn spawn(game_inactivity_timeout: Duration) -> GameFactoryClient {
-        let game_factory = GameFactory::new(game_inactivity_timeout);
+    pub fn spawn(game_settings: GameSettings) -> GameFactoryClient {
+        let game_factory = GameFactory::new(game_settings);
         let (game_factory_tx, game_factory_rx): (
             Sender<GameFactoryCommand>,
             Receiver<GameFactoryCommand>,

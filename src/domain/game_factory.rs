@@ -1,23 +1,23 @@
 use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
-use std::time::Duration;
 
 use crate::actor::game::client::GameClient;
 use crate::actor::game::GameActor;
 
 use crate::actor::game_factory::client::GameFactoryClient;
+use crate::config::GameSettings;
 use crate::domain::error::Error;
 
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,
-    game_inactivity_timeout: Duration,
+    game_settings: GameSettings,
 }
 
 impl GameFactory {
-    pub fn new(game_inactivity_timeout: Duration) -> Self {
+    pub fn new(game_settings: GameSettings) -> Self {
         GameFactory {
             game_channels: HashMap::default(),
-            game_inactivity_timeout,
+            game_settings,
         }
     }
 
@@ -25,7 +25,7 @@ impl GameFactory {
         let id = self.create_unique_game_id();
         self.game_channels.insert(
             id.clone(),
-            GameActor::spawn(&id, self.game_inactivity_timeout, game_factory),
+            GameActor::spawn(&id, self.game_settings.clone(), game_factory),
         );
 
         id
@@ -59,13 +59,15 @@ impl GameFactory {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use crate::config::GameSettings;
 
     use super::GameFactory;
 
     #[test]
     fn add_player_works() {
-        let game_factory = GameFactory::new(Duration::from_secs(1));
+        let game_factory = GameFactory::new(GameSettings {
+            inactivity_timeout_seconds: 1,
+        });
 
         let id = game_factory.create_unique_game_id();
 

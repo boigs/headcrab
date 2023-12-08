@@ -1,2 +1,3 @@
 allow_cors: false
-inactivity_timeout_seconds: 300
+game:
+  inactivity_timeout_seconds: 300

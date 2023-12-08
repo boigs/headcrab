@@ -4,11 +4,11 @@ use serde_aux::prelude::deserialize_number_from_string;
 
 use crate::domain::error::Error;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
     pub application: ApplicationSettings,
+    pub game: GameSettings,
     pub allow_cors: bool,
-    pub inactivity_timeout_seconds: u64,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -16,6 +16,11 @@ pub struct ApplicationSettings {
     pub host: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct GameSettings {
+    pub inactivity_timeout_seconds: u64,
 }
 
 impl Config {
@@ -46,19 +51,16 @@ impl Config {
 enum Environment {
     Dev,
     Prod,
-    Test,
 }
 
 const DEV: &str = "dev";
 const PROD: &str = "prod";
-const TEST: &str = "test";
 
 impl Environment {
     fn as_str(&self) -> &'static str {
         match self {
             Environment::Dev => DEV,
             Environment::Prod => PROD,
-            Environment::Test => TEST,
         }
     }
 }
@@ -70,7 +72,6 @@ impl TryFrom<String> for Environment {
         match string.to_lowercase().as_str() {
             DEV => Ok(Self::Dev),
             PROD => Ok(Self::Prod),
-            TEST => Ok(Self::Test),
             other => Err(Error::log_and_create_internal(&format!(
                 "{other} is not a supported environment. Use either `{DEV}` or `{PROD}`.",
             ))),
