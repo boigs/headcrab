@@ -18,7 +18,7 @@ pub fn spawn_app() -> TestApp {
     let address = listener.local_addr().unwrap();
     let config = {
         let mut config = Config::get().expect("Failed to read configuration.");
-        config.game.inactivity_timeout_seconds = 2;
+        config.game.inactivity_timeout_seconds = 1;
         config
     };
 
