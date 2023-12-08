@@ -62,7 +62,7 @@ impl GameActor {
         loop {
             select! {
                 _ = self.inactivity_timeout.tick() => {
-                    if self.game.all_players_are_disconnected() {
+                    if self.game.are_all_players_disconnected() {
                         log::info!("Stopping game after timeout.");
                         break;
                     }

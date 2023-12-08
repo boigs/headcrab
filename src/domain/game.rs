@@ -40,7 +40,7 @@ impl Game {
         &self.rounds
     }
 
-    pub fn all_players_are_disconnected(&self) -> bool {
+    pub fn are_all_players_disconnected(&self) -> bool {
         self.players.iter().all(|player| !player.is_connected)
     }
 
@@ -260,7 +260,7 @@ mod tests {
         let _ = game.add_player("first_player");
         let _ = game.add_player("second_player");
 
-        assert!(!game.all_players_are_disconnected());
+        assert!(!game.are_all_players_disconnected());
     }
 
     #[test]
@@ -271,13 +271,13 @@ mod tests {
         let _ = game.disconnect_player("first_player");
         let _ = game.disconnect_player("second_player");
 
-        assert!(game.all_players_are_disconnected());
+        assert!(game.are_all_players_disconnected());
     }
 
     #[test]
     fn all_players_are_disconnected_is_true_when_empty_players() {
         let game = Game::new("id");
 
-        assert!(game.all_players_are_disconnected());
+        assert!(game.are_all_players_disconnected());
     }
 }
