@@ -2,7 +2,6 @@ pub mod client;
 
 use std::time::Duration;
 
-use crate::config::Config;
 use crate::domain::error::Error;
 use crate::domain::game_fsm::GameFsmState;
 use crate::domain::round::Round;
@@ -25,23 +24,21 @@ pub struct GameActor {
     game_rx: Receiver<GameCommand>,
     broadcast_tx: broadcast::Sender<GameWideEvent>,
     game_factory: GameFactoryClient,
-    inactivity_timeout_seconds: u64,
+    inactivity_timeout: Duration,
 }
 
 impl GameActor {
-    pub fn spawn(id: &str, game_factory: GameFactoryClient) -> GameClient {
+    pub fn spawn(
+        id: &str,
+        inactivity_timeout: Duration,
+        game_factory: GameFactoryClient,
+    ) -> GameClient {
         let game = Game::new(id);
         let (game_tx, game_rx): (Sender<GameCommand>, Receiver<GameCommand>) = mpsc::channel(128);
         let (broadcast_tx, _): (
             broadcast::Sender<GameWideEvent>,
             broadcast::Receiver<GameWideEvent>,
         ) = broadcast::channel(32);
-        let config = if let Ok(config) = Config::get() {
-            config
-        } else {
-            log::error!("Configuration could not be loaded while creating game actor");
-            panic!();
-        };
 
         tokio::spawn(
             GameActor {
@@ -49,7 +46,7 @@ impl GameActor {
                 game_rx,
                 broadcast_tx,
                 game_factory,
-                inactivity_timeout_seconds: config.inactivity_timeout_seconds,
+                inactivity_timeout,
             }
             .start(),
         );
@@ -58,7 +55,7 @@ impl GameActor {
     }
 
     async fn new_inactivity_timer(&mut self) -> Interval {
-        let mut timeout = time::interval(Duration::from_secs(self.inactivity_timeout_seconds));
+        let mut timeout = time::interval(self.inactivity_timeout);
         // Skip the first instant tick
         timeout.tick().await;
         timeout

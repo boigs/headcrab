@@ -7,12 +7,15 @@ use hyper::server::conn::AddrIncoming;
 use hyper::Server;
 use std::net::TcpListener;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub fn create_web_server(
     config: Config,
     listener: TcpListener,
 ) -> Result<Server<AddrIncoming, IntoMakeService<Router>>, hyper::Error> {
-    let game_factory = Arc::new(GameFactoryActor::spawn());
+    let game_factory = Arc::new(GameFactoryActor::spawn(Duration::from_secs(
+        config.inactivity_timeout_seconds,
+    )));
 
     let router = routes::create_router(config).with_state(game_factory);
 
