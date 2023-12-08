@@ -24,6 +24,8 @@ std-logger = "0.5.2"
 rust-fsm = "0.6.1"
 serde-aux = "4.2.0"
 thiserror = "1.0.50"
+prometheus = "0.13.3"
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 futures-util = "0.3.28"

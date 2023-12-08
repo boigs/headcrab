@@ -1,4 +1,4 @@
-use headcrab::{config::Config, startup};
+use headcrab::{config::Config, metrics, startup};
 use std::{
     net::{Ipv4Addr, SocketAddr, TcpListener},
     str::FromStr,
@@ -7,6 +7,7 @@ use std::{
 #[tokio::main]
 async fn main() -> Result<(), hyper::Error> {
     std_logger::Config::logfmt().init();
+    metrics::register_metrics();
 
     let config = Config::get().expect("Failed to read configuration.");
     let address = SocketAddr::from((
