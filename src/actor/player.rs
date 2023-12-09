@@ -80,13 +80,13 @@ impl PlayerActor {
                             },
                             message => {
                                 match parse_message(message) {
-                                    Ok(WsMessageIn::StartGame {amount_of_rounds}) => if let Err(error) = self.game.start_game(&self.nickname).await {
+                                    Ok(WsMessageIn::StartGame { amount_of_rounds }) => if let Err(error) = self.game.start_game(&self.nickname).await {
                                         self.disconnect_player(error).await;
                                         return;
                                     } else {
                                         log::info!("Started game with amount of rounds {amount_of_rounds}");
                                     },
-                                    Ok(WsMessageIn::ChatMessage {content}) => if let Err(error) = self.game.send_chat_message(&self.nickname, &content).await {
+                                    Ok(WsMessageIn::ChatMessage { content }) => if let Err(error) = self.game.send_chat_message(&self.nickname, &content).await {
                                         self.disconnect_player(error).await;
                                         return;
                                     },
