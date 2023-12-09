@@ -8,14 +8,13 @@ use crate::domain::game_fsm::GameFsmState;
 use crate::domain::round::Round;
 use crate::domain::{game::Game, player::Player};
 use crate::metrics::ACTIVE_GAMES;
-use tokio::select;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
 use tokio::sync::{
     broadcast, mpsc,
     mpsc::{Receiver, Sender},
 };
-use tokio::time::{self, Interval};
+use tokio::time;
 
 use self::client::GameClient;
 
@@ -52,31 +51,26 @@ impl GameActor {
         GameClient { game_tx }
     }
 
-    async fn new_inactivity_timer(&mut self) -> Interval {
-        let mut timeout = time::interval(self.inactivity_timeout);
-        // Skip the first instant tick
-        timeout.tick().await;
-        timeout
-    }
-
     async fn start(mut self) {
         ACTIVE_GAMES.inc();
-        let mut inactivity_timer = self.new_inactivity_timer().await;
 
         loop {
-            select! {
-                _ = inactivity_timer.tick() => {
+            match time::timeout(self.inactivity_timeout, self.game_rx.recv()).await {
+                Ok(None) => {
+                    log::info!("Game channel has been dropped. Stopping game actor.");
+                    break;
+                }
+                Err(_) => {
                     if self.game.all_players_are_disconnected() {
-                        log::info!("Stopping game after timeout.");
+                        log::info!(
+                            "No activity detected in game {} after {} seconds. Stopping game actor.",
+                            self.game.id(), self.inactivity_timeout.as_secs()
+                        );
                         break;
                     }
-                },
-                command = self.game_rx.recv() => {
-                    if command.is_none() {
-                        log::error!("All the game_tx have been disposed. Stopping the game.");
-                        break;
-                    }
-                    match command.unwrap() {
+                }
+                Ok(Some(command)) => {
+                    match command {
                         GameCommand::AddPlayer {
                             nickname,
                             response_tx,
@@ -121,10 +115,10 @@ impl GameActor {
                         }
                     }
                     let _ = self.send_game_state();
-                    inactivity_timer = self.new_inactivity_timer().await;
                 }
             }
         }
+
         self.stop_game().await;
         ACTIVE_GAMES.dec();
     }
