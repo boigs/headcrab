@@ -100,7 +100,8 @@ impl PlayerActor {
                         Err(_) // timeout was met
                         => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
-                            self.disconnect_player(Error::WebsocketClosed("Lost connection with the player's client.".to_string())).await;
+                            let _ = self.game.remove_player(&self.nickname).await;
+                            CONNECTED_PLAYERS.dec();
                             return;
                         },
                         Ok(_) => log::warn!("Unexpected type of message received. How did this happen?"),
