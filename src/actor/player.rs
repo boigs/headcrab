@@ -95,12 +95,13 @@ impl PlayerActor {
                             },
                         },
                         Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
-                        Ok(Some(Err(_))) | // unprocessable message
+                        Ok(Some(Err(_))) | // unprocessable message TODO fix me in issue #78
                         Ok(None) | // websocket was closed
                         Err(_) // timeout was met
                         => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                             let _ = self.game.remove_player(&self.nickname).await;
+                            let _ = self.websocket.close().await;
                             CONNECTED_PLAYERS.dec();
                             return;
                         },
