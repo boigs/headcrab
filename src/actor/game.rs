@@ -56,10 +56,6 @@ impl GameActor {
 
         loop {
             match time::timeout(self.inactivity_timeout, self.game_rx.recv()).await {
-                Ok(None) => {
-                    log::info!("Game channel has been dropped. Stopping game actor.");
-                    break;
-                }
                 Err(_) => {
                     if self.game.all_players_are_disconnected() {
                         log::info!(
@@ -68,6 +64,10 @@ impl GameActor {
                         );
                         break;
                     }
+                }
+                Ok(None) => {
+                    log::info!("Game channel has been dropped. Stopping game actor.");
+                    break;
                 }
                 Ok(Some(command)) => {
                     match command {
