@@ -100,9 +100,6 @@ impl PlayerActor {
                                 }
                             },
                         },
-                        Ok(Some(Err(error))) => {
-                            send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage(error.to_string())).await;
-                        },
                         Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
                         Ok(None) | // websocket was closed
                         Err(_) // timeout was met
@@ -110,7 +107,12 @@ impl PlayerActor {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                             break;
                         },
-                        Ok(_) => log::warn!("Unexpected type of message received. How did this happen?"),
+                        Ok(Some(Err(error))) => {
+                            send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage("Message can't be loaded".to_string(), error.to_string())).await;
+                        },
+                        Ok(Some(Ok(_))) => {
+                            send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage("Unsupported Message Type".to_string(), "Unsupported Message Type".to_string())).await;
+                        }
                     }
                 },
             }
