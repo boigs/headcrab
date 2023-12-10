@@ -12,8 +12,8 @@ pub enum Error {
     Internal(String),
     #[error("The websocket with the player is closed '{0}'")]
     WebsocketClosed(String),
-    #[error("The websocket received a bad formatted message. Message: '{1}', Error: '{0}'.")]
-    UnprocessableWebsocketMessage(String, String),
+    #[error("Received a bad formatted message. Message: '{1}', Error: '{0}'.")]
+    UnprocessableMessage(String, String),
 }
 
 impl Error {

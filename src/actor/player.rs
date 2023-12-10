@@ -108,10 +108,10 @@ impl PlayerActor {
                             break;
                         },
                         Ok(Some(Err(error))) => {
-                            send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage("Message can't be loaded".to_string(), error.to_string())).await;
+                            send_error(&mut self.websocket, Error::UnprocessableMessage("Message can't be loaded".to_string(), error.to_string())).await;
                         },
                         Ok(Some(Ok(_))) => {
-                            send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage("Unsupported Message Type".to_string(), "Unsupported Message Type".to_string())).await;
+                            send_error(&mut self.websocket, Error::UnprocessableMessage("Unsupported Message Type".to_string(), "Unsupported Message Type".to_string())).await;
                         }
                     }
                 },
