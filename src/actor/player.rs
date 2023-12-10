@@ -100,18 +100,26 @@ impl PlayerActor {
                                 }
                             },
                         },
-                        Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
-                        Ok(None) | // websocket was closed
-                        Err(_) // timeout was met
-                        => {
-                            log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
+                        // browser said "close"
+                        Ok(Some(Ok(Message::Close(_)))) => {
+                            self.log_connection_lost_with_player("browser sent 'Close' websocket frame");
+                            break;
+                        }
+                        // websocket was closed
+                        Ok(None) => {
+                            self.log_connection_lost_with_player("other end of websocket was closed abruptly");
+                            break;
+                        }
+                        // timeout without receiving anything from player
+                        Err(_) => {
+                            self.log_connection_lost_with_player("connection timed out; missing 'Ping' messages");
                             break;
                         },
                         Ok(Some(Err(error))) => {
-                            send_error(&mut self.websocket, Error::UnprocessableMessage("Message can't be loaded".to_string(), error.to_string())).await;
+                            send_error(&mut self.websocket, Error::UnprocessableMessage("Message cannot be loaded".to_string(), error.to_string())).await;
                         },
                         Ok(Some(Ok(_))) => {
-                            send_error(&mut self.websocket, Error::UnprocessableMessage("Unsupported Message Type".to_string(), "Unsupported Message Type".to_string())).await;
+                            send_error(&mut self.websocket, Error::UnprocessableMessage("Unsupported message type".to_string(), "Unsupported message type".to_string())).await;
                         }
                     }
                 },
@@ -121,5 +129,13 @@ impl PlayerActor {
         let _ = self.game.remove_player(&self.nickname).await;
         close(self.websocket).await;
         CONNECTED_PLAYERS.dec();
+    }
+
+    fn log_connection_lost_with_player(&self, reason: &str) {
+        log::info!(
+            "Connection with player {} lost due to: {}. Stopping player actor.",
+            &self.nickname,
+            reason,
+        );
     }
 }
