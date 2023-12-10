@@ -102,7 +102,7 @@ impl PlayerActor {
                         },
                         Ok(Some(Err(error))) => {
                             send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage(error.to_string())).await;
-                        }, // unprocessable message TODO fix me in issue #78
+                        },
                         Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
                         Ok(None) | // websocket was closed
                         Err(_) // timeout was met
