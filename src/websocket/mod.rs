@@ -8,9 +8,12 @@ use message::WsMessageOut;
 
 use self::message::WsMessageIn;
 
-pub async fn send_error_and_close(mut websocket: WebSocket, error: Error) {
+pub async fn send_error(websocket: &mut WebSocket, error: Error) {
     // We are closing the websocket, ignore if there's any error sending the last message
-    let _ = send_message(&mut websocket, &error_to_ws_error(error.clone())).await;
+    let _ = send_message(websocket, &error_to_ws_error(error.clone())).await;
+}
+
+pub async fn close(websocket: WebSocket) {
     // The websocket might already be closed, if so, ignore the error
     let _ = websocket.close().await;
 }

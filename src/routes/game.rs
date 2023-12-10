@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::actor::game_factory::client::GameFactoryClient;
 use crate::actor::player::PlayerActor;
-use crate::websocket::send_error_and_close;
+use crate::websocket::{close, send_error};
 use axum::extract::{Path, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -29,10 +29,13 @@ pub async fn connect_player_to_websocket(
     Path((game_id, nickname)): Path<(String, String)>,
     websocket_upgrade: WebSocketUpgrade,
 ) -> Response {
-    websocket_upgrade.on_upgrade(move |websocket| async move {
+    websocket_upgrade.on_upgrade(move |mut websocket| async move {
         match game_factory.get_game(&game_id).await {
             Ok(game) => PlayerActor::create(nickname, game, websocket).await,
-            Err(error) => send_error_and_close(websocket, error).await,
+            Err(error) => {
+                send_error(&mut websocket, error).await;
+                close(websocket).await;
+            }
         }
     })
 }
