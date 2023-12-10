@@ -19,11 +19,8 @@ pub async fn close(websocket: WebSocket) {
 }
 
 pub fn parse_message(message: &str) -> Result<WsMessageIn, Error> {
-    serde_json::from_str(message).map_err(|error| {
-        Error::log_and_create_internal(&format!(
-            "Unprocessable message. Message> '{message}', Error: '{error}'."
-        ))
-    })
+    serde_json::from_str(message)
+        .map_err(|error| Error::UnprocessableMessage(message.to_string(), error.to_string()))
 }
 
 pub async fn send_message<T>(websocket: &mut WebSocket, value: &T) -> Result<(), Error>
@@ -70,6 +67,11 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
         Error::CommandNotAllowed(_, _) => WsMessageOut::Error {
             r#type: "COMMAND_NOT_ALLOWED".to_string(),
             title: "The player cannot execute this command".to_string(),
+            detail: error.to_string(),
+        },
+        Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
+            r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
+            title: "Received an invalid message".to_string(),
             detail: error.to_string(),
         },
     }

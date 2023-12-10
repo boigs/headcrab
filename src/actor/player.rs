@@ -7,6 +7,7 @@ use crate::actor::game::client::GameClient;
 use crate::actor::game::client::GameWideEventReceiver;
 use crate::actor::game::GameWideEvent;
 
+use crate::domain::error::Error;
 use crate::metrics::CONNECTED_PLAYERS;
 use crate::websocket::close;
 use crate::websocket::message::state_to_string;
@@ -93,19 +94,25 @@ impl PlayerActor {
                                         send_error(&mut self.websocket, error).await;
                                         break;
                                     },
-                                    Err(_) => {}
+                                    Err(error) => {
+                                        send_error(&mut self.websocket, error).await;
+                                    }
                                 }
                             },
                         },
                         Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
-                        Ok(Some(Err(_))) | // unprocessable message TODO fix me in issue #78
                         Ok(None) | // websocket was closed
                         Err(_) // timeout was met
                         => {
                             log::info!("WebSocket with player's client closed. Removing player from game and closing player actor.");
                             break;
                         },
-                        Ok(_) => log::warn!("Unexpected type of message received. How did this happen?"),
+                        Ok(Some(Err(error))) => {
+                            send_error(&mut self.websocket, Error::UnprocessableMessage("Message can't be loaded".to_string(), error.to_string())).await;
+                        },
+                        Ok(Some(Ok(_))) => {
+                            send_error(&mut self.websocket, Error::UnprocessableMessage("Unsupported Message Type".to_string(), "Unsupported Message Type".to_string())).await;
+                        }
                     }
                 },
             }

@@ -153,6 +153,54 @@ async fn game_is_closed_after_inactivity_timeout() {
     assert_eq!(&error, "GAME_DOES_NOT_EXIST");
 }
 
+#[tokio::test]
+async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
+    let app = spawn_app();
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&app.base_address, client).await.id;
+
+    let nickname = "player";
+    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+        .await
+        .split();
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+
+    send_message(&mut tx, Message::Text("invalid".to_string())).await;
+    let error = receive_error(&mut rx).await;
+    assert_eq!(&error, "UNPROCESSABLE_WEBSOCKET_MESSAGE");
+
+    let nickname = "player2";
+    let (mut _tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+        .await
+        .split();
+    receive_game_sate(&mut rx).await;
+}
+
+#[tokio::test]
+async fn websocket_message_is_rejected_but_game_still_alive() {
+    let app = spawn_app();
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&app.base_address, client).await.id;
+
+    let nickname = "player";
+    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+        .await
+        .split();
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+
+    send_message(&mut tx, Message::Binary(vec![])).await;
+    let error = receive_error(&mut rx).await;
+    assert_eq!(&error, "UNPROCESSABLE_WEBSOCKET_MESSAGE");
+
+    let nickname = "player2";
+    let (mut _tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+        .await
+        .split();
+    receive_game_sate(&mut rx).await;
+}
+
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
     let response = client
         .post(format!("http://{base_address}/game"))
@@ -187,10 +235,19 @@ async fn send_start_game(
     websocket: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     message: WsMessageIn,
 ) {
+    send_message(
+        websocket,
+        Message::Text(serde_json::to_string(&message).expect("Could not serialize message")),
+    )
+    .await;
+}
+
+async fn send_message(
+    websocket: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    message: Message,
+) {
     websocket
-        .send(Message::Text(
-            serde_json::to_string(&message).expect("Could not serialize message"),
-        ))
+        .send(message)
         .await
         .expect("Could not send message");
 }
