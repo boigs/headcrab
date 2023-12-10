@@ -7,6 +7,7 @@ use crate::actor::game::client::GameClient;
 use crate::actor::game::client::GameWideEventReceiver;
 use crate::actor::game::GameWideEvent;
 
+use crate::domain::error::Error;
 use crate::metrics::CONNECTED_PLAYERS;
 use crate::websocket::close;
 use crate::websocket::message::state_to_string;
@@ -93,12 +94,16 @@ impl PlayerActor {
                                         send_error(&mut self.websocket, error).await;
                                         break;
                                     },
-                                    Err(_) => {}
+                                    Err(error) => {
+                                        send_error(&mut self.websocket, error).await;
+                                    }
                                 }
                             },
                         },
+                        Ok(Some(Err(error))) => {
+                            send_error(&mut self.websocket, Error::UnprocessableWebsocketMessage(error.to_string())).await;
+                        }, // unprocessable message TODO fix me in issue #78
                         Ok(Some(Ok(Message::Close(_)))) | // browser said "close"
-                        Ok(Some(Err(_))) | // unprocessable message TODO fix me in issue #78
                         Ok(None) | // websocket was closed
                         Err(_) // timeout was met
                         => {
