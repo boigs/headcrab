@@ -72,7 +72,7 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
         },
         Error::UnprocessableWebsocketMessage(_, _) => WsMessageOut::Error {
             r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
-            title: "The websocket received an invalid message".to_string(),
+            title: "Received an invalid message".to_string(),
             detail: error.to_string(),
         },
     }
