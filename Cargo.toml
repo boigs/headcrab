@@ -11,9 +11,10 @@ path = "src/main.rs"
 name = "headcrab"
 
 [dependencies]
-axum = { version = "0.6.20", features = ["ws"] }
+axum = { version = "0.7.2", features = ["ws"] }
+axum-server = "0.5.1"
 config = { version = "0.13.4", default-features = false, features = ["yaml"] }
-hyper = "0.14.27"
+hyper = "1.0.1"
 lazy_static = "1.4.0"
 log = "0.4.20"
 prometheus = "0.13.3"
@@ -25,9 +26,9 @@ serde_json = "1.0.108"
 std-logger = "0.5.2"
 thiserror = "1.0.50"
 tokio = { version = "1.35.0", features = ["full"] }
-tower-http = { version = "0.4.4", features = ["cors"] }
+tower-http = { version = "0.5.0", features = ["cors"] }
 
 [dev-dependencies]
 futures-util = "0.3.29"
 reqwest = { version = "0.11.22", features = ["json"] }
-tokio-tungstenite = "0.20.1"
+tokio-tungstenite = "0.21.0"
