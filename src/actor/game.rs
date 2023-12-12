@@ -112,6 +112,7 @@ impl GameActor {
                             let _ = self
                                 .broadcast_tx
                                 .send(GameWideEvent::ChatMessage { sender, content });
+                            continue;
                         }
                     }
                     let _ = self.send_game_state();
