@@ -11,7 +11,7 @@ use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 #[tokio::test]
 async fn create_game_works() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     create_game(&app.base_address, client).await;
@@ -19,7 +19,7 @@ async fn create_game_works() {
 
 #[tokio::test]
 async fn two_different_players_can_be_added_to_game() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;
@@ -52,7 +52,7 @@ async fn two_different_players_can_be_added_to_game() {
 
 #[tokio::test]
 async fn add_player_to_game_fails_when_player_already_exists() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;
@@ -74,7 +74,7 @@ async fn add_player_to_game_fails_when_player_already_exists() {
 
 #[tokio::test]
 async fn game_can_be_started() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;
@@ -101,7 +101,7 @@ async fn game_can_be_started() {
 
 #[tokio::test]
 async fn game_is_still_alive_when_all_players_leave() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;
@@ -128,7 +128,7 @@ async fn game_is_still_alive_when_all_players_leave() {
 
 #[tokio::test]
 async fn game_is_closed_after_inactivity_timeout() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;
@@ -155,7 +155,7 @@ async fn game_is_closed_after_inactivity_timeout() {
 
 #[tokio::test]
 async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;
@@ -179,7 +179,7 @@ async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
 
 #[tokio::test]
 async fn websocket_message_is_rejected_but_game_still_alive() {
-    let app = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let game_id = create_game(&app.base_address, client).await.id;

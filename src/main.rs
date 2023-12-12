@@ -1,11 +1,12 @@
 use headcrab::{config::Config, metrics, startup};
 use std::{
-    net::{Ipv4Addr, SocketAddr, TcpListener},
+    net::{Ipv4Addr, SocketAddr},
     str::FromStr,
 };
+use tokio::net::TcpListener;
 
 #[tokio::main]
-async fn main() -> Result<(), hyper::Error> {
+async fn main() -> Result<(), std::io::Error> {
     std_logger::Config::logfmt().init();
     metrics::register_metrics();
 
@@ -14,6 +15,9 @@ async fn main() -> Result<(), hyper::Error> {
         Ipv4Addr::from_str(&config.application.host).expect("Invalid host"),
         config.application.port,
     ));
-    let listener = TcpListener::bind(address).expect("Failed to bind to address");
-    startup::create_web_server(config, listener)?.await
+    let listener = TcpListener::bind(address)
+        .await
+        .expect("Failed to bind to address");
+
+    startup::create_web_server(config, listener).await
 }
