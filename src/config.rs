@@ -4,7 +4,7 @@ use config::ConfigError;
 use serde::Deserialize;
 use serde_aux::prelude::deserialize_number_from_string;
 
-use crate::domain::error::Error;
+use crate::error::Error;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
@@ -74,7 +74,7 @@ impl Environment {
 }
 
 impl TryFrom<String> for Environment {
-    type Error = crate::domain::error::Error;
+    type Error = crate::error::Error;
 
     fn try_from(string: String) -> Result<Self, Self::Error> {
         match string.to_lowercase().as_str() {

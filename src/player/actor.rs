@@ -4,11 +4,10 @@ use tokio::select;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
 
-use crate::actor::game::client::GameClient;
-use crate::actor::game::client::GameWideEventReceiver;
-use crate::actor::game::GameWideEvent;
-
-use crate::domain::error::Error;
+use crate::error::Error;
+use crate::game::actor::GameWideEvent;
+use crate::game::actor_client::GameClient;
+use crate::game::actor_client::GameWideEventReceiver;
 use crate::metrics::CONNECTED_PLAYERS;
 use crate::websocket::close;
 use crate::websocket::message::state_to_string;

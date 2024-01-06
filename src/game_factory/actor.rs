@@ -1,15 +1,12 @@
-pub mod client;
-
 use std::fmt::{Display, Formatter};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot::Sender as OneshotSender;
 
-use crate::actor::game::client::GameClient;
 use crate::config::GameSettings;
-use crate::domain::error::Error;
-use crate::domain::game_factory::GameFactory;
-
-use self::client::GameFactoryClient;
+use crate::error::Error;
+use crate::game::actor_client::GameClient;
+use crate::game_factory::actor_client::GameFactoryClient;
+use crate::game_factory::GameFactory;
 
 pub struct GameFactoryActor {
     game_factory: GameFactory,
@@ -75,7 +72,7 @@ impl GameFactoryActor {
 }
 
 #[derive(Debug)]
-enum GameFactoryCommand {
+pub(crate) enum GameFactoryCommand {
     CreateGame {
         response_channel: OneshotSender<GameFactoryResponse>,
     },
@@ -90,7 +87,7 @@ enum GameFactoryCommand {
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
-enum GameFactoryResponse {
+pub(crate) enum GameFactoryResponse {
     GameCreated { game_id: String },
     GameActor { game: GameClient },
     Error { error: Error },

@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{game_fsm::GameFsmState, player::Player, round::Round};
+use crate::{game::game_fsm::GameFsmState, player::Player, round::Round};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
-pub enum WsMessageOut {
+pub(crate) enum WsMessageOut {
     Error {
         r#type: String,
         title: String,
@@ -35,7 +35,7 @@ pub enum WsMessageIn {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PlayerDto {
+pub(crate) struct PlayerDto {
     nickname: String,
     is_host: bool,
     is_connected: bool,

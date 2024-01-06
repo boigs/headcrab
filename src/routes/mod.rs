@@ -1,9 +1,10 @@
-use crate::actor::game_factory::client::GameFactoryClient;
-use crate::config::Config;
 use axum::routing::{get, post};
 use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
+
+use crate::config::Config;
+use crate::game_factory::actor_client::GameFactoryClient;
 
 mod game;
 mod health;

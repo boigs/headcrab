@@ -1,9 +1,9 @@
-use crate::domain::error::Error;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use super::{GameCommand, GameEvent, GameWideEvent};
+use crate::error::Error;
+use crate::game::actor::{GameCommand, GameEvent, GameWideEvent};
 
 #[derive(Clone, Debug)]
 pub struct GameClient {
