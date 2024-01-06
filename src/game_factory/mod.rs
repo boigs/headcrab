@@ -1,12 +1,14 @@
+pub mod actor;
+pub mod actor_client;
+
 use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
 
-use crate::actor::game::client::GameClient;
-use crate::actor::game::GameActor;
-
-use crate::actor::game_factory::client::GameFactoryClient;
 use crate::config::GameSettings;
-use crate::domain::error::Error;
+use crate::error::Error;
+use crate::game::actor::GameActor;
+use crate::game::actor_client::GameClient;
+use crate::game_factory::actor_client::GameFactoryClient;
 
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,

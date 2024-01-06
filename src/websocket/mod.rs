@@ -3,8 +3,8 @@ pub mod message;
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
 
-use crate::domain::error::Error;
-use message::WsMessageOut;
+use crate::error::Error;
+use crate::websocket::message::WsMessageOut;
 
 use self::message::WsMessageIn;
 

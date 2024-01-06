@@ -1,13 +1,4 @@
-pub mod client;
-
 use std::time::Duration;
-
-use crate::config::GameSettings;
-use crate::domain::error::Error;
-use crate::domain::game_fsm::GameFsmState;
-use crate::domain::round::Round;
-use crate::domain::{game::Game, player::Player};
-use crate::metrics::ACTIVE_GAMES;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
 use tokio::sync::{
@@ -16,9 +7,15 @@ use tokio::sync::{
 };
 use tokio::time;
 
-use self::client::GameClient;
-
-use crate::actor::game_factory::client::GameFactoryClient;
+use crate::config::GameSettings;
+use crate::error::Error;
+use crate::game::actor_client::GameClient;
+use crate::game::game_fsm::GameFsmState;
+use crate::game::Game;
+use crate::game_factory::actor_client::GameFactoryClient;
+use crate::metrics::ACTIVE_GAMES;
+use crate::player::Player;
+use crate::round::Round;
 
 pub struct GameActor {
     game: Game,
@@ -140,7 +137,7 @@ impl GameActor {
     }
 }
 
-enum GameCommand {
+pub(crate) enum GameCommand {
     AddPlayer {
         nickname: String,
         response_tx: OneshotSender<GameEvent>,
@@ -158,7 +155,7 @@ enum GameCommand {
 }
 
 #[derive(Debug)]
-enum GameEvent {
+pub(crate) enum GameEvent {
     PlayerAdded {
         broadcast_rx: broadcast::Receiver<GameWideEvent>,
     },

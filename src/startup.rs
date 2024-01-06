@@ -1,7 +1,7 @@
 use tokio::net::TcpListener;
 
-use crate::actor::game_factory::GameFactoryActor;
 use crate::config::Config;
+use crate::game_factory::actor::GameFactoryActor;
 use crate::routes;
 use std::sync::Arc;
 

@@ -1,11 +1,13 @@
-use crate::domain::game_fsm::{GameFsm, GameFsmInput};
-use crate::domain::player::Player;
-
-use crate::domain::error::Error;
-use crate::domain::game_fsm::GameFsmState;
-use crate::domain::round::Round;
+pub mod actor;
+pub mod actor_client;
+pub mod game_fsm;
 
 use rust_fsm::StateMachine;
+
+use crate::error::Error;
+use crate::game::game_fsm::{GameFsm, GameFsmInput, GameFsmState};
+use crate::player::Player;
+use crate::round::Round;
 
 pub struct Game {
     id: String,
@@ -141,7 +143,8 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::game_fsm::GameFsmState;
+
+    use crate::game::game_fsm::GameFsmState;
 
     use super::Game;
 

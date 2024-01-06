@@ -1,10 +1,9 @@
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::actor::game::client::GameClient;
-use crate::domain::error::Error;
-
-use super::{GameFactoryCommand, GameFactoryResponse};
+use crate::error::Error;
+use crate::game::actor_client::GameClient;
+use crate::game_factory::actor::{GameFactoryCommand, GameFactoryResponse};
 
 pub struct GameFactoryClient {
     pub(super) game_factory_tx: Sender<GameFactoryCommand>,
