@@ -3,8 +3,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
 use crate::error::Error;
-use crate::game::actor::GameWideEvent;
-use crate::game::actor::{GameCommand, GameEvent};
+use crate::game::actor::{GameCommand, GameEvent, GameWideEvent};
 
 #[derive(Clone, Debug)]
 pub struct GameClient {
