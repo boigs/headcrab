@@ -100,8 +100,8 @@ impl GameActor {
                             let _ = self.game.disconnect_player(&nickname);
                         }
                         GameCommand::StartGame { nickname } => {
-                            if self.game.start_game(&nickname).is_err() {
-                                log::warn!("Somebody tried starting the game and is not the host. Malicious actor?");
+                            if let Err(error) = self.game.start_game(&nickname) {
+                                log::warn!("Failed to start the game, {error}");
                                 continue;
                             }
                         }

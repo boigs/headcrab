@@ -121,6 +121,11 @@ impl Game {
                 }
                 GameFsmState::PlayersWritingWords => Ok(()),
                 GameFsmState::Lobby => Ok(()),
+                GameFsmState::WordCounting => {
+                    // If all words have been validated then move to the next state
+                    // chose word to validate
+                    Ok(())
+                }
             },
             Err(error) => Err(Error::log_and_create_internal(&format!(
                 "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
@@ -140,6 +145,20 @@ impl Game {
         "alien".to_string()
     }
 
+    /*
+    pub fn add_word_to_score(
+        &mut self,
+        nickname: String,
+        word: Option<String>,
+    ) -> Result<(), Error> {
+        // None if the player says they don't have that word on their list
+        // Verify the player has this word
+        // Verify the player hasn't already added this word as validated
+        // If all players have sent something then compute the score and go to validate the next word
+        Ok(())
+    }
+    */
+
     pub fn add_words(&mut self, nickname: String, words: Vec<String>) -> Result<(), Error> {
         if self.fsm.state() != &GameFsmState::PlayersWritingWords {
             return Err(Error::CommandNotAllowed(nickname, "AddWords".to_string()));
@@ -147,6 +166,15 @@ impl Game {
 
         if let Some(round) = self.rounds.last_mut() {
             round.add_words(nickname, words);
+            let connected_players: Vec<String> = self
+                .players
+                .iter()
+                .filter(|player| player.is_connected)
+                .map(|player| player.nickname.clone())
+                .collect();
+            if round.have_all_players_submitted_words(&connected_players) {
+                return self.process_event(&GameFsmInput::PlayersFinished);
+            }
         }
 
         Ok(())
