@@ -15,12 +15,13 @@ state_machine! {
 
     Lobby(StartGame) => CreatingNewRound,
     CreatingNewRound(StartRound) => PlayersWritingWords,
-    /*ChooseWord(WordChosen) => PlayersWritingWords,
     PlayersWritingWords => {
-        TimesUp => WordCounting,
+        //TimesUp => WordCounting,
         PlayersFinished => WordCounting
     },
+    /*
     WordCounting => {
+        AllPlayersSentWordSubmission => WordCounting,
         LastRound => EndOfGame,
         NotLastRound => ChooseWord
     },*/

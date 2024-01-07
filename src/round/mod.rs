@@ -17,4 +17,10 @@ impl Round {
     pub fn add_words(&mut self, nickname: String, words: Vec<String>) {
         self.player_words.insert(nickname, words);
     }
+
+    pub fn have_all_players_submitted_words(&self, players: &[String]) -> bool {
+        players
+            .iter()
+            .all(|player| self.player_words.contains_key(player))
+    }
 }
