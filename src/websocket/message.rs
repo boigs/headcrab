@@ -31,6 +31,9 @@ pub enum WsMessageIn {
     ChatMessage {
         content: String,
     },
+    PlayerWords {
+        words: Vec<String>,
+    },
 }
 
 #[derive(Serialize)]

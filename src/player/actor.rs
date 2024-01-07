@@ -145,6 +145,13 @@ impl PlayerActor {
                             return Err(());
                         }
                     }
+                    Ok(WsMessageIn::PlayerWords { words }) => {
+                        if let Err(error) = self.game.add_player_words(&self.nickname, words).await
+                        {
+                            send_error(&mut self.websocket, error).await;
+                            return Err(());
+                        }
+                    }
                     Err(error) => {
                         send_error(&mut self.websocket, error).await;
                     }
