@@ -71,6 +71,21 @@ impl GameClient {
             .await
             .map_err(|error| Error::log_and_create_internal(&format!("Tried to send GameCommand::AddChatMessage but GameActor is not listening. Error: {error}.")))
     }
+
+    pub async fn add_player_words(&self, player: &str, words: Vec<String>) -> Result<(), Error> {
+        self.game_tx
+            .send(GameCommand::AddPlayerWords {
+                nickname: player.to_string(),
+                words,
+            })
+            .await
+            .map_err(|_| {
+                Error::log_and_create_internal(&format!(
+                    "Could not send words of player {0}",
+                    player,
+                ))
+            })
+    }
 }
 
 pub struct GameWideEventReceiver {

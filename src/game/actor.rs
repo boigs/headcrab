@@ -100,9 +100,9 @@ impl GameActor {
                             let _ = self.game.disconnect_player(&nickname);
                         }
                         GameCommand::StartGame { nickname } => {
-                            if let Err(Error::Internal(_)) = self.game.start_game(&nickname) {
-                                log::error!("Failed to start the game. Stopping the game.");
-                                break;
+                            if self.game.start_game(&nickname).is_err() {
+                                log::warn!("Somebody tried starting the game and is not the host. Malicious actor?");
+                                continue;
                             }
                         }
                         GameCommand::AddChatMessage { sender, content } => {
@@ -110,6 +110,12 @@ impl GameActor {
                                 .broadcast_tx
                                 .send(GameWideEvent::ChatMessage { sender, content });
                             continue;
+                        }
+                        GameCommand::AddPlayerWords { nickname, words } => {
+                            if self.game.add_words(nickname, words).is_err() {
+                                log::warn!("Somebody tried adding words when not in the correct state. Malicious actor?");
+                                continue;
+                            }
                         }
                     }
                     let _ = self.send_game_state();
@@ -151,6 +157,10 @@ pub(crate) enum GameCommand {
     AddChatMessage {
         sender: String,
         content: String,
+    },
+    AddPlayerWords {
+        nickname: String,
+        words: Vec<String>,
     },
 }
 

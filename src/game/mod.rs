@@ -139,6 +139,18 @@ impl Game {
     fn choose_random_word() -> String {
         "alien".to_string()
     }
+
+    pub fn add_words(&mut self, nickname: String, words: Vec<String>) -> Result<(), Error> {
+        if self.fsm.state() != &GameFsmState::PlayersWritingWords {
+            return Err(Error::CommandNotAllowed(nickname, "AddWords".to_string()));
+        }
+
+        if let Some(round) = self.rounds.last_mut() {
+            round.add_words(nickname, words);
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
