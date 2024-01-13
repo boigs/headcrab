@@ -43,7 +43,14 @@ impl Game {
     }
 
     pub fn all_players_are_disconnected(&self) -> bool {
-        self.players.iter().all(|player| !player.is_connected)
+        self.get_connected_players().is_empty()
+    }
+
+    fn get_connected_players(&self) -> Vec<&Player> {
+        self.players
+            .iter()
+            .filter(|player| player.is_connected)
+            .collect()
     }
 
     pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
@@ -112,20 +119,47 @@ impl Game {
             .unwrap_or(false)
     }
 
+    fn get_current_round_mut(&mut self) -> &mut Round {
+        self.rounds.last_mut().unwrap()
+    }
+
     fn process_event(&mut self, event: &GameFsmInput) -> Result<(), Error> {
         match self.fsm.consume(event) {
             Ok(_) => match self.fsm.state() {
                 GameFsmState::CreatingNewRound => {
-                    self.start_new_round();
-                    self.process_event(&GameFsmInput::StartRound)
+                    if self.rounds.len() >= 3 {
+                        self.process_event(&GameFsmInput::NoMoreRounds)
+                    } else {
+                        self.start_new_round();
+                        self.process_event(&GameFsmInput::StartRound)
+                    }
                 }
                 GameFsmState::PlayersWritingWords => Ok(()),
                 GameFsmState::Lobby => Ok(()),
-                GameFsmState::WordCounting => {
-                    // If all words have been validated then move to the next state
-                    // chose word to validate
-                    Ok(())
+                GameFsmState::ScoreCounting => {
+                    self.process_event(&GameFsmInput::BeginScoreCounting)
                 }
+                GameFsmState::PlayersSendingWordSubmission => Ok(()),
+                GameFsmState::ChooseNextPlayer => {
+                    let number_of_players = self.players.len();
+                    if self
+                        .get_current_round_mut()
+                        .next_player_to_score(number_of_players)
+                        .is_some()
+                    {
+                        self.process_event(&GameFsmInput::NextPlayer)
+                    } else {
+                        self.process_event(&GameFsmInput::NoMorePlayers)
+                    }
+                }
+                GameFsmState::ChooseNextWord => {
+                    if self.get_current_round_mut().next_word_to_score(8).is_some() {
+                        self.process_event(&GameFsmInput::NextWord)
+                    } else {
+                        self.process_event(&GameFsmInput::NoMoreWords)
+                    }
+                }
+                GameFsmState::EndOfGame => todo!(),
             },
             Err(error) => Err(Error::log_and_create_internal(&format!(
                 "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
@@ -145,7 +179,7 @@ impl Game {
         "alien".to_string()
     }
 
-    /*
+    // TODO: add unit tests
     pub fn add_word_to_score(
         &mut self,
         nickname: String,
@@ -155,10 +189,35 @@ impl Game {
         // Verify the player has this word
         // Verify the player hasn't already added this word as validated
         // If all players have sent something then compute the score and go to validate the next word
+        if self.state() != &GameFsmState::PlayersSendingWordSubmission {
+            return Err(Error::CommandNotAllowed(
+                nickname,
+                "add_word_to_score_invalid_state".to_string(),
+            ));
+        }
+
+        let number_of_connected_players = self.get_connected_players().len();
+
+        let current_round = self.get_current_round_mut();
+        if let Some(word) = word.clone() {
+            if current_round.player_has_word(&nickname, &word) {
+                return Err(Error::CommandNotAllowed(
+                    nickname,
+                    "add_word_to_score_non_existing_word".to_string(),
+                ));
+            }
+        }
+        current_round.add_player_word_submission(nickname, word);
+
+        if current_round.players_submitted_words_count() >= number_of_connected_players {
+            current_round.compute_score();
+            return self.process_event(&GameFsmInput::AllPlayersSentWordSubmission);
+        }
+
         Ok(())
     }
-    */
 
+    // TODO: add unit tests
     pub fn add_words(&mut self, nickname: String, words: Vec<String>) -> Result<(), Error> {
         if self.fsm.state() != &GameFsmState::PlayersWritingWords {
             return Err(Error::CommandNotAllowed(nickname, "AddWords".to_string()));

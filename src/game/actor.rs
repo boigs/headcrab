@@ -117,6 +117,12 @@ impl GameActor {
                                 continue;
                             }
                         }
+                        GameCommand::AddPlayerWordSubmission { nickname, word } => {
+                            if self.game.add_word_to_score(nickname, word).is_err() {
+                                log::warn!("Somebody tried adding words when not in the correct state. Malicious actor?");
+                                continue;
+                            }
+                        }
                     }
                     let _ = self.send_game_state();
                 }
@@ -161,6 +167,10 @@ pub(crate) enum GameCommand {
     AddPlayerWords {
         nickname: String,
         words: Vec<String>,
+    },
+    AddPlayerWordSubmission {
+        nickname: String,
+        word: Option<String>,
     },
 }
 

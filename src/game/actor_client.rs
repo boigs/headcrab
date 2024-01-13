@@ -86,6 +86,25 @@ impl GameClient {
                 ))
             })
     }
+
+    pub async fn add_player_word_submission(
+        &self,
+        player: &str,
+        word: Option<String>,
+    ) -> Result<(), Error> {
+        self.game_tx
+            .send(GameCommand::AddPlayerWordSubmission {
+                nickname: player.to_string(),
+                word,
+            })
+            .await
+            .map_err(|_| {
+                Error::log_and_create_internal(&format!(
+                    "Could not send player word submission {0}",
+                    player,
+                ))
+            })
+    }
 }
 
 pub struct GameWideEventReceiver {

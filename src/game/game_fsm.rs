@@ -14,15 +14,24 @@ state_machine! {
     pub GameFsm(Lobby)
 
     Lobby(StartGame) => CreatingNewRound,
-    CreatingNewRound(StartRound) => PlayersWritingWords,
-    PlayersWritingWords => {
-        //TimesUp => WordCounting,
-        PlayersFinished => WordCounting
+    CreatingNewRound => {
+        StartRound => PlayersWritingWords,
+        NoMoreRounds => EndOfGame,
     },
-    /*
-    WordCounting => {
-        AllPlayersSentWordSubmission => WordCounting,
-        LastRound => EndOfGame,
-        NotLastRound => ChooseWord
-    },*/
+    PlayersWritingWords => {
+        //TimesUp => ScoreCounting,
+        PlayersFinished => ScoreCounting
+    },
+    ScoreCounting(BeginScoreCounting) => PlayersSendingWordSubmission,
+    ChooseNextPlayer => {
+        NoMorePlayers => CreatingNewRound,
+        NextPlayer => ChooseNextWord,
+    },
+    ChooseNextWord => {
+        NoMoreWords => ChooseNextPlayer,
+        NextWord => PlayersSendingWordSubmission,
+    },
+    PlayersSendingWordSubmission => {
+        AllPlayersSentWordSubmission => ChooseNextWord,
+    }
 }

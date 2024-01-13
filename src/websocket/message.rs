@@ -34,6 +34,10 @@ pub enum WsMessageIn {
     PlayerWords {
         words: Vec<String>,
     },
+    PlayerWordSubmission {
+        // TODO: handle empty word (skip) submissions
+        word: String,
+    },
 }
 
 #[derive(Serialize)]
@@ -71,7 +75,11 @@ pub fn state_to_string(state: GameFsmState) -> String {
         GameFsmState::Lobby => "Lobby".to_string(),
         GameFsmState::CreatingNewRound => "CreatingNewRound".to_string(),
         GameFsmState::PlayersWritingWords => "PlayersWritingWords".to_string(),
-        GameFsmState::WordCounting => "WordCounting".to_string(),
+        GameFsmState::ScoreCounting => "WordCounting".to_string(),
+        GameFsmState::ChooseNextPlayer => todo!(),
+        GameFsmState::ChooseNextWord => todo!(),
+        GameFsmState::EndOfGame => todo!(),
+        GameFsmState::PlayersSendingWordSubmission => todo!(),
         /*GameFsmState::EndOfGame => "EndOfGame".to_string(),
         ,*/
     }
