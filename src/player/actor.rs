@@ -152,6 +152,16 @@ impl PlayerActor {
                             return Err(());
                         }
                     }
+                    Ok(WsMessageIn::PlayerWordSubmission { word }) => {
+                        if let Err(error) = self
+                            .game
+                            .add_player_word_submission(&self.nickname, Some(word))
+                            .await
+                        {
+                            send_error(&mut self.websocket, error).await;
+                            return Err(());
+                        }
+                    }
                     Err(error) => {
                         send_error(&mut self.websocket, error).await;
                     }
