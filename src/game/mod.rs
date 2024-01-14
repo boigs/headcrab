@@ -207,6 +207,7 @@ impl Game {
                 ));
             }
         }
+
         current_round.add_player_word_submission(nickname, word);
 
         if current_round.players_submitted_words_count() >= number_of_connected_players {
