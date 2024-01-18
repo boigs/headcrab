@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use log::kv::Source;
-
 #[derive(Debug, Clone)]
 pub struct Word {
     pub word: String,
@@ -22,21 +20,23 @@ impl Word {
 #[derive(Default, Debug, Clone)]
 struct RoundScoreState {
     current_player: usize,
-    current_word: usize,
+    current_word: Option<String>,
     player_word_submission: HashMap<String, Option<String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Round {
     pub word: String,
+    players: Vec<String>,
     player_words: HashMap<String, Vec<Word>>,
     score: RoundScoreState,
 }
 
 impl Round {
-    pub fn new(word: &str) -> Self {
+    pub fn new(word: &str, players: Vec<String>) -> Self {
         Round {
             word: word.to_string(),
+            players,
             player_words: HashMap::new(),
             score: RoundScoreState::default(),
         }
@@ -70,19 +70,30 @@ impl Round {
         if self.score.current_player >= number_of_players {
             None
         } else {
-            self.score.current_word = 0;
+            self.score.current_word = None;
             Some(())
         }
     }
 
-    // TODO: add unit tests
-    pub fn next_word_to_score(&mut self, max_number_of_words: usize) -> Option<()> {
-        self.score.current_word += 1;
-        if self.score.current_word >= max_number_of_words {
-            None
+    pub fn next_word_to_score(&mut self) -> Option<String> {
+        if let Some(words) = self
+            .player_words
+            .get(&self.players[self.score.current_player])
+        {
+            if let Some(word) = words.iter().find(|word| !word.is_used) {
+                self.score.current_word = Some(word.word.clone());
+                self.add_player_word_submission(
+                    self.players[self.score.current_player].clone(),
+                    self.score.current_word.clone(),
+                );
+            } else {
+                self.score.current_word = None;
+            }
         } else {
-            Some(())
+            self.score.current_word = None;
         }
+
+        self.score.current_word.clone()
     }
 
     pub fn add_player_word_submission(
@@ -101,7 +112,7 @@ impl Round {
     }
 
     pub fn players_submitted_words_count(&self) -> usize {
-        self.score.player_word_submission.count()
+        self.score.player_word_submission.len()
     }
 
     pub fn compute_score(&mut self) {
@@ -131,8 +142,8 @@ mod tests {
     use super::{Round, Word};
 
     #[test]
-    fn player_cannot_submit_unexisting_word() {
-        let mut round = Round::new("word");
+    fn player_cannot_submit_non_existent_word() {
+        let mut round = Round::new("word", vec!["p".to_string()]);
         round.add_words(
             "p".to_string(),
             vec!["word1".to_string(), "word2".to_string()],
@@ -145,7 +156,7 @@ mod tests {
 
     #[test]
     fn player_cannot_submit_used_word() {
-        let mut round = Round::new("word");
+        let mut round = Round::new("word", vec!["p1".to_string()]);
         round.add_words(
             "p".to_string(),
             vec!["word1".to_string(), "word2".to_string()],
@@ -160,7 +171,10 @@ mod tests {
 
     #[test]
     fn compute_score_works() {
-        let mut round = Round::new("word");
+        let mut round = Round::new(
+            "word",
+            vec!["p1".to_string(), "p2".to_string(), "p3".to_string()],
+        );
         round.add_words(
             "p1".to_string(),
             vec!["p1_word1".to_string(), "p1_word2".to_string()],
@@ -194,6 +208,37 @@ mod tests {
         assert!(!get_word(&round, "p2", "p2_word2").is_used);
         assert!(!get_word(&round, "p3", "p3_word1").is_used);
         assert!(!get_word(&round, "p3", "p3_word2").is_used);
+    }
+
+    #[test]
+    fn given_all_words_are_not_used_when_choosing_next_word_then_chooses_correctly() {
+        let mut round = Round::new("word", vec!["p1".to_string()]);
+        round.add_words(
+            "p1".to_string(),
+            vec!["word1".to_string(), "word2".to_string()],
+        );
+
+        assert_eq!(round.next_word_to_score(), Some("word1".to_string()));
+    }
+
+    #[test]
+    fn given_the_first_two_words_are_used_when_choosing_next_word_then_chooses_the_second_word() {
+        let mut round = Round::new("word", vec!["p1".to_string()]);
+        round.add_words(
+            "p1".to_string(),
+            vec![
+                "word1".to_string(),
+                "word2".to_string(),
+                "word3".to_string(),
+            ],
+        );
+        round.next_word_to_score();
+        round.compute_score();
+
+        round.next_word_to_score();
+        round.compute_score();
+
+        assert_eq!(round.next_word_to_score(), Some("word3".to_string()));
     }
 
     fn get_word<'a>(round: &'a Round, nickname: &str, word: &str) -> &'a Word {

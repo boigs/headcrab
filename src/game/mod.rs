@@ -153,7 +153,7 @@ impl Game {
                     }
                 }
                 GameFsmState::ChooseNextWord => {
-                    if self.get_current_round_mut().next_word_to_score(8).is_some() {
+                    if self.get_current_round_mut().next_word_to_score().is_some() {
                         self.process_event(&GameFsmInput::NextWord)
                     } else {
                         self.process_event(&GameFsmInput::NoMoreWords)
@@ -171,7 +171,13 @@ impl Game {
 
     fn start_new_round(&mut self) {
         let word = Game::choose_random_word();
-        let round = Round::new(&word);
+        let round = Round::new(
+            &word,
+            self.players()
+                .iter()
+                .map(|player| player.nickname.clone())
+                .collect(),
+        );
         self.rounds.push(round);
     }
 
