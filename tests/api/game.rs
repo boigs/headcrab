@@ -79,11 +79,15 @@ async fn game_can_be_started() {
 
     let game_id = create_game(&app.base_address, client).await.id;
 
-    let nickname = "player";
+    let nickname = "p1";
     let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
         .await
         .split();
     assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
+    let _ = receive_game_sate(&mut rx).await;
+    let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
+    let _ = receive_game_sate(&mut rx).await;
 
     send_start_game(
         &mut tx,
