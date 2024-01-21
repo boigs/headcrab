@@ -22,7 +22,7 @@ state_machine! {
         //TimesUp => ScoreCounting,
         PlayersFinished => ScoreCounting
     },
-    ScoreCounting(BeginScoreCounting) => PlayersSendingWordSubmission,
+    ScoreCounting(BeginScoreCounting) => ChooseNextPlayer,
     ChooseNextPlayer => {
         NoMorePlayers => CreatingNewRound,
         NextPlayer => ChooseNextWord,
