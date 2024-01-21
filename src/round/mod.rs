@@ -74,7 +74,6 @@ impl Round {
             .all(|player| self.player_words.contains_key(player))
     }
 
-    // TODO: add unit tests
     pub fn next_player_to_score(&mut self) -> Option<String> {
         match self.score.current_player {
             None => {
