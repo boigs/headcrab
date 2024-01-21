@@ -75,6 +75,9 @@ impl Round {
     }
 
     pub fn next_player_to_score(&mut self) -> Option<String> {
+        if self.score.all_players_done || self.players.is_empty() {
+            return None;
+        }
         match self.score.current_player {
             None => {
                 self.score.current_player = Some((0, self.players.first().unwrap().clone()));
