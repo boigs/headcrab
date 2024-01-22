@@ -83,7 +83,7 @@ impl Game {
     }
 
     pub fn start_game(&mut self, nickname: &str) -> Result<(), Error> {
-        if self.is_host(nickname) || self.players.len() < 3 {
+        if self.is_host(nickname) && self.get_connected_players().len() >= 3 {
             self.process_event(&GameFsmInput::StartGame)
         } else {
             Err(Error::CommandNotAllowed(
