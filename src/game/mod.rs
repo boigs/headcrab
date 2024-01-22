@@ -83,7 +83,7 @@ impl Game {
     }
 
     pub fn start_game(&mut self, nickname: &str) -> Result<(), Error> {
-        if self.is_host(nickname) {
+        if self.is_host(nickname) && self.get_connected_players().len() >= 3 {
             self.process_event(&GameFsmInput::StartGame)
         } else {
             Err(Error::CommandNotAllowed(
@@ -130,7 +130,7 @@ impl Game {
                     if self.rounds.len() >= 3 {
                         self.process_event(&GameFsmInput::NoMoreRounds)
                     } else {
-                        self.start_new_round();
+                        self.start_new_round()?;
                         self.process_event(&GameFsmInput::StartRound)
                     }
                 }
@@ -141,10 +141,9 @@ impl Game {
                 }
                 GameFsmState::PlayersSendingWordSubmission => Ok(()),
                 GameFsmState::ChooseNextPlayer => {
-                    let number_of_players = self.players.len();
                     if self
                         .get_current_round_mut()
-                        .next_player_to_score(number_of_players)
+                        .next_player_to_score()
                         .is_some()
                     {
                         self.process_event(&GameFsmInput::NextPlayer)
@@ -169,7 +168,7 @@ impl Game {
         }
     }
 
-    fn start_new_round(&mut self) {
+    fn start_new_round(&mut self) -> Result<(), Error> {
         let word = Game::choose_random_word();
         let round = Round::new(
             &word,
@@ -177,8 +176,9 @@ impl Game {
                 .iter()
                 .map(|player| player.nickname.clone())
                 .collect(),
-        );
+        )?;
         self.rounds.push(round);
+        Ok(())
     }
 
     fn choose_random_word() -> String {
@@ -214,7 +214,7 @@ impl Game {
             }
         }
 
-        current_round.add_player_word_submission(nickname, word);
+        current_round.add_player_word_submission(&nickname, word);
 
         if current_round.players_submitted_words_count() >= number_of_connected_players {
             current_round.compute_score();
@@ -225,9 +225,12 @@ impl Game {
     }
 
     // TODO: add unit tests
-    pub fn add_words(&mut self, nickname: String, words: Vec<String>) -> Result<(), Error> {
+    pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         if self.fsm.state() != &GameFsmState::PlayersWritingWords {
-            return Err(Error::CommandNotAllowed(nickname, "AddWords".to_string()));
+            return Err(Error::CommandNotAllowed(
+                nickname.to_string(),
+                "AddWords".to_string(),
+            ));
         }
 
         if let Some(round) = self.rounds.last_mut() {
@@ -254,50 +257,49 @@ mod tests {
 
     use super::Game;
 
+    static PLAYER_1: &str = "p1";
+    static PLAYER_2: &str = "p2";
+    static PLAYER_3: &str = "p3";
+
     #[test]
     fn add_player_works() {
         let mut game = Game::new("id");
 
-        let _ = game.add_player("player");
+        game.add_player(PLAYER_1).unwrap();
 
         assert_eq!(game.players().len(), 1);
-        assert_eq!(game.players()[0].nickname, "player");
+        assert_eq!(game.players()[0].nickname, PLAYER_1);
     }
 
     #[test]
     fn disconnect_player_works() {
-        let mut game = Game::new("id");
+        let mut game = get_game();
 
-        let _ = game.add_player("any-player");
-        let _ = game.add_player("other-player");
-
-        assert_eq!(game.players().len(), 2);
+        assert_eq!(game.players().len(), 3);
         assert!(game.players()[0].is_connected);
         assert!(game.players()[1].is_connected);
+        assert!(game.players()[2].is_connected);
 
-        game.disconnect_player("any-player")
-            .expect("No player has been removed.");
+        game.disconnect_player(PLAYER_1).unwrap();
 
-        assert_eq!(game.players().len(), 2);
+        assert_eq!(game.players().len(), 3);
         assert!(!game.players()[0].is_connected);
         assert!(game.players()[1].is_connected);
+        assert!(game.players()[2].is_connected);
     }
 
     #[test]
     fn disconnect_non_existing() {
-        let mut game = Game::new("id");
+        let mut game = get_game();
 
-        let removed = game.disconnect_player("player");
+        let removed = game.disconnect_player("non_existent_player");
 
         assert!(removed.is_err());
     }
 
     #[test]
     fn only_first_player_added_is_host() {
-        let mut game = Game::new("id");
-
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
+        let game = get_game();
 
         assert!(game.players()[0].is_host);
         assert!(!game.players()[1].is_host);
@@ -305,44 +307,34 @@ mod tests {
 
     #[test]
     fn host_player_is_reelected_when_disconnected() {
-        let mut game = Game::new("id");
+        let mut game = get_game();
 
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
-        let _ = game.disconnect_player("first_player");
+        game.disconnect_player(PLAYER_1).unwrap();
 
         assert!(!game.players()[0].is_host);
         assert!(game.players()[1].is_host);
     }
 
     #[test]
-    fn host_player_can_start_game() {
+    fn game_cannot_be_started_with_less_than_three_players() {
         let mut game = Game::new("id");
+        game.add_player(PLAYER_1).unwrap();
 
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
+        assert!(game.start_game(PLAYER_1).is_err());
+    }
 
-        assert!(game.start_game("first_player").is_ok());
+    #[test]
+    fn host_player_can_start_game() {
+        let mut game = get_game();
+
+        assert!(game.start_game(PLAYER_1).is_ok());
     }
 
     #[test]
     fn non_host_player_cannot_start_game() {
-        let mut game = Game::new("id");
+        let mut game = get_game();
 
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
-
-        assert!(game.start_game("second_player").is_err());
-    }
-
-    #[test]
-    fn round_is_initialized() {
-        let mut game = Game::new("id");
-
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
-
-        assert!(game.start_game("second_player").is_err());
+        assert!(game.start_game(PLAYER_2).is_err());
     }
 
     #[test]
@@ -354,9 +346,9 @@ mod tests {
 
     #[test]
     fn game_initializes_first_round() {
-        let mut game = Game::new("id");
-        let _ = game.add_player("first_player");
-        let _ = game.start_game("first_player");
+        let mut game = get_game();
+
+        game.start_game(PLAYER_1).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
         assert_eq!(game.rounds().len(), 1);
@@ -365,20 +357,17 @@ mod tests {
 
     #[test]
     fn all_players_are_disconnected_is_false() {
-        let mut game = Game::new("id");
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
+        let game = get_game();
 
         assert!(!game.all_players_are_disconnected());
     }
 
     #[test]
     fn all_players_are_disconnected_is_true() {
-        let mut game = Game::new("id");
-        let _ = game.add_player("first_player");
-        let _ = game.add_player("second_player");
-        let _ = game.disconnect_player("first_player");
-        let _ = game.disconnect_player("second_player");
+        let mut game = get_game();
+        let _ = game.disconnect_player(PLAYER_1);
+        let _ = game.disconnect_player(PLAYER_2);
+        let _ = game.disconnect_player(PLAYER_3);
 
         assert!(game.all_players_are_disconnected());
     }
@@ -388,5 +377,13 @@ mod tests {
         let game = Game::new("id");
 
         assert!(game.all_players_are_disconnected());
+    }
+
+    fn get_game() -> Game {
+        let mut game = Game::new("id");
+        game.add_player(PLAYER_1).unwrap();
+        game.add_player(PLAYER_2).unwrap();
+        game.add_player(PLAYER_3).unwrap();
+        game
     }
 }
