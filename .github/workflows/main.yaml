@@ -14,99 +14,49 @@ concurrency:
   cancel-in-progress: true    
 
 env:
+  SERVICE_IMAGE_NAME: localhost:32000/headcrab${{ github.ref_name != 'main' && '-pr' || '' }}
   CARGO_TERM_COLOR: always
-  DOCKER_IMAGE_NAME: localhost:32000/headcrab
   RUST_VERSION: 1.77.0
 
 jobs:
-  test:
-    name: Run Tests
+  test-solution:
+    name: Solution -> Test
     runs-on: ubuntu-latest
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
 
       - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+        uses: ./.github/actions/test-solution
         with:
           version: ${{ env.RUST_VERSION }}
 
-      - name: Cargo Test
-        run: cargo test --all-features
-    
-  format:
-    name: Format Check
-    runs-on: ubuntu-latest
+  build-publish-service-image:
+    name: Service Image -> Build, Publish
+    needs: [test-solution]
+    runs-on: self-hosted
+    outputs:
+      image-sha-tag: ${{ steps.image.outputs.image-sha-tag }}
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+      - name: Service Image -> Build, Publish
+        id: image
+        uses: ./.github/actions/build-publish-image
         with:
-          version: ${{ env.RUST_VERSION }}
-          components: rustfmt
+          dockerfile-path: ./Dockerfile
+          image-name: ${{ env.SERVICE_IMAGE_NAME }}
 
-      - name: Cargo Format
-        run: cargo fmt --all --check
-
-  linter:
-    name: Linter Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clone Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          version: ${{ env.RUST_VERSION }}
-          components: clippy
-
-      - name: Cargo Clippy
-        run: cargo clippy -- -D warnings
-
-  build-deploy:
-    name: ${{ github.ref_name == 'main' && 'Build and Deploy' || 'Build' }}
-    needs: [test, format, linter]
+  deploy:
+    name: Service -> Deploy ${{ github.ref_name != 'main' && '(Plan Only)' || '' }}
+    needs: [build-publish-service-image]
     runs-on: self-hosted
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+      - name: Service -> Deploy
+        uses: ./.github/actions/deploy-service
         with:
-          version: ${{ env.RUST_VERSION }}
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: network=host
-
-      - name: Docker Image Metadata
-        id: image-metadata
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.DOCKER_IMAGE_NAME }}
-          tags: type=sha
-
-      - name: Create Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          push: ${{ github.ref_name == 'main' }}
-          context: .
-          target: final
-          tags: ${{ steps.image-metadata.outputs.tags }}
-          labels: ${{ steps.image-metadata.outputs.labels }}
-          provenance: false
-
-      - name: Set version to deploy in k8s.yaml
-        if: github.ref_name == 'main'
-        run: sed -i -E "s#headcrab_image#${{ env.DOCKER_IMAGE_NAME }}:${{ steps.image-metadata.outputs.version }}#g" k8s.yaml
-        
-      - name: Deploy
-        if: github.ref_name == 'main'
-        run: |
-          microk8s kubectl apply -f k8s.yaml
-          microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s
+          image-name: ${{ needs.build-publish-service-image.outputs.image-sha-tag }}
+          deploy: ${{ github.ref_name == 'main' }}
