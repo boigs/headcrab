@@ -8,7 +8,7 @@ inputs:
   deploy:
     description: If the service should be deployed or not
     required: true
-    
+
 runs:
   using: composite
   steps:
@@ -17,7 +17,7 @@ runs:
       run: sed -i -E "s#headcrab_image#${{ inputs.image-name }}#g" k8s.yaml
       
     - name: Deploy
-      if: inputs.deploy
+      if: inputs.deploy == 'true'
       shell: bash
       run: |
         microk8s kubectl apply -f k8s.yaml
