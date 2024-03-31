@@ -1,0 +1,22 @@
+name: Setup Rust
+description: Setups the Rust toolchain
+
+inputs:
+  version:
+    description: The Rust version to use
+    required: true
+  components:
+    description: The Rust components to install
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust Toolchain
+      uses: dtolnay/rust-toolchain@dc6353516c68da0f06325f42ad880f76a5e77ec9
+      with:
+        toolchain: ${{ inputs.version }}
+        components: ${{ inputs.components }}
+
+    - name: Setup Rust Cache
+      uses: Swatinem/rust-cache@f7a52f691454d93c6ce0dff6666a5cb399b8d06e
