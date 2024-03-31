@@ -40,12 +40,14 @@ jobs:
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
+
       - name: Service Image -> Build, Publish
         id: image
         uses: ./.github/actions/build-publish-image
         with:
           dockerfile-path: ./Dockerfile
           image-name: ${{ env.SERVICE_IMAGE_NAME }}
+          build-args: RUST_VERSION=${{ env.RUST_VERSION }}
 
   deploy:
     name: Service -> Deploy ${{ github.ref_name != 'main' && '(Plan Only)' || '' }}
