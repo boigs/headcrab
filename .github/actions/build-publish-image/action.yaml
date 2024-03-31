@@ -1,5 +1,5 @@
 name: Image -> Build, Publish
-description: Builds and published the Docker image to a registry
+description: Builds and publishes the Docker image to a registry
 
 inputs:
   dockerfile-path:
