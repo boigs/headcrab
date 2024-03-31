@@ -21,8 +21,8 @@ runs:
   steps:
     - name: Setup up Docker Buildx
       uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: network=host
+      with:
+        driver-opts: network=host
 
     - name: Docker Image Metadata
       id: metadata
