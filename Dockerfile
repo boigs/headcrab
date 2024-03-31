@@ -1,6 +1,6 @@
 # Based on https://github.com/LukeMathWalker/cargo-chef
-FROM rust:1.74.1 AS chef 
-RUN cargo install cargo-chef --version 0.1.62
+FROM rust:1.77.1 AS chef 
+RUN cargo install cargo-chef --version 0.1.66
 WORKDIR /app
 
 
@@ -16,7 +16,7 @@ COPY . .
 RUN cargo build --release --bin headcrab
 
 
-FROM debian:12.2-slim AS final
+FROM debian:12.5-slim AS final
 WORKDIR /app
 COPY --from=builder /app/target/release/headcrab /usr/local/bin
 COPY config config
