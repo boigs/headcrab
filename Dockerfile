@@ -1,12 +1,13 @@
 # Based on https://github.com/LukeMathWalker/cargo-chef
-FROM rust:1.77.0 AS chef 
+ARG RUST_VERSION
+FROM rust:${RUST_VERSION} AS chef 
 RUN cargo install cargo-chef --version 0.1.66
 WORKDIR /app
 
 
 FROM chef AS planner
 COPY . .
-RUN cargo chef prepare  --recipe-path recipe.json
+RUN cargo chef prepare --recipe-path recipe.json
 
 
 FROM chef AS builder

@@ -1,0 +1,45 @@
+name: Image -> Build, Publish
+description: Builds and publishes the Docker image to a registry
+
+inputs:
+  dockerfile-path:
+    description: Dockerfile location
+    required: true
+  image-name:
+    description: The Docker image name, with the registry prefix
+    required: true
+  build-args:
+    description: The Docker build-args
+    required: false
+outputs:
+  image-sha-tag:
+    description: The image name with the sha tag
+    value: ${{ inputs.image-name }}:${{ steps.metadata.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: network=host
+
+    - name: Docker Image Metadata
+      id: metadata
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.image-name }}
+        tags: type=sha
+        flavor: latest=true
+
+    - name: Build Image
+      uses: docker/build-push-action@v5
+      with:
+        build-args: ${{ inputs.build-args }}
+        push: true
+        context: .
+        target: final
+        file: ${{ inputs.dockerfile-path }}
+        tags: ${{ steps.metadata.outputs.tags }}
+        labels: ${{ steps.metadata.outputs.labels }}
+        provenance: false
