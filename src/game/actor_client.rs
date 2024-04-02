@@ -52,13 +52,24 @@ impl GameClient {
     }
 
     pub async fn start_game(&self, nickname: &str) -> Result<(), Error> {
+        let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
+
         self
             .game_tx
             .send(GameCommand::StartGame {
                 nickname: nickname.to_string(),
+                response_tx: tx,
             })
             .await
-            .map_err(|error| Error::log_and_create_internal(&format!("Tried to send GameCommand:StartGame but GameActor is not listening. Error: {error}.")))
+            .map_err(|error| Error::log_and_create_internal(&format!("Tried to send GameCommand:StartGame but GameActor is not listening. Error: {error}.")))?;
+
+        match rx.await {
+            Ok(GameEvent::GameStarted) => Ok(()),
+            Ok(GameEvent::Error { error }) => Err(error),
+            _ => Err(Error::log_and_create_internal(
+                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
+            )),
+        }
     }
 
     pub async fn send_chat_message(&self, sender: &str, content: &str) -> Result<(), Error> {

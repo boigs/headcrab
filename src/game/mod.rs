@@ -83,8 +83,12 @@ impl Game {
     }
 
     pub fn start_game(&mut self, nickname: &str) -> Result<(), Error> {
-        if self.is_host(nickname) && self.get_connected_players().len() >= 3 {
-            self.process_event(&GameFsmInput::StartGame)
+        if self.is_host(nickname) {
+            if self.get_connected_players().len() >= 3 {
+                self.process_event(&GameFsmInput::StartGame)
+            } else {
+                Err(Error::NotEnoughPlayers)
+            }
         } else {
             Err(Error::CommandNotAllowed(
                 nickname.to_string(),
@@ -252,10 +256,8 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::game::game_fsm::GameFsmState;
-
     use super::Game;
+    use crate::{error::Error, game::game_fsm::GameFsmState};
 
     static PLAYER_1: &str = "p1";
     static PLAYER_2: &str = "p2";
@@ -320,7 +322,9 @@ mod tests {
         let mut game = Game::new("id");
         game.add_player(PLAYER_1).unwrap();
 
-        assert!(game.start_game(PLAYER_1).is_err());
+        let result = game.start_game(PLAYER_1);
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), Error::NotEnoughPlayers);
     }
 
     #[test]
@@ -334,7 +338,12 @@ mod tests {
     fn non_host_player_cannot_start_game() {
         let mut game = get_game();
 
-        assert!(game.start_game(PLAYER_2).is_err());
+        let result = game.start_game(PLAYER_2);
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            Error::CommandNotAllowed("p2".to_string(), "start_game".to_string())
+        );
     }
 
     #[test]

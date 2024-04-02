@@ -104,6 +104,33 @@ async fn game_can_be_started() {
 }
 
 #[tokio::test]
+async fn game_cannot_be_started_with_less_than_three_players() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&app.base_address, client).await.id;
+
+    let nickname = "p1";
+    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+        .await
+        .split();
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
+    let _ = receive_game_sate(&mut rx).await;
+
+    send_start_game(
+        &mut tx,
+        WsMessageIn::StartGame {
+            amount_of_rounds: 5,
+        },
+    )
+    .await;
+
+    let error = receive_error(&mut rx).await;
+    assert_eq!(&error, "NOT_ENOUGH_PLAYERS");
+}
+
+#[tokio::test]
 async fn game_is_still_alive_when_all_players_leave() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();

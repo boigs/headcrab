@@ -54,6 +54,11 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
             title: "The player already exists".to_string(),
             detail: error.to_string(),
         },
+        Error::NotEnoughPlayers => WsMessageOut::Error {
+            r#type: "NOT_ENOUGH_PLAYERS".to_string(),
+            title: "Not enough players".to_string(),
+            detail: error.to_string(),
+        },
         Error::Internal(_) => WsMessageOut::Error {
             r#type: "INTERNAL_SERVER".to_string(),
             title: "Internal Server error".to_string(),
