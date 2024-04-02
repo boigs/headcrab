@@ -12,7 +12,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Set version to deploy in k8s.yaml
+    - name: Set the Service Docker image to deploy in k8s.yaml
       shell: bash
       run: sed -i -E "s#headcrab_image#${{ inputs.image-name }}#g" k8s.yaml
       

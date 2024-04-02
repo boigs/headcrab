@@ -1,4 +1,4 @@
-name: Image -> Build, Publish
+name: Image -> Publish
 description: Builds and publishes the Docker image to a registry
 
 inputs:

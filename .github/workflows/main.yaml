@@ -23,7 +23,7 @@ jobs:
     name: Solution -> Test
     runs-on: ubuntu-latest
     steps:
-      - name: Clone Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Rust
@@ -31,34 +31,34 @@ jobs:
         with:
           version: ${{ env.RUST_VERSION }}
 
-  build-publish-service-image:
-    name: Service Image -> Build, Publish
+  publish-service-image:
+    name: Service Image -> Publish
     needs: [test-solution]
     runs-on: self-hosted
     outputs:
       image-sha-tag: ${{ steps.image.outputs.image-sha-tag }}
     steps:
-      - name: Clone Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Service Image -> Build, Publish
+      - name: Service Image -> Publish
         id: image
-        uses: ./.github/actions/build-publish-image
+        uses: ./.github/actions/publish-image
         with:
           dockerfile-path: ./Dockerfile
           image-name: ${{ env.SERVICE_IMAGE_NAME }}
           build-args: RUST_VERSION=${{ env.RUST_VERSION }}
 
-  deploy:
+  deploy-service:
     name: Service -> Deploy ${{ github.ref_name != 'main' && '(Plan Only)' || '' }}
-    needs: [build-publish-service-image]
+    needs: [publish-service-image]
     runs-on: self-hosted
     steps:
-      - name: Clone Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Service -> Deploy
         uses: ./.github/actions/deploy-service
         with:
-          image-name: ${{ needs.build-publish-service-image.outputs.image-sha-tag }}
+          image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
           deploy: ${{ github.ref_name == 'main' }}
