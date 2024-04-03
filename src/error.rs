@@ -1,7 +1,9 @@
 use thiserror::Error;
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum Error {
+    #[error("Not enough players to start the game.")]
+    NotEnoughPlayers,
     #[error("The player '{0}' cannot execute command '{1}'")]
     CommandNotAllowed(String, String),
     #[error("The game with id '{0}' does not exist")]

@@ -99,11 +99,28 @@ impl GameActor {
                         GameCommand::DisconnectPlayer { nickname } => {
                             let _ = self.game.disconnect_player(&nickname);
                         }
-                        GameCommand::StartGame { nickname } => {
-                            if let Err(error) = self.game.start_game(&nickname) {
-                                log::warn!("Failed to start the game, {error}");
-                                continue;
-                            }
+                        GameCommand::StartGame {
+                            nickname,
+                            response_tx,
+                        } => {
+                            match self.game.start_game(&nickname) {
+                                Err(error) => {
+                                    if response_tx
+                                        .send(GameEvent::Error {
+                                            error: error.clone(),
+                                        })
+                                        .is_err()
+                                    {
+                                        log::error!("Sent GameEvent::Error to Player but the response channel is closed.");
+                                    }
+                                }
+                                Ok(_) => {
+                                    if response_tx.send(GameEvent::GameStarted).is_err() {
+                                        log::error!("Sent GameEvent::GameStarted to Player but the response channel is closed. Removing the Player.");
+                                        let _ = self.game.disconnect_player(&nickname);
+                                    }
+                                }
+                            };
                         }
                         GameCommand::AddChatMessage { sender, content } => {
                             let _ = self
@@ -159,6 +176,7 @@ pub(crate) enum GameCommand {
     },
     StartGame {
         nickname: String,
+        response_tx: OneshotSender<GameEvent>,
     },
     AddChatMessage {
         sender: String,
@@ -176,6 +194,7 @@ pub(crate) enum GameCommand {
 
 #[derive(Debug)]
 pub(crate) enum GameEvent {
+    GameStarted,
     PlayerAdded {
         broadcast_rx: broadcast::Receiver<GameWideEvent>,
     },
