@@ -189,19 +189,14 @@ impl Game {
         "alien".to_string()
     }
 
-    // TODO: add unit tests
-    pub fn add_word_to_score(
-        &mut self,
-        nickname: String,
-        word: Option<String>,
-    ) -> Result<(), Error> {
+    pub fn add_word_to_score(&mut self, nickname: &str, word: Option<String>) -> Result<(), Error> {
         // None if the player says they don't have that word on their list
         // Verify the player has this word
         // Verify the player hasn't already added this word as validated
         // If all players have sent something then compute the score and go to validate the next word
         if self.state() != &GameFsmState::PlayersSendingWordSubmission {
             return Err(Error::CommandNotAllowed(
-                nickname,
+                nickname.to_string(),
                 "add_word_to_score_invalid_state".to_string(),
             ));
         }
@@ -210,15 +205,15 @@ impl Game {
 
         let current_round = self.get_current_round_mut();
         if let Some(word) = word.clone() {
-            if current_round.player_has_word(&nickname, &word) {
+            if !current_round.player_has_word(nickname, &word) {
                 return Err(Error::CommandNotAllowed(
-                    nickname,
+                    nickname.to_string(),
                     "add_word_to_score_non_existing_word".to_string(),
                 ));
             }
         }
 
-        current_round.add_player_word_submission(&nickname, word);
+        current_round.add_player_word_submission(nickname, word);
 
         if current_round.players_submitted_words_count() >= number_of_connected_players {
             current_round.compute_score();
@@ -228,7 +223,6 @@ impl Game {
         Ok(())
     }
 
-    // TODO: add unit tests
     pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         if self.fsm.state() != &GameFsmState::PlayersWritingWords {
             return Err(Error::CommandNotAllowed(
@@ -263,6 +257,9 @@ mod tests {
     static PLAYER_2: &str = "p2";
     static PLAYER_3: &str = "p3";
 
+    static WORD_1: &str = "w1";
+    static WORD_2: &str = "w2";
+
     #[test]
     fn add_player_works() {
         let mut game = Game::new("id");
@@ -275,7 +272,7 @@ mod tests {
 
     #[test]
     fn disconnect_player_works() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
 
         assert_eq!(game.players().len(), 3);
         assert!(game.players()[0].is_connected);
@@ -292,7 +289,7 @@ mod tests {
 
     #[test]
     fn disconnect_non_existing() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
 
         let removed = game.disconnect_player("non_existent_player");
 
@@ -301,7 +298,7 @@ mod tests {
 
     #[test]
     fn only_first_player_added_is_host() {
-        let game = get_game();
+        let game = get_game(&GameFsmState::Lobby);
 
         assert!(game.players()[0].is_host);
         assert!(!game.players()[1].is_host);
@@ -309,7 +306,7 @@ mod tests {
 
     #[test]
     fn host_player_is_reelected_when_disconnected() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
 
         game.disconnect_player(PLAYER_1).unwrap();
 
@@ -329,14 +326,14 @@ mod tests {
 
     #[test]
     fn host_player_can_start_game() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
 
         assert!(game.start_game(PLAYER_1).is_ok());
     }
 
     #[test]
     fn non_host_player_cannot_start_game() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
 
         let result = game.start_game(PLAYER_2);
         assert!(result.is_err());
@@ -355,7 +352,7 @@ mod tests {
 
     #[test]
     fn game_initializes_first_round() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
 
         game.start_game(PLAYER_1).unwrap();
 
@@ -366,14 +363,14 @@ mod tests {
 
     #[test]
     fn all_players_are_disconnected_is_false() {
-        let game = get_game();
+        let game = get_game(&GameFsmState::Lobby);
 
         assert!(!game.all_players_are_disconnected());
     }
 
     #[test]
     fn all_players_are_disconnected_is_true() {
-        let mut game = get_game();
+        let mut game = get_game(&GameFsmState::Lobby);
         let _ = game.disconnect_player(PLAYER_1);
         let _ = game.disconnect_player(PLAYER_2);
         let _ = game.disconnect_player(PLAYER_3);
@@ -390,9 +387,7 @@ mod tests {
 
     #[test]
     fn add_words_works() {
-        let mut game = get_game();
-        game.start_game(PLAYER_1).unwrap();
-        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
 
         let result = game.add_words(PLAYER_1, get_words());
 
@@ -402,9 +397,7 @@ mod tests {
 
     #[test]
     fn add_words_transitions_to_players_sending_word_submission_on_last_player_words() {
-        let mut game = get_game();
-        game.start_game(PLAYER_1).unwrap();
-        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
 
         game.add_words(PLAYER_1, get_words()).unwrap();
         game.add_words(PLAYER_2, get_words()).unwrap();
@@ -415,8 +408,7 @@ mod tests {
 
     #[test]
     fn add_words_fails_when_state_is_not_players_writing_words() {
-        let mut game = get_game();
-        assert_eq!(game.state(), &GameFsmState::Lobby);
+        let mut game = get_game(&GameFsmState::Lobby);
 
         let result = game.add_words(PLAYER_1, get_words());
 
@@ -427,15 +419,81 @@ mod tests {
         );
     }
 
-    fn get_game() -> Game {
+    #[test]
+    fn add_word_to_score_works_with_word() {
+        let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
+
+        let result = game.add_word_to_score(PLAYER_1, Some(WORD_1.to_string()));
+
+        assert!(result.is_ok());
+        assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
+    }
+
+    #[test]
+    fn add_word_to_score_works_with_empty_word() {
+        let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
+
+        let result = game.add_word_to_score(PLAYER_1, None);
+
+        assert!(result.is_ok());
+        assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
+    }
+
+    #[test]
+    fn add_word_to_score_fails_with_unsubmitted_word() {
+        let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
+
+        let result = game.add_word_to_score(PLAYER_1, Some("NOT_SUBMITTED_WORD".to_string()));
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            Error::CommandNotAllowed(
+                PLAYER_1.to_string(),
+                "add_word_to_score_non_existing_word".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn add_word_to_score_fails_when_state_is_not_players_sending_word_submission() {
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+
+        let result = game.add_word_to_score(PLAYER_1, Some(WORD_1.to_string()));
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            Error::CommandNotAllowed(
+                PLAYER_1.to_string(),
+                "add_word_to_score_invalid_state".to_string()
+            )
+        );
+    }
+
+    fn get_game(state: &GameFsmState) -> Game {
         let mut game = Game::new("id");
         game.add_player(PLAYER_1).unwrap();
         game.add_player(PLAYER_2).unwrap();
         game.add_player(PLAYER_3).unwrap();
+
+        match state {
+            GameFsmState::Lobby => {}
+            GameFsmState::PlayersWritingWords => game.start_game(PLAYER_1).unwrap(),
+            GameFsmState::PlayersSendingWordSubmission => {
+                game.start_game(PLAYER_1).unwrap();
+                game.add_words(PLAYER_1, get_words()).unwrap();
+                game.add_words(PLAYER_2, get_words()).unwrap();
+                game.add_words(PLAYER_3, get_words()).unwrap();
+            }
+            _ => panic!("Unsupported desired state for unit tests"),
+        }
+        assert_eq!(game.state(), state);
+
         game
     }
 
     fn get_words() -> Vec<String> {
-        vec!["word1".to_string(), "word2".to_string()]
+        vec![WORD_1.to_string(), WORD_2.to_string()]
     }
 }
