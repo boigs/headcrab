@@ -20,19 +20,19 @@ impl Word {
 }
 
 #[derive(Default, Debug, Clone)]
-struct RoundScoreState {
-    current_player: Option<(usize, String)>,
+pub struct RoundScoreState {
+    pub current_player: Option<(usize, String)>,
     all_players_done: bool,
-    current_word: Option<String>,
-    player_word_submission: HashMap<String, Option<String>>,
+    pub current_word: Option<String>,
+    pub player_word_submission: HashMap<String, Option<String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Round {
     pub word: String,
     players: Vec<String>,
-    player_words: HashMap<String, Vec<Word>>,
-    score: RoundScoreState,
+    pub player_words: HashMap<String, Vec<Word>>,
+    pub score: RoundScoreState,
 }
 
 impl Round {
@@ -59,7 +59,6 @@ impl Round {
             .any(|w| w.word == word)
     }
 
-    // TODO: add unit tests
     pub fn add_words(&mut self, nickname: &str, words: Vec<String>) {
         self.player_words.insert(
             nickname.to_string(),

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{game::game_fsm::GameFsmState, player::Player, round::Round};
@@ -62,12 +64,54 @@ impl From<Player> for PlayerDto {
 #[serde(rename_all = "camelCase")]
 pub struct RoundDto {
     word: String,
+    // TODO: do not send this field when state is not PlayersSendingWordSubmission
+    player_words: HashMap<String, Vec<WordDto>>,
+    score: RoundScoreStateDto,
 }
 
 impl From<Round> for RoundDto {
     fn from(val: Round) -> Self {
-        Self { word: val.word }
+        Self {
+            word: val.word,
+            player_words: val
+                .player_words
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        v.iter()
+                            .map(|x| WordDto {
+                                word: x.word.clone(),
+                                is_used: x.is_used,
+                                score: x.score,
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+            score: RoundScoreStateDto {
+                current_player: val.score.current_player.map(|tuple| tuple.1),
+                current_word: val.score.current_word.clone(),
+                player_word_submission: val.score.player_word_submission.clone(),
+            },
+        }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoundScoreStateDto {
+    current_player: Option<String>,
+    current_word: Option<String>,
+    player_word_submission: HashMap<String, Option<String>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WordDto {
+    word: String,
+    is_used: bool,
+    score: usize,
 }
 
 pub fn state_to_string(state: GameFsmState) -> String {
@@ -76,10 +120,10 @@ pub fn state_to_string(state: GameFsmState) -> String {
         GameFsmState::CreatingNewRound => "CreatingNewRound".to_string(),
         GameFsmState::PlayersWritingWords => "PlayersWritingWords".to_string(),
         GameFsmState::ScoreCounting => "WordCounting".to_string(),
-        GameFsmState::ChooseNextPlayer => todo!(),
-        GameFsmState::ChooseNextWord => todo!(),
-        GameFsmState::EndOfGame => todo!(),
-        GameFsmState::PlayersSendingWordSubmission => todo!(),
+        GameFsmState::ChooseNextPlayer => "ChooseNextPlayer".to_string(),
+        GameFsmState::ChooseNextWord => "ChooseNextWord".to_string(),
+        GameFsmState::EndOfGame => "EndOfGame".to_string(),
+        GameFsmState::PlayersSendingWordSubmission => "PlayersSendingWordSubmission".to_string(),
         /*GameFsmState::EndOfGame => "EndOfGame".to_string(),
         ,*/
     }
