@@ -50,7 +50,6 @@ impl Round {
         })
     }
 
-    // TODO: add unit tests
     pub fn player_has_word(&self, nickname: &str, word: &str) -> bool {
         self.player_words
             .get(nickname)
@@ -66,7 +65,6 @@ impl Round {
         );
     }
 
-    // TODO: add unit tests
     pub fn have_all_players_submitted_words(&self, players: &[String]) -> bool {
         players
             .iter()
@@ -317,6 +315,55 @@ mod tests {
         round.compute_score();
 
         assert_eq!(round.next_word_to_score(), None);
+    }
+
+    #[test]
+    fn player_has_word_is_true() {
+        let mut round = get_round();
+        round.add_words(
+            PLAYER_1,
+            vec![
+                "word1".to_string(),
+                "word2".to_string(),
+                "word3".to_string(),
+            ],
+        );
+
+        assert!(round.player_has_word(PLAYER_1, "word1"));
+    }
+
+    #[test]
+    fn player_has_word_is_false() {
+        let mut round = get_round();
+        round.add_words(
+            PLAYER_1,
+            vec![
+                "word1".to_string(),
+                "word2".to_string(),
+                "word3".to_string(),
+            ],
+        );
+
+        assert!(!round.player_has_word(PLAYER_1, "word4"));
+    }
+
+    #[test]
+    fn have_all_players_submitted_words_is_true() {
+        let mut round = get_round();
+        round.add_words(PLAYER_1, vec!["word1".to_string()]);
+        round.add_words(PLAYER_2, vec!["word1".to_string()]);
+
+        assert!(round
+            .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
+    }
+
+    #[test]
+    fn have_all_players_submitted_words_is_false() {
+        let mut round = get_round();
+        round.add_words(PLAYER_1, vec!["word1".to_string()]);
+
+        assert!(!round
+            .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
     }
 
     fn get_round() -> Round {
