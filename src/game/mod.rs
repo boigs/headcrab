@@ -388,11 +388,54 @@ mod tests {
         assert!(game.all_players_are_disconnected());
     }
 
+    #[test]
+    fn add_words_works() {
+        let mut game = get_game();
+        game.start_game(PLAYER_1).unwrap();
+        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+
+        let result = game.add_words(PLAYER_1, get_words());
+
+        assert!(result.is_ok());
+        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+    }
+
+    #[test]
+    fn add_words_transitions_to_players_sending_word_submission_on_last_player_words() {
+        let mut game = get_game();
+        game.start_game(PLAYER_1).unwrap();
+        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+
+        game.add_words(PLAYER_1, get_words()).unwrap();
+        game.add_words(PLAYER_2, get_words()).unwrap();
+        game.add_words(PLAYER_3, get_words()).unwrap();
+
+        assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
+    }
+
+    #[test]
+    fn add_words_fails_when_state_is_not_players_writing_words() {
+        let mut game = get_game();
+        assert_eq!(game.state(), &GameFsmState::Lobby);
+
+        let result = game.add_words(PLAYER_1, get_words());
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            Error::CommandNotAllowed(PLAYER_1.to_string(), "AddWords".to_string())
+        );
+    }
+
     fn get_game() -> Game {
         let mut game = Game::new("id");
         game.add_player(PLAYER_1).unwrap();
         game.add_player(PLAYER_2).unwrap();
         game.add_player(PLAYER_3).unwrap();
         game
+    }
+
+    fn get_words() -> Vec<String> {
+        vec!["word1".to_string(), "word2".to_string()]
     }
 }
