@@ -135,7 +135,7 @@ impl GameActor {
                             }
                         }
                         GameCommand::AddPlayerWordSubmission { nickname, word } => {
-                            if self.game.add_word_to_score(nickname, word).is_err() {
+                            if self.game.add_word_to_score(&nickname, word).is_err() {
                                 log::warn!("Somebody tried adding words when not in the correct state. Malicious actor?");
                                 continue;
                             }
