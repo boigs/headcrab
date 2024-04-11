@@ -48,6 +48,7 @@ jobs:
           dockerfile-path: ./Dockerfile
           image-name: ${{ env.SERVICE_IMAGE_NAME }}
           build-args: RUST_VERSION=${{ env.RUST_VERSION }}
+          is-main-branch: ${{ github.ref_name == 'main' }}
 
   deploy-service:
     name: Service -> Deploy ${{ github.ref_name != 'main' && '(Plan Only)' || '' }}

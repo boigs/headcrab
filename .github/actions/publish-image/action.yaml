@@ -11,8 +11,8 @@ inputs:
   build-args:
     description: The Docker build-args
     required: false
-  is-pr:
-    description: If the image is built in a Pull Request
+  is-main-branch:
+    description: If the image is built in the main branch
 outputs:
   image-sha-tag:
     description: The image name with the sha tag
@@ -32,9 +32,9 @@ runs:
       with:
         images: ${{ inputs.image-name }}
         tags: |
-          type=sha,enable=${{ inputs.is-pr == 'true' && 'false' || 'true' }}
-          type=raw,value=latest,enable=${{ inputs.is-pr == 'true' && 'false' || 'true' }}
-          type=raw,value=pr,enable=${{ inputs.is-pr }}
+          type=sha,enable=${{ inputs.is-main-branch }}
+          type=raw,value=latest,enable=${{ inputs.is-main-branch }}
+          type=raw,value=pr,enable=${{ inputs.is-main-branch == 'true' && 'false' || 'true' }}
 
     - name: Build Image
       uses: docker/build-push-action@v5
