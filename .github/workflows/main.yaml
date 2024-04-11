@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true    
 
 env:
-  SERVICE_IMAGE_NAME: localhost:32000/headcrab${{ github.ref_name != 'main' && '-pr' || '' }}
+  SERVICE_IMAGE_NAME: localhost:32000/headcrab
   CARGO_TERM_COLOR: always
   RUST_VERSION: 1.77.0
 
@@ -48,6 +48,7 @@ jobs:
           dockerfile-path: ./Dockerfile
           image-name: ${{ env.SERVICE_IMAGE_NAME }}
           build-args: RUST_VERSION=${{ env.RUST_VERSION }}
+          is-main-branch: ${{ github.ref_name == 'main' }}
 
   deploy-service:
     name: Service -> Deploy ${{ github.ref_name != 'main' && '(Plan Only)' || '' }}
