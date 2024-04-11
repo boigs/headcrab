@@ -44,4 +44,4 @@ runs:
         labels: ${{ steps.metadata.outputs.labels }}
         provenance: false
         cache-from: type=registry,ref=${{ inputs.image-name }}:buildcache
-         cache-to: type=registry,ref=${{ inputs.image-name }}:buildcache,mode=max
+        cache-to: type=registry,ref=${{ inputs.image-name }}:buildcache,mode=max
