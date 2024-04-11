@@ -29,8 +29,11 @@ runs:
       uses: docker/metadata-action@v5
       with:
         images: ${{ inputs.image-name }}
-        tags: type=sha
-        flavor: latest=true
+        tags: |
+          type=sha,enable={{is_default_branch}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=pr,enable=${{ !{{is_default_branch}} }}
+        flavor: latest={{is_default_branch}}
 
     - name: Build Image
       uses: docker/build-push-action@v5
@@ -43,5 +46,5 @@ runs:
         tags: ${{ steps.metadata.outputs.tags }}
         labels: ${{ steps.metadata.outputs.labels }}
         provenance: false
-        cache-from: type=registry,ref=localhost:32000/headcrab:buildcache
-        cache-to: type=registry,ref=localhost:32000/headcrab:buildcache,mode=max
+        cache-from: type=registry,ref=${{ inputs.image-name }}:buildcache
+        cache-to: type=registry,ref=${{ inputs.image-name }}:buildcache,mode=max
