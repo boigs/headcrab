@@ -13,6 +13,7 @@ inputs:
     required: false
   is-main-branch:
     description: If the image is built in the main branch
+    required: true
 outputs:
   image-sha-tag:
     description: The image name with the sha tag
