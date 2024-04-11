@@ -43,5 +43,5 @@ runs:
         tags: ${{ steps.metadata.outputs.tags }}
         labels: ${{ steps.metadata.outputs.labels }}
         provenance: false
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=registry,ref=${{ inputs.image-name }}:buildcache
+         cache-to: type=registry,ref=${{ inputs.image-name }}:buildcache,mode=max
