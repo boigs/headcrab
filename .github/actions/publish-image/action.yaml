@@ -32,7 +32,7 @@ runs:
         tags: |
           type=sha,enable={{is_default_branch}}
           type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=pr,enable=${{ {{is_default_branch}} && false || true }}
+          type=raw,value=pr,enable={#if is_default_branch}}false{{else}}true{{/if}}
 
     - name: Build Image
       uses: docker/build-push-action@v5
