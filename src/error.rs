@@ -20,12 +20,12 @@ pub enum Error {
 
 impl Error {
     pub fn is_error_to_finalize_flow(&self) -> bool {
-        match self {
+        !matches!(
+            self,
             Error::NotEnoughPlayers
-            | Error::CommandNotAllowed(_, _)
-            | Error::UnprocessableMessage(_, _) => false,
-            _ => true,
-        }
+                | Error::CommandNotAllowed(_, _)
+                | Error::UnprocessableMessage(_, _)
+        )
     }
 
     pub fn log_and_create_internal(message: &str) -> Error {
