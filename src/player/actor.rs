@@ -131,8 +131,10 @@ impl PlayerActor {
                 message => match parse_message(message) {
                     Ok(WsMessageIn::StartGame { amount_of_rounds }) => {
                         if let Err(error) = self.game.start_game(&self.nickname).await {
-                            send_error(&mut self.websocket, error).await;
-                            return Err(());
+                            send_error(&mut self.websocket, error.clone()).await;
+                            if error != Error::NotEnoughPlayers {
+                                return Err(());
+                            }
                         } else {
                             log::info!("Started game with amount of rounds {amount_of_rounds}");
                         }
