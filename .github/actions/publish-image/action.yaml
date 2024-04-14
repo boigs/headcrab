@@ -32,10 +32,10 @@ runs:
       uses: docker/metadata-action@v5
       with:
         images: ${{ inputs.image-name }}
-        tags: |
-          type=sha,enable=${{ inputs.is-main-branch }}
-          type=raw,value=latest,enable=${{ inputs.is-main-branch }}
-          type=raw,value=pr,enable=${{ inputs.is-main-branch == 'true' && 'false' || 'true' }}
+        tags: type=sha
+        flavor: |
+          latest=${{ inputs.is-main-branch }}
+          suffix=${{ inputs.is-main-branch == 'true' && ' ' || '-pr' }}
 
     - name: Build Image
       uses: docker/build-push-action@v5
