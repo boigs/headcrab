@@ -131,7 +131,8 @@ impl PlayerActor {
                 message => match parse_message(message) {
                     Ok(WsMessageIn::StartGame { amount_of_rounds }) => {
                         if let Err(error) = self.game.start_game(&self.nickname).await {
-                            let should_close_actor = &error.is_error_to_finalize_flow();
+                            let should_close_actor =
+                                &error.is_fatal_error_and_should_finalize_flow();
                             send_error(&mut self.websocket, error).await;
                             if *should_close_actor {
                                 return Err(());
