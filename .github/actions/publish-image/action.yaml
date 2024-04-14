@@ -35,8 +35,8 @@ runs:
         tags: type=sha
         flavor: |
           latest=${{ inputs.is-main-branch }}
-          suffix=${{ inputs.is-main-branch && ' ' || '-pr' }}
- 
+          suffix=${{ inputs.is-main-branch == 'true' && ' ' || '-pr' }}
+
     - name: Build Image
       uses: docker/build-push-action@v5
       with:
