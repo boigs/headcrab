@@ -51,7 +51,7 @@ async fn two_different_players_can_be_added_to_game() {
 }
 
 #[tokio::test]
-async fn add_player_to_game_fails_when_player_already_exists() {
+async fn when_player_already_exists_add_player_with_same_nickname_to_game_fails() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
 
@@ -209,7 +209,7 @@ async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
 }
 
 #[tokio::test]
-async fn websocket_message_is_rejected_but_game_still_alive() {
+async fn when_sending_invalid_message_game_it_is_reject_but_game_is_still_alive() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
 
@@ -230,6 +230,35 @@ async fn websocket_message_is_rejected_but_game_still_alive() {
         .await
         .split();
     receive_game_sate(&mut rx).await;
+}
+
+#[tokio::test]
+async fn when_attempting_to_start_game_with_one_player_then_websocket_is_not_closed() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&app.base_address, client).await.id;
+
+    let nickname = "p1";
+    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+        .await
+        .split();
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
+    let _ = receive_game_sate(&mut rx).await;
+
+    send_start_game(
+        &mut tx,
+        WsMessageIn::StartGame {
+            amount_of_rounds: 5,
+        },
+    )
+    .await;
+
+    let error = receive_error(&mut rx).await;
+    assert_eq!(&error, "NOT_ENOUGH_PLAYERS");
+
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
