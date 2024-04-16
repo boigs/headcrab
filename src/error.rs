@@ -19,40 +19,8 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn is_domain_error(&self) -> bool {
-        match self {
-            Error::NotEnoughPlayers => true,
-            Error::CommandNotAllowed(_, _) => true,
-            Error::GameDoesNotExist(_) => true,
-            Error::PlayerAlreadyExists(_) => true,
-            Error::UnprocessableMessage(_, _) => true,
-            Error::Internal(_) => false,
-            Error::WebsocketClosed(_) => false,
-        }
-    }
-
     pub fn log_and_create_internal(message: &str) -> Error {
         log::error!("{message}");
         Error::Internal(message.to_string())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::error::Error;
-
-    #[test]
-    fn is_domain_error_is_true() {
-        assert!(Error::GameDoesNotExist("".to_owned()).is_domain_error());
-        assert!(Error::PlayerAlreadyExists("".to_owned()).is_domain_error());
-        assert!(Error::NotEnoughPlayers.is_domain_error());
-        assert!(Error::CommandNotAllowed("".to_owned(), "".to_owned()).is_domain_error());
-        assert!(Error::UnprocessableMessage("".to_string(), "".to_string()).is_domain_error());
-    }
-
-    #[test]
-    fn is_domain_error_is_false() {
-        assert!(!Error::Internal("".to_owned()).is_domain_error());
-        assert!(!Error::WebsocketClosed("".to_owned()).is_domain_error());
     }
 }

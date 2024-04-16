@@ -55,7 +55,7 @@ impl PlayerActor {
                 game_wide_message = self.game_wide_event_receiver.next() => {
                     if let Err(error) = self.receive_game_wide_message(game_wide_message).await {
                         send_error(&mut self.websocket, &error).await;
-                        if !error.is_domain_error() {
+                        if PlayerActor::should_close_websocket(error) {
                             break;
                         }
                     }
@@ -63,7 +63,7 @@ impl PlayerActor {
                 websocket_message = timeout(self.inactivity_timeout, self.websocket.recv()) => {
                     if let Err(error) = self.receive_websocket_message(websocket_message).await {
                         send_error(&mut self.websocket, &error).await;
-                        if !error.is_domain_error() {
+                        if PlayerActor::should_close_websocket(error) {
                             break;
                         }
                     }
@@ -74,6 +74,18 @@ impl PlayerActor {
         let _ = self.game.remove_player(&self.nickname).await;
         close(self.websocket).await;
         CONNECTED_PLAYERS.dec();
+    }
+
+    fn should_close_websocket(error: Error) -> bool {
+        match error {
+            Error::NotEnoughPlayers => false,
+            Error::CommandNotAllowed(_, _) => false,
+            Error::GameDoesNotExist(_) => false,
+            Error::PlayerAlreadyExists(_) => false,
+            Error::UnprocessableMessage(_, _) => false,
+            Error::Internal(_) => true,
+            Error::WebsocketClosed(_) => true,
+        }
     }
 
     async fn receive_game_wide_message(
@@ -180,5 +192,40 @@ impl PlayerActor {
             &self.nickname,
             reason,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::error::Error;
+    use crate::player::actor::PlayerActor;
+
+    #[test]
+    fn should_close_websocket_is_false() {
+        assert!(!PlayerActor::should_close_websocket(
+            Error::GameDoesNotExist("".to_owned())
+        ));
+        assert!(!PlayerActor::should_close_websocket(
+            Error::PlayerAlreadyExists("".to_owned())
+        ));
+        assert!(!PlayerActor::should_close_websocket(
+            Error::NotEnoughPlayers
+        ));
+        assert!(!PlayerActor::should_close_websocket(
+            Error::CommandNotAllowed("".to_owned(), "".to_owned())
+        ));
+        assert!(!PlayerActor::should_close_websocket(
+            Error::UnprocessableMessage("".to_string(), "".to_string())
+        ));
+    }
+
+    #[test]
+    fn should_close_websocket_is_true() {
+        assert!(PlayerActor::should_close_websocket(Error::Internal(
+            "".to_owned()
+        )));
+        assert!(PlayerActor::should_close_websocket(Error::WebsocketClosed(
+            "".to_owned()
+        )));
     }
 }
