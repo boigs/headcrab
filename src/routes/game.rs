@@ -34,7 +34,7 @@ pub async fn connect_player_to_websocket(
         match game_factory.get_game(&game_id).await {
             Ok(game) => PlayerActor::create(nickname, game, websocket).await,
             Err(error) => {
-                send_error(&mut websocket, error).await;
+                send_error(&mut websocket, &error).await;
                 close(websocket).await;
             }
         }

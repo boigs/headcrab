@@ -41,7 +41,7 @@ impl PlayerActor {
                 .await
             }
             Err(error) => {
-                send_error(&mut websocket, error).await;
+                send_error(&mut websocket, &error).await;
                 close(websocket).await;
             }
         }
@@ -53,13 +53,19 @@ impl PlayerActor {
         loop {
             select! {
                 game_wide_message = self.game_wide_event_receiver.next() => {
-                    if self.receive_game_wide_message(game_wide_message).await.is_err() {
-                        break;
+                    if let Err(error) = self.receive_game_wide_message(game_wide_message).await {
+                        send_error(&mut self.websocket, &error).await;
+                        if !error.is_domain_error() {
+                            break;
+                        }
                     }
                 },
                 websocket_message = timeout(self.inactivity_timeout, self.websocket.recv()) => {
-                    if self.receive_websocket_message(websocket_message).await.is_err() {
-                        break;
+                    if let Err(error) = self.receive_websocket_message(websocket_message).await {
+                        send_error(&mut self.websocket, &error).await;
+                        if !error.is_domain_error() {
+                            break;
+                        }
                     }
                 },
             }
@@ -73,14 +79,14 @@ impl PlayerActor {
     async fn receive_game_wide_message(
         &mut self,
         game_wide_message: Result<GameWideEvent, Error>,
-    ) -> Result<(), ()> {
+    ) -> Result<(), Error> {
         match game_wide_message {
             Ok(GameWideEvent::GameState {
                 state,
                 players,
                 rounds,
             }) => {
-                if let Err(error) = send_message(
+                send_message(
                     &mut self.websocket,
                     &WsMessageOut::GameState {
                         state: state_to_string(state),
@@ -89,13 +95,9 @@ impl PlayerActor {
                     },
                 )
                 .await
-                {
-                    send_error(&mut self.websocket, error).await;
-                    return Err(());
-                }
             }
             Ok(GameWideEvent::ChatMessage { sender, content }) => {
-                if let Err(error) = send_message(
+                send_message(
                     &mut self.websocket,
                     &WsMessageOut::ChatMessage {
                         sender: sender.to_string(),
@@ -103,113 +105,73 @@ impl PlayerActor {
                     },
                 )
                 .await
-                {
-                    send_error(&mut self.websocket, error).await;
-                    return Err(());
-                }
             }
-            Err(error) => {
-                send_error(&mut self.websocket, error).await;
-                return Err(());
-            }
+            Err(error) => Err(error),
         }
-        Ok(())
     }
 
     async fn receive_websocket_message(
         &mut self,
         websocket_message: Result<Option<Result<Message, axum::Error>>, Elapsed>,
-    ) -> Result<(), ()> {
+    ) -> Result<(), Error> {
         match websocket_message {
             Ok(Some(Ok(Message::Text(txt)))) => match txt.as_str() {
-                "ping" => {
-                    if let Err(error) = send_message_string(&mut self.websocket, "pong").await {
-                        send_error(&mut self.websocket, error).await;
-                        return Err(());
-                    }
-                }
+                "ping" => send_message_string(&mut self.websocket, "pong").await,
                 message => match parse_message(message) {
                     Ok(WsMessageIn::StartGame { amount_of_rounds }) => {
-                        if let Err(error) = self.game.start_game(&self.nickname).await {
-                            let should_close_actor =
-                                &error.is_fatal_error_and_should_finalize_flow();
-                            send_error(&mut self.websocket, error).await;
-                            if *should_close_actor {
-                                return Err(());
-                            }
-                        } else {
-                            log::info!("Started game with amount of rounds {amount_of_rounds}");
-                        }
+                        self.game.start_game(&self.nickname).await?;
+                        log::info!("Started game with amount of rounds {amount_of_rounds}");
+                        Ok(())
                     }
                     Ok(WsMessageIn::ChatMessage { content }) => {
-                        if let Err(error) =
-                            self.game.send_chat_message(&self.nickname, &content).await
-                        {
-                            send_error(&mut self.websocket, error).await;
-                            return Err(());
-                        }
+                        self.game.send_chat_message(&self.nickname, &content).await
                     }
                     Ok(WsMessageIn::PlayerWords { words }) => {
-                        if let Err(error) = self.game.add_player_words(&self.nickname, words).await
-                        {
-                            send_error(&mut self.websocket, error).await;
-                            return Err(());
-                        }
+                        self.game.add_player_words(&self.nickname, words).await
                     }
                     Ok(WsMessageIn::PlayerWordSubmission { word }) => {
-                        if let Err(error) = self
-                            .game
+                        self.game
                             .add_player_word_submission(&self.nickname, Some(word))
                             .await
-                        {
-                            send_error(&mut self.websocket, error).await;
-                            return Err(());
-                        }
                     }
                     Err(error) => {
-                        send_error(&mut self.websocket, error).await;
+                        send_error(&mut self.websocket, &error).await;
+                        Ok(())
                     }
                 },
             },
             // browser said "close"
             Ok(Some(Ok(Message::Close(_)))) => {
                 self.log_connection_lost_with_player("browser sent 'Close' websocket frame");
-                return Err(());
+                Err(Error::WebsocketClosed(
+                    "browser sent 'Close' websocket frame".to_string(),
+                ))
             }
             // websocket was closed
             Ok(None) => {
                 self.log_connection_lost_with_player("other end of websocket was closed abruptly");
-                return Err(());
+                Err(Error::WebsocketClosed(
+                    "other end of websocket was closed abruptly".to_string(),
+                ))
             }
             // timeout without receiving anything from player
             Err(_) => {
                 self.log_connection_lost_with_player(
                     "connection timed out; missing 'Ping' messages",
                 );
-                return Err(());
+                Err(Error::WebsocketClosed(
+                    "connection timed out; missing 'Ping' messages".to_string(),
+                ))
             }
-            Ok(Some(Err(error))) => {
-                send_error(
-                    &mut self.websocket,
-                    Error::UnprocessableMessage(
-                        "Message cannot be loaded".to_string(),
-                        error.to_string(),
-                    ),
-                )
-                .await;
-            }
-            Ok(Some(Ok(_))) => {
-                send_error(
-                    &mut self.websocket,
-                    Error::UnprocessableMessage(
-                        "Unsupported message type".to_string(),
-                        "Unsupported message type".to_string(),
-                    ),
-                )
-                .await;
-            }
+            Ok(Some(Err(error))) => Err(Error::UnprocessableMessage(
+                "Message cannot be loaded".to_string(),
+                error.to_string(),
+            )),
+            Ok(Some(Ok(_))) => Err(Error::UnprocessableMessage(
+                "Unsupported message type".to_string(),
+                "Unsupported message type".to_string(),
+            )),
         }
-        Ok(())
     }
 
     fn log_connection_lost_with_player(&self, reason: &str) {
