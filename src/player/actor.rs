@@ -146,10 +146,7 @@ impl PlayerActor {
                             .add_player_word_submission(&self.nickname, Some(word))
                             .await
                     }
-                    Err(error) => {
-                        send_error(&mut self.websocket, &error).await;
-                        Ok(())
-                    }
+                    Err(error) => Err(error),
                 },
             },
             // browser said "close"
