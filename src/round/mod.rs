@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::error::Error;
 
@@ -58,11 +58,26 @@ impl Round {
             .any(|w| w.word == word)
     }
 
-    pub fn add_words(&mut self, nickname: &str, words: Vec<String>) {
-        self.player_words.insert(
-            nickname.to_string(),
-            words.into_iter().map(Word::new).collect(),
-        );
+    pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
+        let normalized_words: Vec<String> = words
+            .iter()
+            .map(|word| word.trim().to_lowercase())
+            .filter(|word| !word.is_empty())
+            .collect();
+        let unique_words = normalized_words
+            .clone()
+            .into_iter()
+            .collect::<HashSet<String>>();
+
+        if unique_words.len() == normalized_words.len() {
+            self.player_words.insert(
+                nickname.to_string(),
+                normalized_words.into_iter().map(Word::new).collect(),
+            );
+            Ok(())
+        } else {
+            Err(Error::RepeatedWords)
+        }
     }
 
     pub fn have_all_players_submitted_words(&self, players: &[String]) -> bool {
@@ -160,6 +175,8 @@ impl Round {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::Error;
+
     use super::{Round, Word};
 
     static PLAYER_1: &str = "p1";
@@ -170,7 +187,9 @@ mod tests {
     fn player_cannot_submit_non_existent_word() {
         let mut round = get_round();
 
-        round.add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
 
         assert!(round
             .add_player_word_submission(PLAYER_1, Some("word3".to_string()))
@@ -180,7 +199,9 @@ mod tests {
     #[test]
     fn player_cannot_submit_used_word() {
         let mut round = get_round();
-        round.add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
         round.add_player_word_submission(PLAYER_1, Some("word1".to_string()));
         round.compute_score();
 
@@ -192,18 +213,24 @@ mod tests {
     #[test]
     fn compute_score_works() {
         let mut round = get_round();
-        round.add_words(
-            PLAYER_1,
-            vec!["p1_word1".to_string(), "p1_word2".to_string()],
-        );
-        round.add_words(
-            PLAYER_2,
-            vec!["p2_word1".to_string(), "p2_word2".to_string()],
-        );
-        round.add_words(
-            PLAYER_3,
-            vec!["p3_word1".to_string(), "p3_word2".to_string()],
-        );
+        round
+            .add_words(
+                PLAYER_1,
+                vec!["p1_word1".to_string(), "p1_word2".to_string()],
+            )
+            .unwrap();
+        round
+            .add_words(
+                PLAYER_2,
+                vec!["p2_word1".to_string(), "p2_word2".to_string()],
+            )
+            .unwrap();
+        round
+            .add_words(
+                PLAYER_3,
+                vec!["p3_word1".to_string(), "p3_word2".to_string()],
+            )
+            .unwrap();
 
         round.add_player_word_submission(PLAYER_1, Some("p1_word1".to_string()));
         round.add_player_word_submission(PLAYER_2, Some("p2_word1".to_string()));
@@ -263,7 +290,9 @@ mod tests {
     #[test]
     fn given_words_but_no_player_chosen_when_choosing_next_word_then_chooses_correctly() {
         let mut round = get_round();
-        round.add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
 
         assert_eq!(round.next_word_to_score(), None);
     }
@@ -271,7 +300,9 @@ mod tests {
     #[test]
     fn given_all_words_are_not_used_when_choosing_next_word_then_chooses_correctly() {
         let mut round = get_round();
-        round.add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
         round.next_player_to_score();
 
         assert_eq!(round.next_word_to_score(), Some("word1".to_string()));
@@ -280,14 +311,16 @@ mod tests {
     #[test]
     fn given_the_first_two_words_are_used_when_choosing_next_word_then_chooses_the_second_word() {
         let mut round = get_round();
-        round.add_words(
-            PLAYER_1,
-            vec![
-                "word1".to_string(),
-                "word2".to_string(),
-                "word3".to_string(),
-            ],
-        );
+        round
+            .add_words(
+                PLAYER_1,
+                vec![
+                    "word1".to_string(),
+                    "word2".to_string(),
+                    "word3".to_string(),
+                ],
+            )
+            .unwrap();
         round.next_player_to_score();
 
         round.next_word_to_score();
@@ -302,7 +335,9 @@ mod tests {
     #[test]
     fn given_no_more_words_when_choosing_next_word_then_chooses_correctly() {
         let mut round = get_round();
-        round.add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
         round.next_player_to_score();
 
         round.next_word_to_score();
@@ -320,14 +355,16 @@ mod tests {
     #[test]
     fn player_has_word_is_true() {
         let mut round = get_round();
-        round.add_words(
-            PLAYER_1,
-            vec![
-                "word1".to_string(),
-                "word2".to_string(),
-                "word3".to_string(),
-            ],
-        );
+        round
+            .add_words(
+                PLAYER_1,
+                vec![
+                    "word1".to_string(),
+                    "word2".to_string(),
+                    "word3".to_string(),
+                ],
+            )
+            .unwrap();
 
         assert!(round.player_has_word(PLAYER_1, "word1"));
     }
@@ -335,14 +372,16 @@ mod tests {
     #[test]
     fn player_has_word_is_false() {
         let mut round = get_round();
-        round.add_words(
-            PLAYER_1,
-            vec![
-                "word1".to_string(),
-                "word2".to_string(),
-                "word3".to_string(),
-            ],
-        );
+        round
+            .add_words(
+                PLAYER_1,
+                vec![
+                    "word1".to_string(),
+                    "word2".to_string(),
+                    "word3".to_string(),
+                ],
+            )
+            .unwrap();
 
         assert!(!round.player_has_word(PLAYER_1, "word4"));
     }
@@ -350,8 +389,12 @@ mod tests {
     #[test]
     fn have_all_players_submitted_words_is_true() {
         let mut round = get_round();
-        round.add_words(PLAYER_1, vec!["word1".to_string()]);
-        round.add_words(PLAYER_2, vec!["word1".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string()])
+            .unwrap();
+        round
+            .add_words(PLAYER_2, vec!["word1".to_string()])
+            .unwrap();
 
         assert!(round
             .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
@@ -360,10 +403,93 @@ mod tests {
     #[test]
     fn have_all_players_submitted_words_is_false() {
         let mut round = get_round();
-        round.add_words(PLAYER_1, vec!["word1".to_string()]);
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string()])
+            .unwrap();
 
         assert!(!round
             .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
+    }
+
+    #[test]
+    fn add_words_succeeds_when_unique_words() {
+        let mut round = get_round();
+
+        let result = round.add_words(
+            PLAYER_1,
+            vec![
+                "word1".to_string(),
+                "word2".to_string(),
+                "".to_string(),
+                "   ".to_string(),
+            ],
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn add_words_fails_when_repeated_words_before_normalization() {
+        let mut round = get_round();
+
+        let result = round.add_words(PLAYER_1, vec!["word1".to_string(), "word1".to_string()]);
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), Error::RepeatedWords);
+    }
+
+    #[test]
+    fn add_words_fails_when_repeated_words_after_normalization() {
+        let mut round = get_round();
+
+        let result = round.add_words(PLAYER_1, vec!["word1".to_string(), "  wOrd1 ".to_string()]);
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), Error::RepeatedWords);
+    }
+
+    #[test]
+    fn words_are_normalized() {
+        let mut round = get_round();
+
+        round
+            .add_words(
+                PLAYER_1,
+                vec![
+                    "  wOrd1 ".to_string(),
+                    "Word2".to_string(),
+                    " word  34".to_string(),
+                ],
+            )
+            .unwrap();
+        let words = round.player_words.get(PLAYER_1).unwrap();
+
+        assert_eq!(words.len(), 3);
+        assert_eq!(words[0].word, "word1");
+        assert_eq!(words[1].word, "word2");
+        assert_eq!(words[2].word, "word  34");
+    }
+
+    #[test]
+    fn empty_words_are_filtered() {
+        let mut round = get_round();
+
+        round
+            .add_words(
+                PLAYER_1,
+                vec![
+                    "word1".to_string(),
+                    "".to_string(),
+                    "word2".to_string(),
+                    "   ".to_string(),
+                    "word3".to_string(),
+                ],
+            )
+            .unwrap();
+        let words = round.player_words.get(PLAYER_1).unwrap();
+
+        assert_eq!(words.len(), 3);
+        assert_eq!(words[0].word, "word1");
+        assert_eq!(words[1].word, "word2");
+        assert_eq!(words[2].word, "word3");
     }
 
     fn get_round() -> Round {

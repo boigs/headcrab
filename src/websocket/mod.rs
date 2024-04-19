@@ -85,5 +85,10 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
             title: "The player already exists".to_string(),
             detail: error.to_string(),
         },
+        Error::RepeatedWords => WsMessageOut::Error {
+            r#type: "REPEATED_WORDS".to_string(),
+            title: "There are repeated words".to_string(),
+            detail: error.to_string(),
+        },
     }
 }
