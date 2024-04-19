@@ -50,21 +50,6 @@ pub async fn send_message_string(websocket: &mut WebSocket, value: &str) -> Resu
 
 fn error_to_ws_error(error: Error) -> WsMessageOut {
     match error {
-        Error::GameDoesNotExist(_) => WsMessageOut::Error {
-            r#type: "GAME_DOES_NOT_EXIST".to_string(),
-            title: "The game does not exist".to_string(),
-            detail: error.to_string(),
-        },
-        Error::PlayerAlreadyExists(_) => WsMessageOut::Error {
-            r#type: "PLAYER_ALREADY_EXISTS".to_string(),
-            title: "The player already exists".to_string(),
-            detail: error.to_string(),
-        },
-        Error::NotEnoughPlayers => WsMessageOut::Error {
-            r#type: "NOT_ENOUGH_PLAYERS".to_string(),
-            title: "Not enough players".to_string(),
-            detail: error.to_string(),
-        },
         Error::Internal(_) => WsMessageOut::Error {
             r#type: "INTERNAL_SERVER".to_string(),
             title: "Internal Server error".to_string(),
@@ -75,14 +60,29 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
             title: "The player websocket is closed".to_string(),
             detail: error.to_string(),
         },
+        Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
+            r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
+            title: "Received an invalid message".to_string(),
+            detail: error.to_string(),
+        },
         Error::CommandNotAllowed(_, _) => WsMessageOut::Error {
             r#type: "COMMAND_NOT_ALLOWED".to_string(),
             title: "The player cannot execute this command".to_string(),
             detail: error.to_string(),
         },
-        Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
-            r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
-            title: "Received an invalid message".to_string(),
+        Error::NotEnoughPlayers => WsMessageOut::Error {
+            r#type: "NOT_ENOUGH_PLAYERS".to_string(),
+            title: "Not enough players".to_string(),
+            detail: error.to_string(),
+        },
+        Error::GameDoesNotExist(_) => WsMessageOut::Error {
+            r#type: "GAME_DOES_NOT_EXIST".to_string(),
+            title: "The game does not exist".to_string(),
+            detail: error.to_string(),
+        },
+        Error::PlayerAlreadyExists(_) => WsMessageOut::Error {
+            r#type: "PLAYER_ALREADY_EXISTS".to_string(),
+            title: "The player already exists".to_string(),
             detail: error.to_string(),
         },
     }

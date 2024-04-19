@@ -78,13 +78,13 @@ impl PlayerActor {
 
     fn should_close_websocket(error: Error) -> bool {
         match error {
-            Error::NotEnoughPlayers => false,
-            Error::CommandNotAllowed(_, _) => false,
-            Error::GameDoesNotExist(_) => false,
-            Error::PlayerAlreadyExists(_) => false,
-            Error::UnprocessableMessage(_, _) => false,
             Error::Internal(_) => true,
             Error::WebsocketClosed(_) => true,
+            Error::UnprocessableMessage(_, _) => false,
+            Error::CommandNotAllowed(_, _) => false,
+            Error::NotEnoughPlayers => false,
+            Error::GameDoesNotExist(_) => false,
+            Error::PlayerAlreadyExists(_) => false,
         }
     }
 
