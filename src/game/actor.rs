@@ -68,7 +68,7 @@ impl GameActor {
                     break;
                 }
                 Ok(Some(command)) => {
-                    let command_output = match command {
+                    let response = match command {
                         GameCommand::AddPlayer {
                             nickname,
                             response_tx,
@@ -125,13 +125,13 @@ impl GameActor {
                             Some((response, nickname, response_tx))
                         }
                     };
-                    if let Some((result, nickname, response_tx)) = command_output {
+                    if let Some((result, nickname, response_tx)) = response {
                         let event = match result {
                             Ok(event) => event,
                             Err(error) => GameEvent::Error { error },
                         };
-                        if response_tx.send(event).is_err() {
-                            log::error!("Sent GameEvent to Player {nickname} but the response channel is closed. Removing the Player.");
+                        if let Err(error) = response_tx.send(event) {
+                            log::error!("Sent GameEvent to Player {nickname} but the response channel is closed. Removing the Player. Error: '{error}'");
                             let _ = self.game.disconnect_player(&nickname);
                         }
                     }

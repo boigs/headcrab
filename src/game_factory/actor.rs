@@ -37,34 +37,38 @@ impl GameFactoryActor {
 
     async fn start(mut self) {
         while let Some(message) = self.game_factory_rx.recv().await {
-            match message {
+            let response = match message {
                 GameFactoryCommand::CreateGame { response_channel } => {
                     let game_id = self.game_factory.create_new_game(GameFactoryClient {
                         game_factory_tx: self.game_factory_tx.clone(),
                     });
-                    let game_created = GameFactoryResponse::GameCreated { game_id };
-                    if let Err(error) = response_channel.send(game_created) {
-                        log::error!(
-                            "The GameFactory response channel is closed. Error: '{error}'."
-                        );
-                    }
+                    Some((
+                        Ok(GameFactoryResponse::GameCreated { game_id }),
+                        response_channel,
+                    ))
                 }
                 GameFactoryCommand::RemoveGame { game_id } => {
                     let _ = self.game_factory.remove_game(&game_id);
+                    None
                 }
                 GameFactoryCommand::GetGameActor {
                     game_id,
                     response_channel,
                 } => {
-                    let response = self.game_factory.get_game(&game_id).map_or_else(
-                        |error| GameFactoryResponse::Error { error },
-                        |game| GameFactoryResponse::GameActor { game: game.clone() },
-                    );
-                    if let Err(error) = response_channel.send(response) {
-                        log::error!(
-                            "The GameFactory response channel is closed. Error: '{error}'."
-                        );
-                    }
+                    let response = self
+                        .game_factory
+                        .get_game(&game_id)
+                        .map(|game| GameFactoryResponse::GameActor { game: game.clone() });
+                    Some((response, response_channel))
+                }
+            };
+            if let Some((result, response_tx)) = response {
+                let event = match result {
+                    Ok(event) => event,
+                    Err(error) => GameFactoryResponse::Error { error },
+                };
+                if let Err(error) = response_tx.send(event) {
+                    log::error!("Sent GameFactoryResponse but the response channel is closed. Error: '{error}'");
                 }
             }
         }
