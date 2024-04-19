@@ -84,7 +84,7 @@ impl GameClient {
                 words,
                 response_tx: tx,
             },
-            &format!("GameCommand::AddPlayerWords"),
+            "GameCommand::AddPlayerWords",
         )
         .await?;
 
@@ -107,7 +107,7 @@ impl GameClient {
                 word,
                 response_tx: tx,
             },
-            &format!("GameCommand::AddPlayerWordSubmission"),
+            "GameCommand::AddPlayerWordSubmission",
         )
         .await?;
 
