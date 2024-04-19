@@ -61,7 +61,7 @@ impl Round {
     pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         let normalized_words: Vec<String> = words
             .iter()
-            .map(|word| word.trim().to_lowercase())
+            .map(|word| word.trim().to_string())
             .filter(|word| !word.is_empty())
             .collect();
         let unique_words = normalized_words
@@ -441,7 +441,7 @@ mod tests {
     fn add_words_fails_when_repeated_words_after_normalization() {
         let mut round = get_round();
 
-        let result = round.add_words(PLAYER_1, vec!["word1".to_string(), "  wOrd1 ".to_string()]);
+        let result = round.add_words(PLAYER_1, vec!["word1".to_string(), "  word1 ".to_string()]);
         assert!(result.is_err());
         assert_eq!(result.err().unwrap(), Error::RepeatedWords);
     }
@@ -463,8 +463,8 @@ mod tests {
         let words = round.player_words.get(PLAYER_1).unwrap();
 
         assert_eq!(words.len(), 3);
-        assert_eq!(words[0].word, "word1");
-        assert_eq!(words[1].word, "word2");
+        assert_eq!(words[0].word, "wOrd1");
+        assert_eq!(words[1].word, "Word2");
         assert_eq!(words[2].word, "word  34");
     }
 
