@@ -1,5 +1,6 @@
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot::error::RecvError;
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
 use crate::error::Error;
@@ -31,10 +32,7 @@ impl GameClient {
             Ok(GameEvent::PlayerAdded { broadcast_rx }) => {
                 Ok(GameWideEventReceiver { broadcast_rx })
             }
-            Ok(GameEvent::Error { error }) => Err(error),
-            _ => Err(Error::log_and_create_internal(
-                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
-            )),
+            error => Err(GameClient::handle_event_error(error)),
         }
     }
 
@@ -56,16 +54,13 @@ impl GameClient {
                 nickname: nickname.to_string(),
                 response_tx: tx,
             },
-            "Tried to send GameCommand:StartGame but GameActor is not listening.",
+            "Tried to send GameCommand:StartGame but GameActor is not listening",
         )
         .await?;
 
         match rx.await {
             Ok(GameEvent::Ok) => Ok(()),
-            Ok(GameEvent::Error { error }) => Err(error),
-            _ => Err(Error::log_and_create_internal(
-                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
-            )),
+            error => Err(GameClient::handle_event_error(error)),
         }
     }
 
@@ -95,10 +90,7 @@ impl GameClient {
 
         match rx.await {
             Ok(GameEvent::Ok) => Ok(()),
-            Ok(GameEvent::Error { error }) => Err(error),
-            _ => Err(Error::log_and_create_internal(
-                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
-            )),
+            error => Err(GameClient::handle_event_error(error)),
         }
     }
 
@@ -121,10 +113,7 @@ impl GameClient {
 
         match rx.await {
             Ok(GameEvent::Ok) => Ok(()),
-            Ok(GameEvent::Error { error }) => Err(error),
-            _ => Err(Error::log_and_create_internal(
-                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
-            )),
+            error => Err(GameClient::handle_event_error(error)),
         }
     }
 
@@ -132,6 +121,18 @@ impl GameClient {
         self.game_tx.send(command).await.map_err(|error| {
             Error::log_and_create_internal(&format!("{error_message}. Error: '{error}'"))
         })
+    }
+
+    fn handle_event_error(error: Result<GameEvent, RecvError>) -> Error {
+        match error {
+            Ok(GameEvent::Error { error }) => error,
+            Ok(unexpected_response) => Error::log_and_create_internal(&format!(
+                "Received an unexpected GameEvent. GameEvent: '{unexpected_response}'."
+            )),
+            _ => Error::log_and_create_internal(
+                "Sent a command to the Game actor, but the actor channel died.",
+            ),
+        }
     }
 }
 

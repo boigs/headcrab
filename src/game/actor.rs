@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
@@ -196,6 +197,20 @@ pub(crate) enum GameEvent {
     Error {
         error: Error,
     },
+}
+
+impl Display for GameEvent {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}",
+            match self {
+                GameEvent::PlayerAdded { .. } => "GameEvent::PlayerAdded".to_string(),
+                GameEvent::Ok => "GameEvent::Ok".to_string(),
+                GameEvent::Error { error } => format!("Error '{error}'").to_string(),
+            }
+        )
+    }
 }
 
 #[derive(Clone, Debug)]
