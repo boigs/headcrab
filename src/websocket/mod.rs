@@ -9,8 +9,14 @@ use crate::websocket::message::WsMessageOut;
 use self::message::WsMessageIn;
 
 pub async fn send_error(websocket: &mut WebSocket, error: &Error) {
-    // We are closing the websocket, ignore if there's any error sending the last message
-    let _ = send_message(websocket, &error_to_ws_error(error.clone())).await;
+    match error {
+        // Do not return internal errors to the user
+        Error::Internal(_) => {}
+        _ => {
+            // We are closing the websocket, ignore if there's any error sending the last message
+            let _ = send_message(websocket, &error_to_ws_error(error.clone())).await;
+        }
+    }
 }
 
 pub async fn close(websocket: WebSocket) {

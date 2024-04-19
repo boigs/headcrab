@@ -37,34 +37,38 @@ impl GameFactoryActor {
 
     async fn start(mut self) {
         while let Some(message) = self.game_factory_rx.recv().await {
-            match message {
+            let response = match message {
                 GameFactoryCommand::CreateGame { response_channel } => {
                     let game_id = self.game_factory.create_new_game(GameFactoryClient {
                         game_factory_tx: self.game_factory_tx.clone(),
                     });
-                    let game_created = GameFactoryResponse::GameCreated { game_id };
-                    if let Err(error) = response_channel.send(game_created) {
-                        log::error!(
-                            "The GameFactory response channel is closed. Error: '{error}'."
-                        );
-                    }
+                    Some((
+                        Ok(GameFactoryEvent::GameCreated { game_id }),
+                        response_channel,
+                    ))
                 }
                 GameFactoryCommand::RemoveGame { game_id } => {
                     let _ = self.game_factory.remove_game(&game_id);
+                    None
                 }
                 GameFactoryCommand::GetGameActor {
                     game_id,
                     response_channel,
                 } => {
-                    let response = self.game_factory.get_game(&game_id).map_or_else(
-                        |error| GameFactoryResponse::Error { error },
-                        |game| GameFactoryResponse::GameActor { game: game.clone() },
-                    );
-                    if let Err(error) = response_channel.send(response) {
-                        log::error!(
-                            "The GameFactory response channel is closed. Error: '{error}'."
-                        );
-                    }
+                    let result = self
+                        .game_factory
+                        .get_game(&game_id)
+                        .map(|game| GameFactoryEvent::GameActor { game: game.clone() });
+                    Some((result, response_channel))
+                }
+            };
+            if let Some((result, response_tx)) = response {
+                let event = match result {
+                    Ok(event) => event,
+                    Err(error) => GameFactoryEvent::Error { error },
+                };
+                if let Err(error) = response_tx.send(event) {
+                    log::error!("Sent GameFactoryEvent but the response channel is closed. Error: '{error}'.");
                 }
             }
         }
@@ -74,35 +78,35 @@ impl GameFactoryActor {
 #[derive(Debug)]
 pub(crate) enum GameFactoryCommand {
     CreateGame {
-        response_channel: OneshotSender<GameFactoryResponse>,
+        response_channel: OneshotSender<GameFactoryEvent>,
     },
     RemoveGame {
         game_id: String,
     },
     GetGameActor {
         game_id: String,
-        response_channel: OneshotSender<GameFactoryResponse>,
+        response_channel: OneshotSender<GameFactoryEvent>,
     },
 }
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
-pub(crate) enum GameFactoryResponse {
+pub(crate) enum GameFactoryEvent {
     GameCreated { game_id: String },
     GameActor { game: GameClient },
     Error { error: Error },
 }
 
-impl Display for GameFactoryResponse {
+impl Display for GameFactoryEvent {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             formatter,
             "{}",
             match self {
-                GameFactoryResponse::GameCreated { game_id } =>
+                GameFactoryEvent::GameCreated { game_id } =>
                     format!("GameCreated(game_id: {game_id})"),
-                GameFactoryResponse::GameActor { game: _ } => "GameActor".to_string(),
-                GameFactoryResponse::Error { error } => format!("Error '{error}'").to_string(),
+                GameFactoryEvent::GameActor { game: _ } => "GameActor".to_string(),
+                GameFactoryEvent::Error { error } => format!("Error '{error}'").to_string(),
             }
         )
     }
