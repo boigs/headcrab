@@ -67,78 +67,71 @@ impl GameActor {
                     break;
                 }
                 Ok(Some(command)) => {
-                    match command {
+                    let command_output = match command {
                         GameCommand::AddPlayer {
                             nickname,
                             response_tx,
                         } => {
-                            match self.game.add_player(&nickname) {
-                                Err(error) => {
-                                    if response_tx
-                                        .send(GameEvent::Error {
-                                            error: error.clone(),
-                                        })
-                                        .is_err()
-                                    {
-                                        log::error!("Sent GameEvent::Error to Player but the response channel is closed.");
-                                    }
-                                }
-                                Ok(_) => {
-                                    if response_tx
-                                        .send(GameEvent::PlayerAdded {
-                                            broadcast_rx: self.broadcast_tx.subscribe(),
-                                        })
-                                        .is_err()
-                                    {
-                                        log::error!("Sent GameEvent::PlayerAdded to Player but the response channel is closed. Removing the Player.");
-                                        let _ = self.game.disconnect_player(&nickname);
-                                    }
-                                }
-                            };
+                            let result =
+                                self.game
+                                    .add_player(&nickname)
+                                    .map(|_| GameEvent::PlayerAdded {
+                                        broadcast_rx: self.broadcast_tx.subscribe(),
+                                    });
+                            Some((result, nickname, response_tx))
                         }
                         GameCommand::DisconnectPlayer { nickname } => {
                             let _ = self.game.disconnect_player(&nickname);
+                            None
                         }
                         GameCommand::StartGame {
                             nickname,
                             response_tx,
                         } => {
-                            match self.game.start_game(&nickname) {
-                                Err(error) => {
-                                    if response_tx
-                                        .send(GameEvent::Error {
-                                            error: error.clone(),
-                                        })
-                                        .is_err()
-                                    {
-                                        log::error!("Sent GameEvent::Error to Player but the response channel is closed.");
-                                    }
-                                }
-                                Ok(_) => {
-                                    if response_tx.send(GameEvent::GameStarted).is_err() {
-                                        log::error!("Sent GameEvent::GameStarted to Player but the response channel is closed. Removing the Player.");
-                                        let _ = self.game.disconnect_player(&nickname);
-                                    }
-                                }
-                            };
+                            let result = self.game.start_game(&nickname).map(|_| GameEvent::Ok);
+                            Some((result, nickname, response_tx))
                         }
                         GameCommand::AddChatMessage { sender, content } => {
-                            let _ = self
+                            if let Err(error) = self
                                 .broadcast_tx
-                                .send(GameWideEvent::ChatMessage { sender, content });
+                                .send(GameWideEvent::ChatMessage { sender, content })
+                            {
+                                log::error!(
+                                    "Error when sending GameWideEvent::ChatMessage broadcast: {}.",
+                                    error
+                                );
+                            }
                             continue;
                         }
-                        GameCommand::AddPlayerWords { nickname, words } => {
-                            if self.game.add_words(&nickname, words).is_err() {
-                                log::warn!("Somebody tried adding words when not in the correct state. Malicious actor?");
-                                continue;
-                            }
+                        GameCommand::AddPlayerWords {
+                            nickname,
+                            words,
+                            response_tx,
+                        } => {
+                            let response =
+                                self.game.add_words(&nickname, words).map(|_| GameEvent::Ok);
+                            Some((response, nickname, response_tx))
                         }
-                        GameCommand::AddPlayerWordSubmission { nickname, word } => {
-                            if self.game.add_word_to_score(&nickname, word).is_err() {
-                                log::warn!("Somebody tried adding words when not in the correct state. Malicious actor?");
-                                continue;
-                            }
+                        GameCommand::AddPlayerWordSubmission {
+                            nickname,
+                            word,
+                            response_tx,
+                        } => {
+                            let response = self
+                                .game
+                                .add_word_to_score(&nickname, word)
+                                .map(|_| GameEvent::Ok);
+                            Some((response, nickname, response_tx))
+                        }
+                    };
+                    if let Some((result, nickname, response_tx)) = command_output {
+                        let event = match result {
+                            Ok(event) => event,
+                            Err(error) => GameEvent::Error { error },
+                        };
+                        if response_tx.send(event).is_err() {
+                            log::error!("Sent GameEvent to Player {nickname} but the response channel is closed. Removing the Player.");
+                            let _ = self.game.disconnect_player(&nickname);
                         }
                     }
                     let _ = self.send_game_state();
@@ -185,19 +178,21 @@ pub(crate) enum GameCommand {
     AddPlayerWords {
         nickname: String,
         words: Vec<String>,
+        response_tx: OneshotSender<GameEvent>,
     },
     AddPlayerWordSubmission {
         nickname: String,
         word: Option<String>,
+        response_tx: OneshotSender<GameEvent>,
     },
 }
 
 #[derive(Debug)]
 pub(crate) enum GameEvent {
-    GameStarted,
     PlayerAdded {
         broadcast_rx: broadcast::Receiver<GameWideEvent>,
     },
+    Ok,
     Error {
         error: Error,
     },

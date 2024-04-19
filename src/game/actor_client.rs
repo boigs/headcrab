@@ -14,21 +14,18 @@ impl GameClient {
     pub async fn add_player(&self, nickname: &str) -> Result<GameWideEventReceiver, Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
-        self.game_tx
-            .send(GameCommand::AddPlayer {
+        // An error can be returned at this point if:
+        //  1. the game exists in the GameFactory actor
+        //  2. but the (individual) Game actor has been dropped
+        //  3. the user navigated to this game's URL in an attempt to re-join (and there aren't any other players in the game)
+        self.send_command(
+            GameCommand::AddPlayer {
                 nickname: nickname.to_string(),
                 response_tx: tx,
-            })
-            .await
-            // This line has been reached because:
-            //  1. the game exists in the GameFactory actor
-            //  2. but the (individual) Game actor has been dropped
-            //  3. the user navigated to this game's URL in an attempt to re-join (and there aren't any other players in the game).
-            .map_err(|error| {
-                Error::log_and_create_internal(&format!(
-                    "The Game is not alive. Can't add Player to Game. Error: '{error}'"
-                ))
-            })?;
+            },
+            "The Game is not alive. Can't add Player to Game",
+        )
+        .await?;
 
         match rx.await {
             Ok(GameEvent::PlayerAdded { broadcast_rx }) => {
@@ -42,29 +39,29 @@ impl GameClient {
     }
 
     pub async fn remove_player(&self, nickname: &str) -> Result<(), Error> {
-        self
-            .game_tx
-            .send(GameCommand::DisconnectPlayer {
+        self.send_command(
+            GameCommand::DisconnectPlayer {
                 nickname: nickname.to_string(),
-            })
-            .await
-            .map_err(|error| Error::log_and_create_internal(&format!("Tried to send GameCommand:RemovePlayer but GameActor is not listening. Error: {error}.")))
+            },
+            "Tried to send GameCommand:RemovePlayer but GameActor is not listening",
+        )
+        .await
     }
 
     pub async fn start_game(&self, nickname: &str) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
-        self
-            .game_tx
-            .send(GameCommand::StartGame {
+        self.send_command(
+            GameCommand::StartGame {
                 nickname: nickname.to_string(),
                 response_tx: tx,
-            })
-            .await
-            .map_err(|error| Error::log_and_create_internal(&format!("Tried to send GameCommand:StartGame but GameActor is not listening. Error: {error}.")))?;
+            },
+            "Tried to send GameCommand:StartGame but GameActor is not listening.",
+        )
+        .await?;
 
         match rx.await {
-            Ok(GameEvent::GameStarted) => Ok(()),
+            Ok(GameEvent::Ok) => Ok(()),
             Ok(GameEvent::Error { error }) => Err(error),
             _ => Err(Error::log_and_create_internal(
                 "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
@@ -84,18 +81,25 @@ impl GameClient {
     }
 
     pub async fn add_player_words(&self, player: &str, words: Vec<String>) -> Result<(), Error> {
-        self.game_tx
-            .send(GameCommand::AddPlayerWords {
+        let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
+
+        self.send_command(
+            GameCommand::AddPlayerWords {
                 nickname: player.to_string(),
                 words,
-            })
-            .await
-            .map_err(|_| {
-                Error::log_and_create_internal(&format!(
-                    "Could not send words of player {0}",
-                    player,
-                ))
-            })
+                response_tx: tx,
+            },
+            &format!("Could not send words of player {player}"),
+        )
+        .await?;
+
+        match rx.await {
+            Ok(GameEvent::Ok) => Ok(()),
+            Ok(GameEvent::Error { error }) => Err(error),
+            _ => Err(Error::log_and_create_internal(
+                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
+            )),
+        }
     }
 
     pub async fn add_player_word_submission(
@@ -103,18 +107,31 @@ impl GameClient {
         player: &str,
         word: Option<String>,
     ) -> Result<(), Error> {
-        self.game_tx
-            .send(GameCommand::AddPlayerWordSubmission {
+        let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
+
+        self.send_command(
+            GameCommand::AddPlayerWordSubmission {
                 nickname: player.to_string(),
                 word,
-            })
-            .await
-            .map_err(|_| {
-                Error::log_and_create_internal(&format!(
-                    "Could not send player word submission {0}",
-                    player,
-                ))
-            })
+                response_tx: tx,
+            },
+            &format!("Could not send player word submission {player}"),
+        )
+        .await?;
+
+        match rx.await {
+            Ok(GameEvent::Ok) => Ok(()),
+            Ok(GameEvent::Error { error }) => Err(error),
+            _ => Err(Error::log_and_create_internal(
+                "Player sent a GameCommand::AddPlayer to Game, but Game channel died.",
+            )),
+        }
+    }
+
+    async fn send_command(&self, command: GameCommand, error_message: &str) -> Result<(), Error> {
+        self.game_tx.send(command).await.map_err(|error| {
+            Error::log_and_create_internal(&format!("{error_message}. Error: '{error}'"))
+        })
     }
 }
 
