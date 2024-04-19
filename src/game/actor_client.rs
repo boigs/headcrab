@@ -24,7 +24,7 @@ impl GameClient {
                 nickname: nickname.to_string(),
                 response_tx: tx,
             },
-            "The Game is not alive. Can't add Player to Game",
+            "GameCommand::AddPlayer",
         )
         .await?;
 
@@ -41,7 +41,7 @@ impl GameClient {
             GameCommand::DisconnectPlayer {
                 nickname: nickname.to_string(),
             },
-            "Tried to send GameCommand:RemovePlayer but GameActor is not listening",
+            "GameCommand::DisconnectPlayer",
         )
         .await
     }
@@ -54,7 +54,7 @@ impl GameClient {
                 nickname: nickname.to_string(),
                 response_tx: tx,
             },
-            "Tried to send GameCommand:StartGame but GameActor is not listening",
+            "GameCommand::StartGame",
         )
         .await?;
 
@@ -75,16 +75,16 @@ impl GameClient {
             .map_err(|error| Error::log_and_create_internal(&format!("Tried to send GameCommand::AddChatMessage but GameActor is not listening. Error: {error}.")))
     }
 
-    pub async fn add_player_words(&self, player: &str, words: Vec<String>) -> Result<(), Error> {
+    pub async fn add_player_words(&self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         self.send_command(
             GameCommand::AddPlayerWords {
-                nickname: player.to_string(),
+                nickname: nickname.to_string(),
                 words,
                 response_tx: tx,
             },
-            &format!("Could not send words of player {player}"),
+            &format!("GameCommand::AddPlayerWords"),
         )
         .await?;
 
@@ -96,18 +96,18 @@ impl GameClient {
 
     pub async fn add_player_word_submission(
         &self,
-        player: &str,
+        nickname: &str,
         word: Option<String>,
     ) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         self.send_command(
             GameCommand::AddPlayerWordSubmission {
-                nickname: player.to_string(),
+                nickname: nickname.to_string(),
                 word,
                 response_tx: tx,
             },
-            &format!("Could not send player word submission {player}"),
+            &format!("GameCommand::AddPlayerWordSubmission"),
         )
         .await?;
 
@@ -117,17 +117,17 @@ impl GameClient {
         }
     }
 
-    async fn send_command(&self, command: GameCommand, error_message: &str) -> Result<(), Error> {
+    async fn send_command(&self, command: GameCommand, command_name: &str) -> Result<(), Error> {
         self.game_tx.send(command).await.map_err(|error| {
-            Error::log_and_create_internal(&format!("{error_message}. Error: '{error}'"))
+            Error::log_and_create_internal(&format!("The Game channel is closed, cloud not send command '{command_name}'. Error: '{error}'"))
         })
     }
 
     fn handle_event_error(error: Result<GameEvent, RecvError>) -> Error {
         match error {
             Ok(GameEvent::Error { error }) => error,
-            Ok(unexpected_response) => Error::log_and_create_internal(&format!(
-                "Received an unexpected GameEvent. GameEvent: '{unexpected_response}'."
+            Ok(unexpected_event) => Error::log_and_create_internal(&format!(
+                "Received an unexpected GameEvent. GameEvent: '{unexpected_event}'."
             )),
             _ => Error::log_and_create_internal(
                 "Sent a command to the Game actor, but the actor channel died.",
