@@ -68,7 +68,7 @@ impl GameFactoryActor {
                     Err(error) => GameFactoryResponse::Error { error },
                 };
                 if let Err(error) = response_tx.send(event) {
-                    log::error!("Sent GameFactoryResponse but the response channel is closed. Error: '{error}'");
+                    log::error!("Sent GameFactoryResponse but the response channel is closed. Error: '{error}'.");
                 }
             }
         }

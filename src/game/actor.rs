@@ -131,7 +131,7 @@ impl GameActor {
                             Err(error) => GameEvent::Error { error },
                         };
                         if let Err(error) = response_tx.send(event) {
-                            log::error!("Sent GameEvent to Player {nickname} but the response channel is closed. Removing the Player. Error: '{error}'");
+                            log::error!("Sent GameEvent to Player {nickname} but the response channel is closed. Removing the Player. Error: '{error}'.");
                             let _ = self.game.disconnect_player(&nickname);
                         }
                     }
