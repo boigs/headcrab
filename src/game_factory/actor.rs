@@ -55,11 +55,11 @@ impl GameFactoryActor {
                     game_id,
                     response_channel,
                 } => {
-                    let response = self
+                    let result = self
                         .game_factory
                         .get_game(&game_id)
                         .map(|game| GameFactoryResponse::GameActor { game: game.clone() });
-                    Some((response, response_channel))
+                    Some((result, response_channel))
                 }
             };
             if let Some((result, response_tx)) = response {

@@ -109,20 +109,20 @@ impl GameActor {
                             words,
                             response_tx,
                         } => {
-                            let response =
+                            let result =
                                 self.game.add_words(&nickname, words).map(|_| GameEvent::Ok);
-                            Some((response, nickname, response_tx))
+                            Some((result, nickname, response_tx))
                         }
                         GameCommand::AddPlayerWordSubmission {
                             nickname,
                             word,
                             response_tx,
                         } => {
-                            let response = self
+                            let result = self
                                 .game
                                 .add_word_to_score(&nickname, word)
                                 .map(|_| GameEvent::Ok);
-                            Some((response, nickname, response_tx))
+                            Some((result, nickname, response_tx))
                         }
                     };
                     if let Some((result, nickname, response_tx)) = response {
