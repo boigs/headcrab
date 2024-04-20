@@ -15,6 +15,7 @@ pub async fn spawn_app() -> TestApp {
         .await
         .expect("Failed to bind to bind random port.");
     let address = listener.local_addr().unwrap();
+    std::env::set_var("ENVIRONMENT", "dev");
     let config = {
         let mut config = Config::get().expect("Failed to read configuration.");
         config.game.inactivity_timeout_seconds = 1;

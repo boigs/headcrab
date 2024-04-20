@@ -401,6 +401,16 @@ mod tests {
     }
 
     #[test]
+    fn have_all_players_submitted_words_is_true_when_empty_words() {
+        let mut round = get_round();
+        round.add_words(PLAYER_1, vec!["".to_string()]).unwrap();
+        round.add_words(PLAYER_2, vec!["".to_string()]).unwrap();
+
+        assert!(round
+            .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
+    }
+
+    #[test]
     fn have_all_players_submitted_words_is_false() {
         let mut round = get_round();
         round
