@@ -381,7 +381,7 @@ async fn receive_game_sate(
             }
         }
         Some(Err(error)) => Err(format!("Websocket returned an error {error}")),
-        _ => Err("Websocket closed before expected.".to_string()),
+        None => Err("Websocket closed before expected.".to_string()),
     }
 }
 
@@ -407,7 +407,7 @@ async fn receive_error(
             }
         }
         Some(Err(error)) => Err(format!("Websocket returned an error {error}")),
-        _ => Err("Websocket closed before expected.".to_string()),
+        None => Err("Websocket closed before expected.".to_string()),
     }
 }
 
