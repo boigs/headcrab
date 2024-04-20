@@ -14,90 +14,37 @@ async fn create_game_works() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
 
-    create_game(&app.base_address, client).await;
-}
-
-#[tokio::test]
-async fn two_different_players_can_be_added_to_game() {
-    let app = spawn_app().await;
-    let client = reqwest::Client::new();
-
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname1 = "player1";
-    let (_, mut rx1) = open_game_websocket(&app.base_address, &game_id, nickname1)
-        .await
-        .split();
-    let game_state: GameState = receive_game_sate(&mut rx1).await;
-    assert_eq!(game_state.players.len(), 1);
-    assert_eq!(game_state.players.first().unwrap().nickname, nickname1);
-    assert!(game_state.players.first().unwrap().is_host);
-
-    let nickname2 = "player2";
-    let (_, mut rx2) = open_game_websocket(&app.base_address, &game_id, nickname2)
-        .await
-        .split();
-    let game_state: GameState = receive_game_sate(&mut rx2).await;
-    assert_eq!(game_state.players.len(), 2);
-    assert!(game_state
-        .players
-        .iter()
-        .any(|player| player.nickname == nickname1));
-    assert!(game_state
-        .players
-        .iter()
-        .any(|player| player.nickname == nickname2));
-    assert!(!game_state.players.last().unwrap().is_host);
+    let _ = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 }
 
 #[tokio::test]
 async fn when_player_already_exists_add_player_with_same_nickname_to_game_fails() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
+    let game = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "player";
-    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
+    let mut player = add_player(&app.base_address, &game.id, &game.player_1.nickname)
         .await
-        .split();
-    let game_state: GameState = receive_game_sate(&mut rx).await;
-    assert_eq!(game_state.players.len(), 1);
-    assert_eq!(game_state.players.first().unwrap().nickname, nickname);
-
-    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-
-    assert!(receive_error(&mut rx).await.eq("PLAYER_ALREADY_EXISTS"));
+        .unwrap();
+    let error = receive_error(&mut player.rx).await.unwrap();
+    assert_eq!(error, "PLAYER_ALREADY_EXISTS");
 }
 
 #[tokio::test]
-async fn game_can_be_started() {
+async fn host_player_can_start_game() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
-
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "p1";
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
-    let _ = receive_game_sate(&mut rx).await;
-    let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
-    let _ = receive_game_sate(&mut rx).await;
+    let mut game = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
     send_text_message(
-        &mut tx,
+        &mut game.player_1.tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
         },
     )
     .await;
 
-    let game_state = receive_game_sate(&mut rx).await;
+    let game_state = receive_game_sate(&mut game.player_1.rx).await.unwrap();
     assert_eq!(game_state.state, "PlayersWritingWords");
     assert_eq!(game_state.rounds.len(), 1);
     assert!(!game_state.rounds.first().unwrap().word.is_empty());
@@ -107,27 +54,17 @@ async fn game_can_be_started() {
 async fn non_host_player_cannot_start_game() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
-
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "p1";
-    let _player1_connection = open_game_websocket(&app.base_address, &game_id, nickname).await;
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, "p2")
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-    let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
-    let _ = receive_game_sate(&mut rx).await;
+    let mut game = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
     send_text_message(
-        &mut tx,
+        &mut game.player_2.tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
         },
     )
     .await;
 
-    let error = receive_error(&mut rx).await;
+    let error = receive_error(&mut game.player_2.rx).await.unwrap();
     assert_eq!(&error, "COMMAND_NOT_ALLOWED");
 }
 
@@ -135,80 +72,65 @@ async fn non_host_player_cannot_start_game() {
 async fn game_cannot_be_started_with_less_than_three_players() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
+    let game_id = create_game_without_players(&app.base_address, client).await;
 
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "p1";
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
-    let _ = receive_game_sate(&mut rx).await;
+    let mut player_1 = add_player(&app.base_address, &game_id, "p1").await.unwrap();
+    let _ = receive_game_sate(&mut player_1.rx).await.unwrap();
+    let _player_2 = add_player(&app.base_address, &game_id, "p2").await.unwrap();
+    // Skip the second GameState after player 2 joins
+    let _ = receive_game_sate(&mut player_1.rx).await.unwrap();
 
     send_text_message(
-        &mut tx,
+        &mut player_1.tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
         },
     )
     .await;
-
-    let error = receive_error(&mut rx).await;
+    let error = receive_error(&mut player_1.rx).await.unwrap();
     assert_eq!(&error, "NOT_ENOUGH_PLAYERS");
+
+    // The game is still alive and the socket of player 1 is still open
+    let game_state = receive_game_sate(&mut player_1.rx).await.unwrap();
+    assert_eq!(game_state.state, "Lobby");
 }
 
 #[tokio::test]
 async fn game_is_still_alive_when_all_players_leave() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
+    let game = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
-    let game_id = create_game(&app.base_address, client).await.id;
-    let nickname = "player1";
-    let (tx, rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
+    // Drop the game reference, so the players websockets get closed and the server disconnects the player from the game
+    let game_id = game.id.clone();
+    drop(game);
 
-    // Drop the references to the websocket so that it gets closed and the server disconnects the player from the game
-    drop(tx);
-    drop(rx);
+    let mut player = add_player(&app.base_address, &game_id, "p4").await.unwrap();
 
-    let nickname = "player2";
-    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-
-    let game_state = receive_game_sate(&mut rx).await;
+    let game_state = receive_game_sate(&mut player.rx).await.unwrap();
     assert!(game_state.state.eq("Lobby"));
-    assert_eq!(game_state.players.len(), 2);
-    assert_eq!(game_state.players.get(0).unwrap().is_connected, false);
-    assert_eq!(game_state.players.get(1).unwrap().is_connected, true);
+    assert_eq!(game_state.players.len(), 4);
+    assert!(!game_state.players.get(0).unwrap().is_connected);
+    assert!(!game_state.players.get(0).unwrap().is_host);
+    assert!(game_state.players.get(3).unwrap().is_connected);
+    assert!(game_state.players.get(3).unwrap().is_host);
 }
 
 #[tokio::test]
 async fn game_is_closed_after_inactivity_timeout() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
+    let game = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
-    let game_id = create_game(&app.base_address, client).await.id;
-    let nickname = "player1";
-    let (tx, _) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-
-    // Drop the references to the websocket so that it gets closed and the server disconnects the player from the game
-    drop(tx);
-
+    // Drop the game reference, so the players websockets get closed and the server disconnects the player from the game
+    let game_id = game.id.clone();
+    drop(game);
     // Wait until the game is closed
     sleep(app.inactivity_timeout + Duration::from_secs(1)).await;
 
     // Try to connect to the same game again
-    let nickname = "player2";
-    let (_, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-
-    let error = receive_error(&mut rx).await;
+    let mut player = add_player(&app.base_address, &game_id, "p4").await.unwrap();
+    let error = receive_error(&mut player.rx).await.unwrap();
     assert_eq!(&error, "GAME_DOES_NOT_EXIST");
 }
 
@@ -216,115 +138,45 @@ async fn game_is_closed_after_inactivity_timeout() {
 async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
+    let mut game = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "player";
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-
-    send_message(&mut tx, Message::Text("invalid".to_string())).await;
-    let error = receive_error(&mut rx).await;
+    send_message(&mut game.player_1.tx, Message::Text("invalid".to_string())).await;
+    let error = receive_error(&mut game.player_1.rx).await.unwrap();
     assert_eq!(&error, "UNPROCESSABLE_WEBSOCKET_MESSAGE");
 
-    let nickname = "player2";
-    let (mut _tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    receive_game_sate(&mut rx).await;
+    let mut player = add_player(&app.base_address, &game.id, "p4").await.unwrap();
+    receive_game_sate(&mut player.rx).await.unwrap();
 }
 
 #[tokio::test]
 async fn when_sending_invalid_message_game_it_is_reject_but_game_is_still_alive() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
+    let mut game: GameTest = create_game(&app.base_address, client, GameFsmState::Lobby).await;
 
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "player";
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-
-    send_message(&mut tx, Message::Binary(vec![])).await;
-    let error = receive_error(&mut rx).await;
+    send_message(&mut game.player_1.tx, Message::Binary(vec![])).await;
+    let error = receive_error(&mut game.player_1.rx).await.unwrap();
     assert_eq!(&error, "UNPROCESSABLE_WEBSOCKET_MESSAGE");
 
-    let nickname = "player2";
-    let (mut _tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    receive_game_sate(&mut rx).await;
-}
-
-#[tokio::test]
-async fn when_attempting_to_start_game_with_one_player_then_websocket_is_not_closed() {
-    let app = spawn_app().await;
-    let client = reqwest::Client::new();
-
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let nickname = "p1";
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, nickname)
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
-    let _ = receive_game_sate(&mut rx).await;
-
-    send_text_message(
-        &mut tx,
-        WsMessageIn::StartGame {
-            amount_of_rounds: 5,
-        },
-    )
-    .await;
-
-    let error = receive_error(&mut rx).await;
-    assert_eq!(&error, "NOT_ENOUGH_PLAYERS");
-
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+    let mut player = add_player(&app.base_address, &game.id, "p4").await.unwrap();
+    receive_game_sate(&mut player.rx).await.unwrap();
 }
 
 #[tokio::test]
 async fn repeated_words_are_not_allowed() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
-
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, "p1")
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
-    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
-    let _ = receive_game_sate(&mut rx).await;
-    let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
-    let _ = receive_game_sate(&mut rx).await;
+    let mut game: GameTest =
+        create_game(&app.base_address, client, GameFsmState::PlayersWritingWords).await;
 
     send_text_message(
-        &mut tx,
-        WsMessageIn::StartGame {
-            amount_of_rounds: 5,
-        },
-    )
-    .await;
-    let game_state = receive_game_sate(&mut rx).await;
-    assert_eq!(game_state.state, "PlayersWritingWords");
-    assert_eq!(game_state.rounds.len(), 1);
-    assert!(!game_state.rounds.first().unwrap().word.is_empty());
-
-    send_text_message(
-        &mut tx,
+        &mut game.player_1.tx,
         WsMessageIn::PlayerWords {
             words: vec!["w1".to_string(), "w1".to_string()],
         },
     )
     .await;
-    let error = receive_error(&mut rx).await;
+    let error = receive_error(&mut game.player_1.rx).await.unwrap();
     assert_eq!(&error, "REPEATED_WORDS");
 }
 
@@ -332,63 +184,115 @@ async fn repeated_words_are_not_allowed() {
 async fn game_goes_to_players_sending_word_submission_when_all_players_send_words() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
-
-    let game_id = create_game(&app.base_address, client).await.id;
-
-    let (mut tx_1, mut rx_1) = open_game_websocket(&app.base_address, &game_id, "p1")
-        .await
-        .split();
-    assert_eq!(receive_game_sate(&mut rx_1).await.state, "Lobby");
-    let (mut tx_2, _) = open_game_websocket(&app.base_address, &game_id, "p2")
-        .await
-        .split();
-    let _ = receive_game_sate(&mut rx_1).await;
-    let (mut tx_3, _) = open_game_websocket(&app.base_address, &game_id, "p3")
-        .await
-        .split();
-    let _ = receive_game_sate(&mut rx_1).await;
+    let mut game: GameTest =
+        create_game(&app.base_address, client, GameFsmState::PlayersWritingWords).await;
 
     send_text_message(
-        &mut tx_1,
-        WsMessageIn::StartGame {
-            amount_of_rounds: 5,
+        &mut game.player_1.tx,
+        WsMessageIn::PlayerWords {
+            words: vec!["w1".to_string()],
         },
     )
     .await;
-    let game_state = receive_game_sate(&mut rx_1).await;
+    let game_state = receive_game_sate(&mut game.player_1.rx).await.unwrap();
     assert_eq!(game_state.state, "PlayersWritingWords");
-    assert_eq!(game_state.rounds.len(), 1);
-    assert!(!game_state.rounds.first().unwrap().word.is_empty());
 
     send_text_message(
-        &mut tx_1,
+        &mut game.player_2.tx,
         WsMessageIn::PlayerWords {
             words: vec!["w1".to_string()],
         },
     )
     .await;
-    let _ = receive_game_sate(&mut rx_1).await;
+    let game_state = receive_game_sate(&mut game.player_1.rx).await.unwrap();
+    assert_eq!(game_state.state, "PlayersWritingWords");
     send_text_message(
-        &mut tx_2,
+        &mut game.player_3.tx,
         WsMessageIn::PlayerWords {
             words: vec!["w1".to_string()],
         },
     )
     .await;
-    let _ = receive_game_sate(&mut rx_1).await;
-    send_text_message(
-        &mut tx_3,
-        WsMessageIn::PlayerWords {
-            words: vec!["w1".to_string()],
-        },
-    )
-    .await;
-    let game_state = receive_game_sate(&mut rx_1).await;
+    let game_state = receive_game_sate(&mut game.player_1.rx).await.unwrap();
     assert_eq!(game_state.state, "PlayersSendingWordSubmission");
     assert_eq!(game_state.rounds.len(), 1);
 }
 
-async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
+async fn create_game(base_address: &str, client: reqwest::Client, state: GameFsmState) -> GameTest {
+    let game_id = create_game_without_players(base_address, client).await;
+
+    let mut player_1 = add_player(base_address, &game_id, "p1").await.unwrap();
+    let game_state = receive_game_sate(&mut player_1.rx).await.unwrap();
+    assert_eq!(game_state.state, "Lobby");
+    assert_eq!(game_state.players.len(), 1);
+    assert_eq!(
+        game_state.players.get(0).unwrap().nickname,
+        player_1.nickname
+    );
+    assert!(game_state.players.get(0).unwrap().is_host);
+
+    // Make sure to read the events the other players receive when new players join, so that we leave a "clean" response channel for the tests
+    let mut player_2 = add_player(base_address, &game_id, "p2").await.unwrap();
+    let _ = receive_game_sate(&mut player_1.rx).await.unwrap();
+    let game_state = receive_game_sate(&mut player_2.rx).await.unwrap();
+    assert_eq!(game_state.state, "Lobby");
+    assert_eq!(game_state.players.len(), 2);
+    assert_eq!(
+        game_state.players.get(0).unwrap().nickname,
+        player_1.nickname
+    );
+    assert_eq!(
+        game_state.players.get(1).unwrap().nickname,
+        player_2.nickname
+    );
+    assert!(!game_state.players.get(1).unwrap().is_host);
+
+    let mut player_3 = add_player(base_address, &game_id, "p3").await.unwrap();
+    let _ = receive_game_sate(&mut player_1.rx).await.unwrap();
+    let _ = receive_game_sate(&mut player_2.rx).await.unwrap();
+    let game_state = receive_game_sate(&mut player_3.rx).await.unwrap();
+    assert_eq!(game_state.state, "Lobby");
+    assert_eq!(game_state.players.len(), 3);
+    assert_eq!(
+        game_state.players.get(0).unwrap().nickname,
+        player_1.nickname
+    );
+    assert_eq!(
+        game_state.players.get(1).unwrap().nickname,
+        player_2.nickname
+    );
+    assert_eq!(
+        game_state.players.get(2).unwrap().nickname,
+        player_3.nickname
+    );
+    assert!(!game_state.players.get(2).unwrap().is_host);
+
+    match state {
+        GameFsmState::Lobby => {}
+        GameFsmState::PlayersWritingWords => {
+            send_text_message(
+                &mut player_1.tx,
+                WsMessageIn::StartGame {
+                    amount_of_rounds: 5,
+                },
+            )
+            .await;
+            let game_state = receive_game_sate(&mut player_1.rx).await.unwrap();
+            let _ = receive_game_sate(&mut player_2.rx).await.unwrap();
+            let _ = receive_game_sate(&mut player_3.rx).await.unwrap();
+            assert_eq!(game_state.state, "PlayersWritingWords")
+        }
+    }
+
+    GameTest {
+        id: game_id.clone(),
+        player_1,
+        player_2,
+        player_3,
+    }
+}
+
+async fn create_game_without_players(base_address: &str, client: reqwest::Client) -> String {
     let response = client
         .post(format!("http://{base_address}/game"))
         .send()
@@ -402,20 +306,35 @@ async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreated
         .expect("Failed to parse GameCreatedResponse.");
     assert!(!game_created_response.id.is_empty());
 
-    game_created_response
+    game_created_response.id
+}
+
+async fn add_player(
+    base_address: &str,
+    game_id: &str,
+    nickname: &str,
+) -> Result<PlayerTest, String> {
+    let (tx, rx) = open_game_websocket(base_address, game_id, nickname)
+        .await?
+        .split();
+    Ok(PlayerTest {
+        nickname: nickname.to_string(),
+        tx,
+        rx,
+    })
 }
 
 async fn open_game_websocket(
     base_address: &str,
     game_id: &str,
     nickname: &str,
-) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
+) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, String> {
     tokio_tungstenite::connect_async(format!(
         "ws://{base_address}/game/{game_id}/player/{nickname}/ws"
     ))
     .await
-    .expect("WebSocket could not be created.")
-    .0
+    .map(|websocket_stream| websocket_stream.0)
+    .map_err(|error| format!("WebSocket could not be created. Error: '{error}'."))
 }
 
 async fn send_text_message(
@@ -442,7 +361,7 @@ async fn send_message(
 // It's important for the receiver to be a reference, otherwise this method takes ownership of it and when it ends it closes the websocket
 async fn receive_game_sate(
     receiver: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
-) -> GameState {
+) -> Result<GameState, String> {
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
@@ -450,22 +369,25 @@ async fn receive_game_sate(
                     state,
                     players,
                     rounds,
-                }) => GameState {
+                }) => Ok(GameState {
                     state,
                     players,
                     rounds,
-                },
-                _ => panic!("The message was not a WsMessage::GameState"),
+                }),
+                Ok(unexpected_message) => {
+                    Err(format!("The message was not a WsMessage::GameState. Message: '{unexpected_message:?}'."))
+                }
+                Err(error) => Err(format!("Could not parse the message. Error: '{error}'.")),
             }
         }
-        Some(Err(error)) => panic!("Websocket returned an error {}", error),
-        _ => panic!("Websocket closed before expected."),
+        Some(Err(error)) => Err(format!("Websocket returned an error {error}")),
+        _ => Err("Websocket closed before expected.".to_string()),
     }
 }
 
 async fn receive_error(
     receiver: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
-) -> String {
+) -> Result<String, String> {
     match receiver.next().await {
         Some(Ok(message)) => {
             match serde_json::from_str(message.to_text().expect("Message was not a text")) {
@@ -476,13 +398,16 @@ async fn receive_error(
                 }) => {
                     assert!(!title.is_empty());
                     assert!(!detail.is_empty());
-                    r#type
+                    Ok(r#type)
                 }
-                _ => panic!("The message was not a WsMessage::Error"),
+                Ok(unexpected_message) => Err(format!(
+                    "The message was not a WsMessage::Error. Message: '{unexpected_message:?}'."
+                )),
+                Err(error) => Err(format!("Could not parse the message. Error: '{error}'.")),
             }
         }
-        Some(Err(error)) => panic!("Websocket returned an error {}", error),
-        _ => panic!("Websocket closed before expected."),
+        Some(Err(error)) => Err(format!("Websocket returned an error {error}")),
+        _ => Err("Websocket closed before expected.".to_string()),
     }
 }
 
@@ -492,6 +417,24 @@ async fn sleep(duration: Duration) {
     timer.tick().await;
 }
 
+enum GameFsmState {
+    Lobby,
+    PlayersWritingWords,
+}
+
+struct GameTest {
+    id: String,
+    player_1: PlayerTest,
+    player_2: PlayerTest,
+    player_3: PlayerTest,
+}
+
+struct PlayerTest {
+    nickname: String,
+    tx: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    rx: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+}
+
 #[derive(Deserialize)]
 struct GameState {
     state: String,
@@ -499,7 +442,7 @@ struct GameState {
     rounds: Vec<Round>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Player {
     nickname: String,
@@ -507,7 +450,7 @@ struct Player {
     is_connected: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Round {
     word: String,
@@ -518,7 +461,7 @@ struct GameCreatedResponse {
     id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 enum WsMessageOut {
     Error {
