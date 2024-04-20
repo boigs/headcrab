@@ -89,7 +89,7 @@ async fn game_can_be_started() {
     let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
     let _ = receive_game_sate(&mut rx).await;
 
-    send_start_game(
+    send_text_message(
         &mut tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
@@ -119,7 +119,7 @@ async fn non_host_player_cannot_start_game() {
     let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
     let _ = receive_game_sate(&mut rx).await;
 
-    send_start_game(
+    send_text_message(
         &mut tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
@@ -146,7 +146,7 @@ async fn game_cannot_be_started_with_less_than_three_players() {
     let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
     let _ = receive_game_sate(&mut rx).await;
 
-    send_start_game(
+    send_text_message(
         &mut tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
@@ -275,7 +275,7 @@ async fn when_attempting_to_start_game_with_one_player_then_websocket_is_not_clo
     let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
     let _ = receive_game_sate(&mut rx).await;
 
-    send_start_game(
+    send_text_message(
         &mut tx,
         WsMessageIn::StartGame {
             amount_of_rounds: 5,
@@ -287,6 +287,105 @@ async fn when_attempting_to_start_game_with_one_player_then_websocket_is_not_clo
     assert_eq!(&error, "NOT_ENOUGH_PLAYERS");
 
     assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+}
+
+#[tokio::test]
+async fn repeated_words_are_not_allowed() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&app.base_address, client).await.id;
+
+    let (mut tx, mut rx) = open_game_websocket(&app.base_address, &game_id, "p1")
+        .await
+        .split();
+    assert_eq!(receive_game_sate(&mut rx).await.state, "Lobby");
+    let _player2_connection = open_game_websocket(&app.base_address, &game_id, "p2").await;
+    let _ = receive_game_sate(&mut rx).await;
+    let _player3_connection = open_game_websocket(&app.base_address, &game_id, "p3").await;
+    let _ = receive_game_sate(&mut rx).await;
+
+    send_text_message(
+        &mut tx,
+        WsMessageIn::StartGame {
+            amount_of_rounds: 5,
+        },
+    )
+    .await;
+    let game_state = receive_game_sate(&mut rx).await;
+    assert_eq!(game_state.state, "PlayersWritingWords");
+    assert_eq!(game_state.rounds.len(), 1);
+    assert!(!game_state.rounds.first().unwrap().word.is_empty());
+
+    send_text_message(
+        &mut tx,
+        WsMessageIn::PlayerWords {
+            words: vec!["w1".to_string(), "w1".to_string()],
+        },
+    )
+    .await;
+    let error = receive_error(&mut rx).await;
+    assert_eq!(&error, "REPEATED_WORDS");
+}
+
+#[tokio::test]
+async fn game_goes_to_players_sending_word_submission_when_all_players_send_words() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+
+    let game_id = create_game(&app.base_address, client).await.id;
+
+    let (mut tx_1, mut rx_1) = open_game_websocket(&app.base_address, &game_id, "p1")
+        .await
+        .split();
+    assert_eq!(receive_game_sate(&mut rx_1).await.state, "Lobby");
+    let (mut tx_2, _) = open_game_websocket(&app.base_address, &game_id, "p2")
+        .await
+        .split();
+    let _ = receive_game_sate(&mut rx_1).await;
+    let (mut tx_3, _) = open_game_websocket(&app.base_address, &game_id, "p3")
+        .await
+        .split();
+    let _ = receive_game_sate(&mut rx_1).await;
+
+    send_text_message(
+        &mut tx_1,
+        WsMessageIn::StartGame {
+            amount_of_rounds: 5,
+        },
+    )
+    .await;
+    let game_state = receive_game_sate(&mut rx_1).await;
+    assert_eq!(game_state.state, "PlayersWritingWords");
+    assert_eq!(game_state.rounds.len(), 1);
+    assert!(!game_state.rounds.first().unwrap().word.is_empty());
+
+    send_text_message(
+        &mut tx_1,
+        WsMessageIn::PlayerWords {
+            words: vec!["w1".to_string()],
+        },
+    )
+    .await;
+    let _ = receive_game_sate(&mut rx_1).await;
+    send_text_message(
+        &mut tx_2,
+        WsMessageIn::PlayerWords {
+            words: vec!["w1".to_string()],
+        },
+    )
+    .await;
+    let _ = receive_game_sate(&mut rx_1).await;
+    send_text_message(
+        &mut tx_3,
+        WsMessageIn::PlayerWords {
+            words: vec!["w1".to_string()],
+        },
+    )
+    .await;
+    let game_state = receive_game_sate(&mut rx_1).await;
+    assert_eq!(game_state.state, "PlayersSendingWordSubmission");
+    assert_eq!(game_state.rounds.len(), 1);
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client) -> GameCreatedResponse {
@@ -319,7 +418,7 @@ async fn open_game_websocket(
     .0
 }
 
-async fn send_start_game(
+async fn send_text_message(
     websocket: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     message: WsMessageIn,
 ) {
@@ -439,4 +538,6 @@ enum WsMessageOut {
 enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     StartGame { amount_of_rounds: u8 },
+    #[serde(rename_all = "camelCase")]
+    PlayerWords { words: Vec<String> },
 }

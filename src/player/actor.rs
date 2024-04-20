@@ -85,6 +85,7 @@ impl PlayerActor {
             Error::NotEnoughPlayers => false,
             Error::GameDoesNotExist(_) => false,
             Error::PlayerAlreadyExists(_) => false,
+            Error::RepeatedWords => false,
         }
     }
 

@@ -16,6 +16,8 @@ pub enum Error {
     GameDoesNotExist(String),
     #[error("The player with nickname '{0}' already exists")]
     PlayerAlreadyExists(String),
+    #[error("Repeated words are not allowed.")]
+    RepeatedWords,
 }
 
 impl Error {

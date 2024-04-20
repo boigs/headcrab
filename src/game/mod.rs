@@ -232,7 +232,7 @@ impl Game {
         }
 
         if let Some(round) = self.rounds.last_mut() {
-            round.add_words(nickname, words);
+            round.add_words(nickname, words)?;
             let connected_players: Vec<String> = self
                 .players
                 .iter()
