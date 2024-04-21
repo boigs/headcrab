@@ -1,4 +1,5 @@
 use axum::extract::ws::{Message, WebSocket};
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::select;
 use tokio::time::error::Elapsed;
@@ -8,9 +9,15 @@ use crate::error::Error;
 use crate::game::actor::GameWideEvent;
 use crate::game::actor_client::GameClient;
 use crate::game::actor_client::GameWideEventReceiver;
+use crate::game::game_fsm::GameFsmState;
 use crate::metrics::CONNECTED_PLAYERS;
+use crate::player::Player;
+use crate::round::Round;
+use crate::round::Word;
 use crate::websocket::close;
 use crate::websocket::message::state_to_string;
+use crate::websocket::message::RoundDto;
+use crate::websocket::message::WordDto;
 use crate::websocket::message::WsMessageIn;
 use crate::websocket::message::WsMessageOut;
 use crate::websocket::parse_message;
@@ -101,11 +108,7 @@ impl PlayerActor {
             }) => {
                 send_message(
                     &mut self.websocket,
-                    &WsMessageOut::GameState {
-                        state: state_to_string(state),
-                        players: players.into_iter().map(|player| player.into()).collect(),
-                        rounds: rounds.into_iter().map(|round| round.into()).collect(),
-                    },
+                    &PlayerActor::serialize_game_state(&self.nickname, state, players, rounds),
                 )
                 .await
             }
@@ -120,6 +123,45 @@ impl PlayerActor {
                 .await
             }
             Err(error) => Err(error),
+        }
+    }
+
+    fn serialize_game_state(
+        our_nickname: &str,
+        state: GameFsmState,
+        players: Vec<Player>,
+        rounds: Vec<Round>,
+    ) -> WsMessageOut {
+        let rounds: Option<Vec<RoundDto>> = rounds.split_last().map(|(last_round, rest)| {
+            let last_round = last_round.clone();
+            let filtered_words: HashMap<String, Vec<WordDto>> = last_round
+                .player_words
+                .iter()
+                .map(|(nickname, words)| {
+                    let words: Vec<Word> = if our_nickname == nickname {
+                        words.to_vec()
+                    } else {
+                        words.iter().filter(|word| word.is_used).cloned().collect()
+                    };
+                    (
+                        nickname.to_string(),
+                        words.into_iter().map(|word| word.into()).collect(),
+                    )
+                })
+                .collect();
+            let mut rest: Vec<RoundDto> = rest.iter().map(|round| round.clone().into()).collect();
+            rest.push(RoundDto {
+                word: last_round.word,
+                score: last_round.score.into(),
+                player_words: filtered_words,
+            });
+            rest
+        });
+
+        WsMessageOut::GameState {
+            state: state_to_string(state),
+            players: players.into_iter().map(|player| player.into()).collect(),
+            rounds: rounds.unwrap_or_default(),
         }
     }
 

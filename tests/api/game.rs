@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use crate::helpers::spawn_app;
 use futures_util::{
@@ -216,6 +216,58 @@ async fn game_goes_to_players_sending_word_submission_when_all_players_send_word
     let game_state = receive_game_sate(&mut game.player_1.rx).await.unwrap();
     assert_eq!(game_state.state, "PlayersSendingWordSubmission");
     assert_eq!(game_state.rounds.len(), 1);
+}
+
+#[tokio::test]
+async fn player_cannot_see_other_player_words() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let mut game: GameTest =
+        create_game(&app.base_address, client, GameFsmState::PlayersWritingWords).await;
+
+    send_text_message(
+        &mut game.player_1.tx,
+        WsMessageIn::PlayerWords {
+            words: vec!["p1_w1".to_string(), "p1_w2".to_string()],
+        },
+    )
+    .await;
+    let _ = receive_game_sate(&mut game.player_2.rx).await.unwrap();
+
+    send_text_message(
+        &mut game.player_2.tx,
+        WsMessageIn::PlayerWords {
+            words: vec!["p2_w1".to_string(), "p2_w2".to_string()],
+        },
+    )
+    .await;
+    let _ = receive_game_sate(&mut game.player_2.rx).await.unwrap();
+
+    send_text_message(
+        &mut game.player_3.tx,
+        WsMessageIn::PlayerWords {
+            words: vec!["p3_w1".to_string(), "p3_w2".to_string()],
+        },
+    )
+    .await;
+
+    let game_state = receive_game_sate(&mut game.player_2.rx).await.unwrap();
+    assert_eq!(game_state.state, "PlayersSendingWordSubmission");
+
+    let player_words = &game_state.rounds.last().unwrap().player_words;
+    assert_eq!(player_words.len(), 3);
+
+    let player1_words = player_words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(player1_words.len(), 1);
+    assert_eq!(player1_words.get(0).unwrap().word, "p1_w1");
+
+    let player2_words = player_words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(player2_words.len(), 2);
+    assert_eq!(player2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(player2_words.get(1).unwrap().word, "p2_w2");
+
+    let player3_words = player_words.get(&game.player_3.nickname).unwrap();
+    assert!(player3_words.is_empty());
 }
 
 async fn create_game(base_address: &str, client: reqwest::Client, state: GameFsmState) -> GameTest {
@@ -453,6 +505,13 @@ struct Player {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Round {
+    word: String,
+    player_words: HashMap<String, Vec<Word>>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Word {
     word: String,
 }
 
