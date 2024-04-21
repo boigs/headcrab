@@ -114,12 +114,10 @@ impl Round {
     pub fn next_word_to_score(&mut self) -> Option<String> {
         let nickname_and_next_word = {
             let (_, nickname) = self.score.current_player.clone()?;
-            let words = self.player_words.get(&nickname)?;
-            let next_word = words
-                .iter()
-                .find(|word| !word.is_used)
-                .map(|word| word.word.clone())?;
-            Some((nickname, next_word))
+            let words = self.player_words.get_mut(&nickname)?;
+            let next_word = words.iter_mut().find(|word| !word.is_used)?;
+            next_word.is_used = true;
+            Some((nickname, next_word.word.to_string()))
         };
 
         if let Some((nickname, next_word)) = nickname_and_next_word.clone() {
@@ -306,6 +304,14 @@ mod tests {
         round.next_player_to_score();
 
         assert_eq!(round.next_word_to_score(), Some("word1".to_string()));
+        let word = round
+            .player_words
+            .get(PLAYER_1)
+            .unwrap()
+            .iter()
+            .find(|word| word.word == "word1")
+            .unwrap();
+        assert!(word.is_used);
     }
 
     #[test]

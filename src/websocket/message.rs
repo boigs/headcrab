@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{game::game_fsm::GameFsmState, player::Player, round::Round};
+use crate::{
+    game::game_fsm::GameFsmState,
+    player::Player,
+    round::{Round, RoundScoreState, Word},
+};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
@@ -63,10 +67,9 @@ impl From<Player> for PlayerDto {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoundDto {
-    word: String,
-    // TODO: do not send this field when state is not PlayersSendingWordSubmission
-    player_words: HashMap<String, Vec<WordDto>>,
-    score: RoundScoreStateDto,
+    pub word: String,
+    pub player_words: HashMap<String, Vec<WordDto>>,
+    pub score: RoundScoreStateDto,
 }
 
 impl From<Round> for RoundDto {
@@ -79,21 +82,31 @@ impl From<Round> for RoundDto {
                 .map(|(k, v)| {
                     (
                         k.clone(),
-                        v.iter()
-                            .map(|x| WordDto {
-                                word: x.word.clone(),
-                                is_used: x.is_used,
-                                score: x.score,
-                            })
-                            .collect(),
+                        v.iter().map(|word| word.clone().into()).collect(),
                     )
                 })
                 .collect(),
-            score: RoundScoreStateDto {
-                current_player: val.score.current_player.map(|tuple| tuple.1),
-                current_word: val.score.current_word.clone(),
-                player_word_submission: val.score.player_word_submission.clone(),
-            },
+            score: val.score.into(),
+        }
+    }
+}
+
+impl From<Word> for WordDto {
+    fn from(val: Word) -> Self {
+        Self {
+            word: val.word.clone(),
+            is_used: val.is_used,
+            score: val.score,
+        }
+    }
+}
+
+impl From<RoundScoreState> for RoundScoreStateDto {
+    fn from(val: RoundScoreState) -> Self {
+        Self {
+            current_player: val.current_player.clone().map(|tuple| tuple.1),
+            current_word: val.current_word.clone(),
+            player_word_submission: val.player_word_submission.clone(),
         }
     }
 }
