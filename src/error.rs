@@ -18,6 +18,8 @@ pub enum Error {
     PlayerAlreadyExists(String),
     #[error("Repeated words are not allowed.")]
     RepeatedWords,
+    #[error("Cannot join because the game is already in progress")]
+    GameAlreadyInProgress,
 }
 
 impl Error {

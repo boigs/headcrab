@@ -93,6 +93,7 @@ impl PlayerActor {
             Error::GameDoesNotExist(_) => false,
             Error::PlayerAlreadyExists(_) => false,
             Error::RepeatedWords => false,
+            Error::GameAlreadyInProgress => true,
         }
     }
 

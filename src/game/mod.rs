@@ -54,15 +54,19 @@ impl Game {
     }
 
     pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
+        let state = self.state().clone();
+
         if let Some(player) = self.get_player_mut(nickname) {
             if player.is_connected {
                 return Err(Error::PlayerAlreadyExists(nickname.to_string()));
             } else {
                 player.is_connected = true;
             }
-        } else {
+        } else if state == GameFsmState::Lobby {
             let new_player = Player::new(nickname);
             self.players.push(new_player);
+        } else {
+            return Err(Error::GameAlreadyInProgress);
         }
 
         self.assign_host();
@@ -469,6 +473,26 @@ mod tests {
                 "add_word_to_score_invalid_state".to_string()
             )
         );
+    }
+
+    #[test]
+    fn new_players_cannot_be_added_after_game_is_started() {
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+
+        let result = game.add_player("new_player");
+
+        assert_eq!(result, Err(Error::GameAlreadyInProgress));
+    }
+
+    #[test]
+    fn existing_player_can_rejoin_after_game_is_started() {
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+
+        let _ = game.disconnect_player(PLAYER_2);
+
+        let result = game.add_player(PLAYER_2);
+
+        assert_eq!(result, Ok(()));
     }
 
     fn get_game(state: &GameFsmState) -> Game {
