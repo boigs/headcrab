@@ -90,5 +90,10 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
             title: "There are repeated words".to_string(),
             detail: error.to_string(),
         },
+        Error::GameAlreadyInProgress => WsMessageOut::Error {
+            r#type: "GAME_ALREADY_IN_PROGRESS".to_string(),
+            title: "Cannot join because the game is already in progress".to_string(),
+            detail: error.to_string(),
+        },
     }
 }
