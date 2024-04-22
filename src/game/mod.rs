@@ -62,13 +62,11 @@ impl Game {
             } else {
                 player.is_connected = true;
             }
+        } else if state == GameFsmState::Lobby {
+            let new_player = Player::new(nickname);
+            self.players.push(new_player);
         } else {
-            if state == GameFsmState::Lobby {
-                let new_player = Player::new(nickname);
-                self.players.push(new_player);
-            } else {
-                return Err(Error::GameAlreadyInProgress);
-            }
+            return Err(Error::GameAlreadyInProgress);
         }
 
         self.assign_host();
