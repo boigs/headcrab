@@ -121,28 +121,50 @@ impl Round {
         };
 
         if let Some((nickname, next_word)) = nickname_and_next_word.clone() {
-            self.add_player_word_submission(&nickname, Some(next_word));
+            self.score
+                .player_word_submission
+                .insert(nickname.to_string(), Some(next_word));
         }
 
         self.score.current_word = nickname_and_next_word.map(|(_, next_word)| next_word);
         self.score.current_word.clone()
     }
 
+    // TODO: Don't allow words when current player or word is not chosen
     pub fn add_player_word_submission(
         &mut self,
         nickname: &str,
         word: Option<String>,
-    ) -> Option<()> {
+    ) -> Result<(), Error> {
+        if self
+            .score
+            .clone()
+            .current_player
+            .is_some_and(|(_, player)| player == nickname)
+        {
+            return Err(Error::CommandNotAllowed(
+                nickname.to_string(),
+                "add_player_word_submission".to_string(),
+            ));
+        }
         if let Some(word) = word.clone() {
             // If the player does not have the word or they've used it already then it's an error
-            self.player_words
+            let player_does_not_have_unused_word = self
+                .player_words
                 .get(nickname)
-                .and_then(|words| words.iter().find(|w| w.word == word && !w.is_used))?;
+                .and_then(|words| words.iter().find(|w| w.word == word && !w.is_used))
+                .is_none();
+            if player_does_not_have_unused_word {
+                return Err(Error::CommandNotAllowed(
+                    nickname.to_string(),
+                    "add_player_word_submission".to_string(),
+                ));
+            }
         }
         self.score
             .player_word_submission
             .insert(nickname.to_string(), word);
-        Some(())
+        Ok(())
     }
 
     pub fn players_submitted_words_count(&self) -> usize {
@@ -182,6 +204,33 @@ mod tests {
     static PLAYER_3: &str = "p3";
 
     #[test]
+    fn player_can_submit_word() {
+        let mut round = get_round();
+
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
+
+        assert!(round
+            .add_player_word_submission(PLAYER_1, Some("word1".to_string()))
+            .is_ok());
+    }
+
+    #[test]
+    fn current_player_cannot_submit_word() {
+        let mut round = get_round();
+
+        round
+            .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
+            .unwrap();
+        let player = round.next_player_to_score().unwrap();
+
+        assert!(round
+            .add_player_word_submission(&player, Some("word2".to_string()))
+            .is_err());
+    }
+
+    #[test]
     fn player_cannot_submit_non_existent_word() {
         let mut round = get_round();
 
@@ -191,7 +240,7 @@ mod tests {
 
         assert!(round
             .add_player_word_submission(PLAYER_1, Some("word3".to_string()))
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -200,12 +249,14 @@ mod tests {
         round
             .add_words(PLAYER_1, vec!["word1".to_string(), "word2".to_string()])
             .unwrap();
-        round.add_player_word_submission(PLAYER_1, Some("word1".to_string()));
+        round
+            .add_player_word_submission(PLAYER_1, Some("word1".to_string()))
+            .unwrap();
         round.compute_score();
 
         assert!(round
             .add_player_word_submission(PLAYER_1, Some("word1".to_string()))
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -230,9 +281,13 @@ mod tests {
             )
             .unwrap();
 
-        round.add_player_word_submission(PLAYER_1, Some("p1_word1".to_string()));
-        round.add_player_word_submission(PLAYER_2, Some("p2_word1".to_string()));
-        round.add_player_word_submission(PLAYER_3, None);
+        round
+            .add_player_word_submission(PLAYER_1, Some("p1_word1".to_string()))
+            .unwrap();
+        round
+            .add_player_word_submission(PLAYER_2, Some("p2_word1".to_string()))
+            .unwrap();
+        round.add_player_word_submission(PLAYER_3, None).unwrap();
 
         round.compute_score();
 

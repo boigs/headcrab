@@ -44,6 +44,7 @@ pub enum WsMessageIn {
         // TODO: handle empty word (skip) submissions
         word: String,
     },
+    ContinueToNextRound,
 }
 
 #[derive(Serialize)]
@@ -135,9 +136,8 @@ pub fn state_to_string(state: GameFsmState) -> String {
         GameFsmState::ScoreCounting => "WordCounting".to_string(),
         GameFsmState::ChooseNextPlayer => "ChooseNextPlayer".to_string(),
         GameFsmState::ChooseNextWord => "ChooseNextWord".to_string(),
-        GameFsmState::EndOfGame => "EndOfGame".to_string(),
         GameFsmState::PlayersSendingWordSubmission => "PlayersSendingWordSubmission".to_string(),
-        /*GameFsmState::EndOfGame => "EndOfGame".to_string(),
-        ,*/
+        GameFsmState::EndOfRound => "EndOfRound".to_string(),
+        GameFsmState::EndOfGame => "EndOfGame".to_string(),
     }
 }

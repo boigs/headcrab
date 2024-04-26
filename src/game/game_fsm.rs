@@ -19,12 +19,12 @@ state_machine! {
         NoMoreRounds => EndOfGame,
     },
     PlayersWritingWords => {
-        //TimesUp => ScoreCounting,
+        // TODO: TimesUp => ScoreCounting,
         PlayersFinished => ScoreCounting
     },
     ScoreCounting(BeginScoreCounting) => ChooseNextPlayer,
     ChooseNextPlayer => {
-        NoMorePlayers => CreatingNewRound,
+        NoMorePlayers => EndOfRound,
         NextPlayer => ChooseNextWord,
     },
     ChooseNextWord => {
@@ -33,5 +33,8 @@ state_machine! {
     },
     PlayersSendingWordSubmission => {
         AllPlayersSentWordSubmission => ChooseNextWord,
+    },
+    EndOfRound => {
+        ContinueToNextRound => CreatingNewRound,
     }
 }
