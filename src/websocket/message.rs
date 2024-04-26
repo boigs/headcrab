@@ -41,8 +41,7 @@ pub enum WsMessageIn {
         words: Vec<String>,
     },
     PlayerWordSubmission {
-        // TODO: handle empty word (skip) submissions
-        word: String,
+        word: Option<String>,
     },
     ContinueToNextRound,
 }

@@ -187,7 +187,7 @@ impl PlayerActor {
                     }
                     Ok(WsMessageIn::PlayerWordSubmission { word }) => {
                         self.game
-                            .add_player_word_submission(&self.nickname, Some(word))
+                            .add_player_word_submission(&self.nickname, word)
                             .await
                     }
                     Ok(WsMessageIn::ContinueToNextRound) => {
