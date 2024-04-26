@@ -166,7 +166,8 @@ impl Game {
                         self.process_event(&GameFsmInput::NoMoreWords)
                     }
                 }
-                GameFsmState::EndOfGame => todo!(),
+                GameFsmState::EndOfRound => Ok(()),
+                GameFsmState::EndOfGame => Ok(()),
             },
             Err(error) => Err(Error::log_and_create_internal(&format!(
                 "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
@@ -217,7 +218,7 @@ impl Game {
             }
         }
 
-        current_round.add_player_word_submission(nickname, word);
+        current_round.add_player_word_submission(nickname, word)?;
 
         if current_round.players_submitted_words_count() >= number_of_connected_players {
             current_round.compute_score();
@@ -250,6 +251,17 @@ impl Game {
 
         Ok(())
     }
+
+    pub fn continue_to_next_round(&mut self, nickname: &str) -> Result<(), Error> {
+        if self.is_host(nickname) {
+            self.process_event(&GameFsmInput::ContinueToNextRound)
+        } else {
+            Err(Error::CommandNotAllowed(
+                nickname.to_string(),
+                "continue_to_next_round".to_string(),
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -260,9 +272,21 @@ mod tests {
     static PLAYER_1: &str = "p1";
     static PLAYER_2: &str = "p2";
     static PLAYER_3: &str = "p3";
+    fn players() -> Vec<String> {
+        vec![PLAYER_1, PLAYER_2, PLAYER_3]
+            .iter()
+            .map(|player| player.to_string())
+            .collect()
+    }
 
     static WORD_1: &str = "w1";
     static WORD_2: &str = "w2";
+    fn words() -> Vec<String> {
+        vec![WORD_1, WORD_2]
+            .iter()
+            .map(|word| word.to_string())
+            .collect()
+    }
 
     #[test]
     fn add_player_works() {
@@ -393,7 +417,7 @@ mod tests {
     fn add_words_works() {
         let mut game = get_game(&GameFsmState::PlayersWritingWords);
 
-        let result = game.add_words(PLAYER_1, get_words());
+        let result = game.add_words(PLAYER_1, words());
 
         assert!(result.is_ok());
         assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
@@ -403,9 +427,9 @@ mod tests {
     fn add_words_transitions_to_players_sending_word_submission_on_last_player_words() {
         let mut game = get_game(&GameFsmState::PlayersWritingWords);
 
-        game.add_words(PLAYER_1, get_words()).unwrap();
-        game.add_words(PLAYER_2, get_words()).unwrap();
-        game.add_words(PLAYER_3, get_words()).unwrap();
+        game.add_words(PLAYER_1, words()).unwrap();
+        game.add_words(PLAYER_2, words()).unwrap();
+        game.add_words(PLAYER_3, words()).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
     }
@@ -414,7 +438,7 @@ mod tests {
     fn add_words_fails_when_state_is_not_players_writing_words() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.add_words(PLAYER_1, get_words());
+        let result = game.add_words(PLAYER_1, words());
 
         assert!(result.is_err());
         assert_eq!(
@@ -427,7 +451,7 @@ mod tests {
     fn add_word_to_score_works_with_word() {
         let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
 
-        let result = game.add_word_to_score(PLAYER_1, Some(WORD_1.to_string()));
+        let result = game.add_word_to_score(PLAYER_2, Some(WORD_1.to_string()));
 
         assert!(result.is_ok());
         assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
@@ -437,7 +461,7 @@ mod tests {
     fn add_word_to_score_works_with_empty_word() {
         let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
 
-        let result = game.add_word_to_score(PLAYER_1, None);
+        let result = game.add_word_to_score(PLAYER_2, None);
 
         assert!(result.is_ok());
         assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
@@ -447,13 +471,13 @@ mod tests {
     fn add_word_to_score_fails_with_unsubmitted_word() {
         let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
 
-        let result = game.add_word_to_score(PLAYER_1, Some("NOT_SUBMITTED_WORD".to_string()));
+        let result = game.add_word_to_score(PLAYER_2, Some("NOT_SUBMITTED_WORD".to_string()));
 
         assert!(result.is_err());
         assert_eq!(
             result.err().unwrap(),
             Error::CommandNotAllowed(
-                PLAYER_1.to_string(),
+                PLAYER_2.to_string(),
                 "add_word_to_score_non_existing_word".to_string()
             )
         );
@@ -463,16 +487,71 @@ mod tests {
     fn add_word_to_score_fails_when_state_is_not_players_sending_word_submission() {
         let mut game = get_game(&GameFsmState::PlayersWritingWords);
 
-        let result = game.add_word_to_score(PLAYER_1, Some(WORD_1.to_string()));
+        let result = game.add_word_to_score(PLAYER_2, Some(WORD_1.to_string()));
 
         assert!(result.is_err());
         assert_eq!(
             result.err().unwrap(),
             Error::CommandNotAllowed(
-                PLAYER_1.to_string(),
+                PLAYER_2.to_string(),
                 "add_word_to_score_invalid_state".to_string()
             )
         );
+    }
+
+    #[test]
+    fn when_all_players_send_word_to_score_game_goes_to_end_of_round() {
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+
+        complete_round(&mut game);
+
+        assert_eq!(game.state(), &GameFsmState::EndOfRound);
+    }
+
+    #[test]
+    fn continue_to_next_round_fails_when_state_is_not_end_of_round() {
+        let mut game = get_game(&GameFsmState::Lobby);
+
+        let result = game.continue_to_next_round(PLAYER_1);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn continue_to_next_round_fails_when_player_is_not_host() {
+        let mut game = get_game(&GameFsmState::EndOfRound);
+
+        let result = game.continue_to_next_round(PLAYER_2);
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            Error::CommandNotAllowed(PLAYER_2.to_string(), "continue_to_next_round".to_string())
+        );
+    }
+
+    #[test]
+    fn continue_to_next_round_proceeds_to_next_round() {
+        let mut game = get_game(&GameFsmState::EndOfRound);
+
+        let result = game.continue_to_next_round(PLAYER_1);
+
+        assert!(result.is_ok());
+        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+    }
+
+    #[test]
+    fn continue_to_next_round_proceeds_to_end_of_game() {
+        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+
+        complete_round(&mut game);
+        game.continue_to_next_round(PLAYER_1).unwrap();
+        complete_round(&mut game);
+        game.continue_to_next_round(PLAYER_1).unwrap();
+        complete_round(&mut game);
+        game.continue_to_next_round(PLAYER_1).unwrap();
+
+        assert_eq!(game.state(), &GameFsmState::EndOfGame);
     }
 
     #[test]
@@ -506,9 +585,11 @@ mod tests {
             GameFsmState::PlayersWritingWords => game.start_game(PLAYER_1).unwrap(),
             GameFsmState::PlayersSendingWordSubmission => {
                 game.start_game(PLAYER_1).unwrap();
-                game.add_words(PLAYER_1, get_words()).unwrap();
-                game.add_words(PLAYER_2, get_words()).unwrap();
-                game.add_words(PLAYER_3, get_words()).unwrap();
+                send_players_words_submision(&mut game);
+            }
+            GameFsmState::EndOfRound => {
+                game.start_game(PLAYER_1).unwrap();
+                complete_round(&mut game);
             }
             _ => panic!("Unsupported desired state for unit tests"),
         }
@@ -517,7 +598,19 @@ mod tests {
         game
     }
 
-    fn get_words() -> Vec<String> {
-        vec![WORD_1.to_string(), WORD_2.to_string()]
+    fn send_players_words_submision(game: &mut Game) {
+        for player in players() {
+            game.add_words(&player, words()).unwrap();
+        }
+    }
+
+    fn complete_round(game: &mut Game) {
+        send_players_words_submision(game);
+        for word in words() {
+            for player in players() {
+                // For simplicity in the test setup, we'll iterate over all the words, even if they are already used, ignore such error
+                let _ = game.add_word_to_score(&player, Some(word.to_string()));
+            }
+        }
     }
 }
