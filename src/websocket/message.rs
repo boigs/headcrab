@@ -44,7 +44,7 @@ pub enum WsMessageIn {
         // TODO: handle empty word (skip) submissions
         word: String,
     },
-    ContinueToNextRound {},
+    ContinueToNextRound,
 }
 
 #[derive(Serialize)]

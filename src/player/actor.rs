@@ -190,7 +190,7 @@ impl PlayerActor {
                             .add_player_word_submission(&self.nickname, Some(word))
                             .await
                     }
-                    Ok(WsMessageIn::ContinueToNextRound {}) => {
+                    Ok(WsMessageIn::ContinueToNextRound) => {
                         self.game.continue_to_next_round(&self.nickname).await
                     }
                     Err(error) => Err(error),
