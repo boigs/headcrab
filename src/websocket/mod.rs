@@ -65,7 +65,7 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
             title: "Received an invalid message".to_string(),
             detail: error.to_string(),
         },
-        Error::CommandNotAllowed(_, _) => WsMessageOut::Error {
+        Error::CommandNotAllowed(_) => WsMessageOut::Error {
             r#type: "COMMAND_NOT_ALLOWED".to_string(),
             title: "The player cannot execute this command".to_string(),
             detail: error.to_string(),
