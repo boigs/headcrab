@@ -88,7 +88,7 @@ impl PlayerActor {
             Error::Internal(_) => true,
             Error::WebsocketClosed(_) => true,
             Error::UnprocessableMessage(_, _) => false,
-            Error::CommandNotAllowed(_, _) => false,
+            Error::CommandNotAllowed(_) => false,
             Error::NotEnoughPlayers => false,
             Error::GameDoesNotExist(_) => false,
             Error::PlayerAlreadyExists(_) => false,
@@ -256,7 +256,7 @@ mod tests {
             Error::NotEnoughPlayers
         ));
         assert!(!PlayerActor::should_close_websocket(
-            Error::CommandNotAllowed("".to_owned(), "".to_owned())
+            Error::CommandNotAllowed("".to_owned())
         ));
         assert!(!PlayerActor::should_close_websocket(
             Error::UnprocessableMessage("".to_string(), "".to_string())
