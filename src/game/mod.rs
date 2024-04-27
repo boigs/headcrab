@@ -224,7 +224,6 @@ impl Game {
         Ok(())
     }
 
-    // The player can only send their word submission when the game is on the PlayersWritingWords state
     pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         if self.fsm.state() != &GameFsmState::PlayersWritingWords {
             return Err(Error::CommandNotAllowed(
