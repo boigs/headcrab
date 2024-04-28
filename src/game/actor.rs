@@ -115,14 +115,14 @@ impl GameActor {
                                 .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
-                        GameCommand::AddPlayerVotingWord {
+                        GameCommand::SetPlayerVotingWord {
                             nickname,
-                            voting_word: word,
+                            word,
                             response_tx,
                         } => {
                             let result = self
                                 .game
-                                .add_player_voting_word(&nickname, word)
+                                .set_player_voting_word(&nickname, word)
                                 .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
@@ -203,9 +203,9 @@ pub(crate) enum GameCommand {
         words: Vec<String>,
         response_tx: OneshotSender<GameEvent>,
     },
-    AddPlayerVotingWord {
+    SetPlayerVotingWord {
         nickname: String,
-        voting_word: Option<String>,
+        word: Option<String>,
         response_tx: OneshotSender<GameEvent>,
     },
     AcceptPlayersVotingWords {

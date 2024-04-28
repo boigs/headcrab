@@ -97,17 +97,17 @@ impl GameClient {
     pub async fn add_player_voting_word(
         &self,
         nickname: &str,
-        voting_word: Option<String>,
+        word: Option<String>,
     ) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         self.send_command(
-            GameCommand::AddPlayerVotingWord {
+            GameCommand::SetPlayerVotingWord {
                 nickname: nickname.to_string(),
-                voting_word,
+                word,
                 response_tx: tx,
             },
-            "GameCommand::AddPlayerVotingWord",
+            "GameCommand::SetPlayerVotingWord",
         )
         .await?;
 

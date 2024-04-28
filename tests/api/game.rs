@@ -539,11 +539,8 @@ impl PlayerTest {
         self.receive_game_sate().await
     }
 
-    pub async fn send_voting_word(
-        &mut self,
-        voting_word: Option<String>,
-    ) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::PlayerVotingWord { voting_word })
+    pub async fn send_voting_word(&mut self, word: Option<String>) -> Result<GameState, String> {
+        self.send_text_message(WsMessageIn::PlayerVotingWord { word })
             .await;
         self.receive_game_sate().await
     }
@@ -638,7 +635,7 @@ enum WsMessageIn {
     },
     #[serde(rename_all = "camelCase")]
     PlayerVotingWord {
-        voting_word: Option<String>,
+        word: Option<String>,
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
