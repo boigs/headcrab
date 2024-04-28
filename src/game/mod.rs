@@ -17,10 +17,12 @@ pub struct Game {
 }
 
 const NON_HOST_PLAYER_CANNOT_START_GAME: &str = "Only the host player can start the game";
-const INVALID_STATE_FOR_WORDS_SUBMISSION: &str = "The player can only send their word submission when the game is on the PlayersWritingWords state";
-const INVALID_STATE_FOR_WORD_FOR_VOTING: &str = "The player can only send their word for voting when the game is on the PlayersSendingWordSubmission state";
+const INVALID_STATE_FOR_WORDS_SUBMISSION: &str = "The player can only send their words submission when the game is on the PlayersSubmittingWords state";
+const INVALID_STATE_FOR_VOTING_WORD_SUBMISSION: &str = "The player can only send their voting word when the game is on the PlayersSubmittingVotingWord state";
 const NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND: &str =
     "Only the host player can continue to the next round";
+const NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM: &str =
+    "Only the host player can continue to the next voting item";
 
 impl Game {
     pub fn new(id: &str) -> Self {
@@ -143,32 +145,18 @@ impl Game {
                     if self.rounds.len() >= 3 {
                         self.process_event(&GameFsmInput::NoMoreRounds)
                     } else {
-                        self.start_new_round()?;
+                        self.start_new_round();
                         self.process_event(&GameFsmInput::StartRound)
                     }
                 }
-                GameFsmState::PlayersWritingWords => Ok(()),
+                GameFsmState::PlayersSubmittingWords => Ok(()),
                 GameFsmState::Lobby => Ok(()),
-                GameFsmState::ScoreCounting => {
-                    self.process_event(&GameFsmInput::BeginScoreCounting)
-                }
-                GameFsmState::PlayersSendingWordSubmission => Ok(()),
-                GameFsmState::ChooseNextPlayer => {
-                    if self
-                        .get_current_round_mut()
-                        .next_player_to_score()
-                        .is_some()
-                    {
-                        self.process_event(&GameFsmInput::NextPlayer)
+                GameFsmState::PlayersSubmittingVotingWord => Ok(()),
+                GameFsmState::ChooseNextVotingItem => {
+                    if self.get_current_round_mut().next_voting_item().is_some() {
+                        self.process_event(&GameFsmInput::NextVotingItem)
                     } else {
-                        self.process_event(&GameFsmInput::NoMorePlayers)
-                    }
-                }
-                GameFsmState::ChooseNextWord => {
-                    if self.get_current_round_mut().next_word_to_score().is_some() {
-                        self.process_event(&GameFsmInput::NextWord)
-                    } else {
-                        self.process_event(&GameFsmInput::NoMoreWords)
+                        self.process_event(&GameFsmInput::NoMoreVotingItems)
                     }
                 }
                 GameFsmState::EndOfRound => Ok(()),
@@ -182,7 +170,7 @@ impl Game {
         }
     }
 
-    fn start_new_round(&mut self) -> Result<(), Error> {
+    fn start_new_round(&mut self) {
         let word = Game::choose_random_word();
         let round = Round::new(
             &word,
@@ -190,49 +178,41 @@ impl Game {
                 .iter()
                 .map(|player| player.nickname.clone())
                 .collect(),
-        )?;
+        );
         self.rounds.push(round);
-        Ok(())
     }
 
     fn choose_random_word() -> String {
         "alien".to_string()
     }
 
-    pub fn add_word_to_score(&mut self, nickname: &str, word: Option<String>) -> Result<(), Error> {
+    pub fn add_player_voting_word(
+        &mut self,
+        nickname: &str,
+        voting_word: Option<String>,
+    ) -> Result<(), Error> {
         // None if the player says they don't have that word on their list
         // Verify the player has this word
         // Verify the player hasn't already added this word as validated
         // If all players have sent something then compute the score and go to validate the next word
-        if self.state() != &GameFsmState::PlayersSendingWordSubmission {
+        if self.state() != &GameFsmState::PlayersSubmittingVotingWord {
             return Err(Error::CommandNotAllowed(
-                INVALID_STATE_FOR_WORD_FOR_VOTING.to_owned(),
+                INVALID_STATE_FOR_VOTING_WORD_SUBMISSION.to_owned(),
             ));
         }
-
-        let number_of_connected_players = self.get_connected_players().len();
-
-        let current_round = self.get_current_round_mut();
-
-        current_round.add_player_word_submission(nickname, word)?;
-
-        if current_round.players_submitted_words_count() >= number_of_connected_players {
-            current_round.compute_score();
-            return self.process_event(&GameFsmInput::AllPlayersSentWordSubmission);
-        }
-
-        Ok(())
+        self.get_current_round_mut()
+            .add_player_voting_word(nickname, voting_word)
     }
 
-    pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
-        if self.fsm.state() != &GameFsmState::PlayersWritingWords {
+    pub fn add_player_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
+        if self.fsm.state() != &GameFsmState::PlayersSubmittingWords {
             return Err(Error::CommandNotAllowed(
                 INVALID_STATE_FOR_WORDS_SUBMISSION.to_owned(),
             ));
         }
 
         if let Some(round) = self.rounds.last_mut() {
-            round.add_words(nickname, words)?;
+            round.add_player_words(nickname, words)?;
             let connected_players: Vec<String> = self
                 .players
                 .iter()
@@ -240,11 +220,22 @@ impl Game {
                 .map(|player| player.nickname.clone())
                 .collect();
             if round.have_all_players_submitted_words(&connected_players) {
-                return self.process_event(&GameFsmInput::PlayersFinished);
+                return self.process_event(&GameFsmInput::AllPlayersSubmittedWords);
             }
         }
 
         Ok(())
+    }
+
+    pub fn accept_players_voting_words(&mut self, nickname: &str) -> Result<(), Error> {
+        if self.is_host(nickname) {
+            self.get_current_round_mut().compute_score();
+            self.process_event(&GameFsmInput::AcceptPlayersVotingWords)
+        } else {
+            Err(Error::CommandNotAllowed(
+                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM.to_owned(),
+            ))
+        }
     }
 
     pub fn continue_to_next_round(&mut self, nickname: &str) -> Result<(), Error> {
@@ -264,9 +255,9 @@ mod tests {
     use crate::{
         error::Error,
         game::{
-            game_fsm::GameFsmState, INVALID_STATE_FOR_WORDS_SUBMISSION,
-            INVALID_STATE_FOR_WORD_FOR_VOTING, NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
-            NON_HOST_PLAYER_CANNOT_START_GAME,
+            game_fsm::GameFsmState, INVALID_STATE_FOR_VOTING_WORD_SUBMISSION,
+            INVALID_STATE_FOR_WORDS_SUBMISSION, NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
+            NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM, NON_HOST_PLAYER_CANNOT_START_GAME,
         },
     };
 
@@ -322,13 +313,12 @@ mod tests {
 
         let result = game.disconnect_player("non_existent_player");
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::Internal(
+            result,
+            Err(Error::Internal(
                 "Tried to disconnect player 'non_existent_player' but it does not exist."
                     .to_string()
-            )
+            ))
         );
     }
 
@@ -357,8 +347,7 @@ mod tests {
 
         let result = game.start_game(PLAYER_1);
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), Error::NotEnoughPlayers);
+        assert_eq!(result, Err(Error::NotEnoughPlayers));
     }
 
     #[test]
@@ -367,7 +356,7 @@ mod tests {
 
         let result = game.start_game(PLAYER_1);
 
-        assert!(result.is_ok());
+        assert_eq!(result, Ok(()));
     }
 
     #[test]
@@ -376,10 +365,11 @@ mod tests {
 
         let result = game.start_game(PLAYER_2);
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(NON_HOST_PLAYER_CANNOT_START_GAME.to_owned())
+            result,
+            Err(Error::CommandNotAllowed(
+                NON_HOST_PLAYER_CANNOT_START_GAME.to_owned()
+            ))
         );
     }
 
@@ -396,7 +386,7 @@ mod tests {
 
         game.start_game(PLAYER_1).unwrap();
 
-        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
         assert_eq!(game.rounds().len(), 1);
         assert!(!game.rounds().first().unwrap().word.is_empty());
     }
@@ -426,79 +416,72 @@ mod tests {
     }
 
     #[test]
-    fn add_words_works() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+    fn add_player_words_works() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.add_words(PLAYER_1, words());
+        let result = game.add_player_words(PLAYER_1, words());
 
-        assert!(result.is_ok());
-        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+        assert_eq!(result, Ok(()));
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
     }
 
     #[test]
-    fn add_words_transitions_to_players_sending_word_submission_on_last_player_words() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+    fn add_player_words_transitions_to_players_submitting_voting_word_on_last_player_words() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        game.add_words(PLAYER_1, words()).unwrap();
-        game.add_words(PLAYER_2, words()).unwrap();
-        game.add_words(PLAYER_3, words()).unwrap();
+        game.add_player_words(PLAYER_1, words()).unwrap();
+        game.add_player_words(PLAYER_2, words()).unwrap();
+        game.add_player_words(PLAYER_3, words()).unwrap();
 
-        assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
     }
 
     #[test]
-    fn add_words_fails_when_state_is_not_players_writing_words() {
+    fn add_player_words_fails_when_state_is_not_players_submitting_words() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.add_words(PLAYER_1, words());
+        let result = game.add_player_words(PLAYER_1, words());
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(INVALID_STATE_FOR_WORDS_SUBMISSION.to_owned())
+            result,
+            Err(Error::CommandNotAllowed(
+                INVALID_STATE_FOR_WORDS_SUBMISSION.to_owned()
+            ))
         );
     }
 
     #[test]
-    fn add_word_to_score_works_with_word() {
-        let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
+    fn add_player_voting_word_works_with_valid_word() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.add_word_to_score(PLAYER_2, Some(WORD_1.to_string()));
+        let result = game.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
-        assert!(result.is_ok());
-        assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
+        assert_eq!(result, Ok(()));
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
     }
 
     #[test]
-    fn add_word_to_score_works_with_empty_word() {
-        let mut game = get_game(&GameFsmState::PlayersSendingWordSubmission);
+    fn add_player_voting_word_works_with_empty_word() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.add_word_to_score(PLAYER_2, None);
+        let result = game.add_player_voting_word(PLAYER_2, None);
 
-        assert!(result.is_ok());
-        assert_eq!(game.state(), &GameFsmState::PlayersSendingWordSubmission);
+        assert_eq!(result, Ok(()));
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
     }
 
     #[test]
-    fn add_word_to_score_fails_when_state_is_not_players_sending_word_for_voting() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+    fn add_player_voting_word_fails_when_state_is_not_players_submitting_voting_word() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.add_word_to_score(PLAYER_2, Some(WORD_1.to_string()));
+        let result = game.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(INVALID_STATE_FOR_WORD_FOR_VOTING.to_owned())
+            result,
+            Err(Error::CommandNotAllowed(
+                INVALID_STATE_FOR_VOTING_WORD_SUBMISSION.to_owned()
+            ))
         );
-    }
-
-    #[test]
-    fn when_all_players_send_word_to_score_game_goes_to_end_of_round() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
-
-        complete_round(&mut game);
-
-        assert_eq!(game.state(), &GameFsmState::EndOfRound);
     }
 
     #[test]
@@ -507,8 +490,7 @@ mod tests {
 
         let result = game.continue_to_next_round(PLAYER_1);
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), Error::Internal("The fsm in state Lobby can't transition with an event ContinueToNextRound. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string()));
+        assert_eq!(result, Err(Error::Internal("The fsm in state Lobby can't transition with an event ContinueToNextRound. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
     }
 
     #[test]
@@ -517,10 +499,11 @@ mod tests {
 
         let result = game.continue_to_next_round(PLAYER_2);
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND.to_owned())
+            result,
+            Err(Error::CommandNotAllowed(
+                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND.to_owned()
+            ))
         );
     }
 
@@ -530,13 +513,13 @@ mod tests {
 
         let result = game.continue_to_next_round(PLAYER_1);
 
-        assert!(result.is_ok());
-        assert_eq!(game.state(), &GameFsmState::PlayersWritingWords);
+        assert_eq!(result, Ok(()));
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
     }
 
     #[test]
     fn continue_to_next_round_proceeds_to_end_of_game() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
         complete_round(&mut game);
         game.continue_to_next_round(PLAYER_1).unwrap();
@@ -549,8 +532,50 @@ mod tests {
     }
 
     #[test]
+    fn continue_to_next_voting_item_fails_when_state_is_not_players_submitting_voting_word() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
+
+        let result = game.accept_players_voting_words(PLAYER_1);
+
+        assert_eq!(result, Err(Error::Internal("The fsm in state PlayersSubmittingWords can't transition with an event AcceptPlayersVotingWords. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
+    }
+
+    #[test]
+    fn continue_to_next_voting_item_fails_when_player_is_not_host() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
+
+        let result = game.accept_players_voting_words(PLAYER_2);
+
+        assert_eq!(
+            result,
+            Err(Error::CommandNotAllowed(
+                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM.to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn continue_to_next_round_proceeds_to_next_voting_item() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
+
+        let result = game.accept_players_voting_words(PLAYER_1);
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
+    }
+
+    #[test]
+    fn continue_to_next_round_proceeds_to_end_of_round_when_last_voting_item() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
+
+        complete_round(&mut game);
+
+        assert_eq!(game.state(), &GameFsmState::EndOfRound);
+    }
+
+    #[test]
     fn new_players_cannot_be_added_after_game_is_started() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
         let result = game.add_player("new_player");
 
@@ -559,7 +584,7 @@ mod tests {
 
     #[test]
     fn existing_player_can_rejoin_after_game_is_started() {
-        let mut game = get_game(&GameFsmState::PlayersWritingWords);
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
         let _ = game.disconnect_player(PLAYER_2);
 
@@ -576,10 +601,10 @@ mod tests {
 
         match state {
             GameFsmState::Lobby => {}
-            GameFsmState::PlayersWritingWords => game.start_game(PLAYER_1).unwrap(),
-            GameFsmState::PlayersSendingWordSubmission => {
+            GameFsmState::PlayersSubmittingWords => game.start_game(PLAYER_1).unwrap(),
+            GameFsmState::PlayersSubmittingVotingWord => {
                 game.start_game(PLAYER_1).unwrap();
-                send_players_words_submision(&mut game);
+                send_players_words(&mut game);
             }
             GameFsmState::EndOfRound => {
                 game.start_game(PLAYER_1).unwrap();
@@ -592,19 +617,20 @@ mod tests {
         game
     }
 
-    fn send_players_words_submision(game: &mut Game) {
+    fn send_players_words(game: &mut Game) {
         for player in players() {
-            game.add_words(&player, words()).unwrap();
+            game.add_player_words(&player, words()).unwrap();
         }
     }
 
     fn complete_round(game: &mut Game) {
-        send_players_words_submision(game);
+        send_players_words(game);
         for word in words() {
             for player in players() {
                 // For simplicity in the test setup, we'll iterate over all the words, even if they are already used, ignore such error
-                let _ = game.add_word_to_score(&player, Some(word.to_string()));
+                let _ = game.add_player_voting_word(&player, Some(word.to_string()));
             }
+            game.accept_players_voting_words(PLAYER_1).unwrap();
         }
     }
 }

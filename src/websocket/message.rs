@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     game::game_fsm::GameFsmState,
     player::Player,
-    round::{Round, RoundScoreState, Word},
+    round::{Round, VotingItem, Word},
 };
 
 #[derive(Serialize)]
@@ -34,15 +34,19 @@ pub enum WsMessageIn {
     StartGame {
         amount_of_rounds: u8,
     },
+    #[serde(rename_all = "camelCase")]
     ChatMessage {
         content: String,
     },
+    #[serde(rename_all = "camelCase")]
     PlayerWords {
         words: Vec<String>,
     },
-    PlayerWordSubmission {
-        word: Option<String>,
+    #[serde(rename_all = "camelCase")]
+    PlayerVotingWord {
+        voting_word: Option<String>,
     },
+    AcceptPlayersVotingWords,
     ContinueToNextRound,
 }
 
@@ -69,7 +73,8 @@ impl From<Player> for PlayerDto {
 pub struct RoundDto {
     pub word: String,
     pub player_words: HashMap<String, Vec<WordDto>>,
-    pub score: RoundScoreStateDto,
+    pub player_voting_words: HashMap<String, Option<String>>,
+    pub voting_item: Option<VotingItemDto>,
 }
 
 impl From<Round> for RoundDto {
@@ -86,9 +91,18 @@ impl From<Round> for RoundDto {
                     )
                 })
                 .collect(),
-            score: val.score.into(),
+            player_voting_words: val.players_voting_words,
+            voting_item: val.voting_item.map(|voting_item| voting_item.into()),
         }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WordDto {
+    word: String,
+    is_used: bool,
+    score: usize,
 }
 
 impl From<Word> for WordDto {
@@ -101,41 +115,29 @@ impl From<Word> for WordDto {
     }
 }
 
-impl From<RoundScoreState> for RoundScoreStateDto {
-    fn from(val: RoundScoreState) -> Self {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VotingItemDto {
+    player_nickname: String,
+    word: String,
+}
+
+impl From<VotingItem> for VotingItemDto {
+    fn from(val: VotingItem) -> Self {
         Self {
-            current_player: val.current_player.clone().map(|tuple| tuple.1),
-            current_word: val.current_word.clone(),
-            player_word_submission: val.player_word_submission.clone(),
+            player_nickname: val.player_nickname,
+            word: val.word,
         }
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RoundScoreStateDto {
-    current_player: Option<String>,
-    current_word: Option<String>,
-    player_word_submission: HashMap<String, Option<String>>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WordDto {
-    word: String,
-    is_used: bool,
-    score: usize,
 }
 
 pub fn state_to_string(state: GameFsmState) -> String {
     match state {
         GameFsmState::Lobby => "Lobby".to_string(),
         GameFsmState::CreatingNewRound => "CreatingNewRound".to_string(),
-        GameFsmState::PlayersWritingWords => "PlayersWritingWords".to_string(),
-        GameFsmState::ScoreCounting => "WordCounting".to_string(),
-        GameFsmState::ChooseNextPlayer => "ChooseNextPlayer".to_string(),
-        GameFsmState::ChooseNextWord => "ChooseNextWord".to_string(),
-        GameFsmState::PlayersSendingWordSubmission => "PlayersSendingWordSubmission".to_string(),
+        GameFsmState::PlayersSubmittingWords => "PlayersSubmittingWords".to_string(),
+        GameFsmState::ChooseNextVotingItem => "ChooseNextVotingItem".to_string(),
+        GameFsmState::PlayersSubmittingVotingWord => "PlayersSubmittingVotingWord".to_string(),
         GameFsmState::EndOfRound => "EndOfRound".to_string(),
         GameFsmState::EndOfGame => "EndOfGame".to_string(),
     }

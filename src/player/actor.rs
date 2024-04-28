@@ -150,12 +150,10 @@ impl PlayerActor {
                     )
                 })
                 .collect();
+            let mut last_round: RoundDto = last_round.into();
+            last_round.player_words = filtered_words;
             let mut rest: Vec<RoundDto> = rest.iter().map(|round| round.clone().into()).collect();
-            rest.push(RoundDto {
-                word: last_round.word,
-                score: last_round.score.into(),
-                player_words: filtered_words,
-            });
+            rest.push(last_round);
             rest
         });
 
@@ -185,10 +183,13 @@ impl PlayerActor {
                     Ok(WsMessageIn::PlayerWords { words }) => {
                         self.game.add_player_words(&self.nickname, words).await
                     }
-                    Ok(WsMessageIn::PlayerWordSubmission { word }) => {
+                    Ok(WsMessageIn::PlayerVotingWord { voting_word }) => {
                         self.game
-                            .add_player_word_submission(&self.nickname, word)
+                            .add_player_voting_word(&self.nickname, voting_word)
                             .await
+                    }
+                    Ok(WsMessageIn::AcceptPlayersVotingWords) => {
+                        self.game.accept_players_voting_words(&self.nickname).await
                     }
                     Ok(WsMessageIn::ContinueToNextRound) => {
                         self.game.continue_to_next_round(&self.nickname).await

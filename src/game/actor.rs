@@ -109,18 +109,30 @@ impl GameActor {
                             words,
                             response_tx,
                         } => {
-                            let result =
-                                self.game.add_words(&nickname, words).map(|_| GameEvent::Ok);
+                            let result = self
+                                .game
+                                .add_player_words(&nickname, words)
+                                .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
-                        GameCommand::AddPlayerWordSubmission {
+                        GameCommand::AddPlayerVotingWord {
                             nickname,
-                            word,
+                            voting_word: word,
                             response_tx,
                         } => {
                             let result = self
                                 .game
-                                .add_word_to_score(&nickname, word)
+                                .add_player_voting_word(&nickname, word)
+                                .map(|_| GameEvent::Ok);
+                            Some((result, nickname, response_tx))
+                        }
+                        GameCommand::AcceptPlayersVotingWords {
+                            nickname,
+                            response_tx,
+                        } => {
+                            let result = self
+                                .game
+                                .accept_players_voting_words(&nickname)
                                 .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
@@ -191,9 +203,13 @@ pub(crate) enum GameCommand {
         words: Vec<String>,
         response_tx: OneshotSender<GameEvent>,
     },
-    AddPlayerWordSubmission {
+    AddPlayerVotingWord {
         nickname: String,
-        word: Option<String>,
+        voting_word: Option<String>,
+        response_tx: OneshotSender<GameEvent>,
+    },
+    AcceptPlayersVotingWords {
+        nickname: String,
         response_tx: OneshotSender<GameEvent>,
     },
     ContinueToNextRound {
