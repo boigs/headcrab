@@ -30,7 +30,7 @@ pub struct Round {
     pub word: String,
     players: Vec<String>,
     pub player_words: HashMap<String, Vec<Word>>,
-    pub player_voting_words: HashMap<String, Option<String>>,
+    pub players_voting_words: HashMap<String, Option<String>>,
     pub voting_item: Option<VotingItem>,
 }
 
@@ -47,7 +47,7 @@ impl Round {
             word: word.to_string(),
             player_words: HashMap::new(),
             players,
-            player_voting_words: HashMap::new(),
+            players_voting_words: HashMap::new(),
             voting_item: None,
         }
     }
@@ -86,7 +86,7 @@ impl Round {
                 for word in words {
                     if !word.is_used {
                         word.is_used = true;
-                        self.player_voting_words
+                        self.players_voting_words
                             .insert(player.to_string(), Some(word.word.clone()));
                         self.voting_item = Some(VotingItem {
                             player_nickname: player.clone(),
@@ -128,7 +128,7 @@ impl Round {
             ));
         }
 
-        self.player_voting_words
+        self.players_voting_words
             .insert(nickname.to_string(), voting_word);
         Ok(())
     }
@@ -154,11 +154,11 @@ impl Round {
 
     pub fn compute_score(&mut self) {
         let score = self
-            .player_voting_words
+            .players_voting_words
             .iter()
             .filter(|(_, submission_word)| submission_word.is_some())
             .count();
-        for (submission_nickname, submission_word) in &self.player_voting_words {
+        for (submission_nickname, submission_word) in &self.players_voting_words {
             if let Some(submission_word) = submission_word {
                 if let Some(words) = self.player_words.get_mut(submission_nickname) {
                     if let Some(word) = words.iter_mut().find(|word| &word.word == submission_word)
@@ -169,7 +169,7 @@ impl Round {
                 }
             }
         }
-        self.player_voting_words = HashMap::default();
+        self.players_voting_words = HashMap::default();
     }
 }
 
@@ -203,7 +203,7 @@ mod tests {
     fn round_voting_words_are_initialized_to_empty() {
         let round = get_round_on_writing_state();
 
-        assert!(round.player_voting_words.is_empty());
+        assert!(round.players_voting_words.is_empty());
     }
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
         assert_eq!(get_word(&round, PLAYER_2, "p2_w2").score, 0);
         assert_eq!(get_word(&round, PLAYER_3, "p3_w1").score, 0);
         assert_eq!(get_word(&round, PLAYER_3, "p3_w2").score, 0);
-        assert!(round.player_voting_words.is_empty());
+        assert!(round.players_voting_words.is_empty());
         assert!(get_word(&round, PLAYER_1, "p1_w1").is_used);
         assert!(!get_word(&round, PLAYER_1, "p1_w2").is_used);
         assert!(get_word(&round, PLAYER_2, "p2_w1").is_used);
