@@ -186,10 +186,10 @@ impl Game {
         "alien".to_string()
     }
 
-    pub fn add_player_voting_word(
+    pub fn set_player_voting_word(
         &mut self,
         nickname: &str,
-        voting_word: Option<String>,
+        word: Option<String>,
     ) -> Result<(), Error> {
         // None if the player says they don't have that word on their list
         // Verify the player has this word
@@ -201,7 +201,7 @@ impl Game {
             ));
         }
         self.get_current_round_mut()
-            .add_player_voting_word(nickname, voting_word)
+            .set_player_voting_word(nickname, word)
     }
 
     pub fn add_player_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
@@ -454,7 +454,7 @@ mod tests {
     fn add_player_voting_word_works_with_valid_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = game.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
@@ -464,7 +464,7 @@ mod tests {
     fn add_player_voting_word_works_with_empty_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.add_player_voting_word(PLAYER_2, None);
+        let result = game.set_player_voting_word(PLAYER_2, None);
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
@@ -474,7 +474,7 @@ mod tests {
     fn add_player_voting_word_fails_when_state_is_not_players_submitting_voting_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = game.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
         assert_eq!(
             result,
@@ -628,7 +628,7 @@ mod tests {
         for word in words() {
             for player in players() {
                 // For simplicity in the test setup, we'll iterate over all the words, even if they are already used, ignore such error
-                let _ = game.add_player_voting_word(&player, Some(word.to_string()));
+                let _ = game.set_player_voting_word(&player, Some(word.to_string()));
             }
             game.accept_players_voting_words(PLAYER_1).unwrap();
         }

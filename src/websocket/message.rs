@@ -44,7 +44,7 @@ pub enum WsMessageIn {
     },
     #[serde(rename_all = "camelCase")]
     PlayerVotingWord {
-        voting_word: Option<String>,
+        word: Option<String>,
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
@@ -91,7 +91,7 @@ impl From<Round> for RoundDto {
                     )
                 })
                 .collect(),
-            player_voting_words: val.players_voting_words,
+            player_voting_words: val.player_voting_words,
             voting_item: val.voting_item.map(|voting_item| voting_item.into()),
         }
     }

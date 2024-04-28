@@ -30,7 +30,7 @@ pub struct Round {
     pub word: String,
     players: Vec<String>,
     pub player_words: HashMap<String, Vec<Word>>,
-    pub players_voting_words: HashMap<String, Option<String>>,
+    pub player_voting_words: HashMap<String, Option<String>>,
     pub voting_item: Option<VotingItem>,
 }
 
@@ -45,9 +45,9 @@ impl Round {
     pub fn new(word: &str, players: Vec<String>) -> Self {
         Round {
             word: word.to_string(),
-            player_words: HashMap::new(),
             players,
-            players_voting_words: HashMap::new(),
+            player_words: HashMap::new(),
+            player_voting_words: HashMap::new(),
             voting_item: None,
         }
     }
@@ -86,7 +86,7 @@ impl Round {
                 for word in words {
                     if !word.is_used {
                         word.is_used = true;
-                        self.players_voting_words
+                        self.player_voting_words
                             .insert(player.to_string(), Some(word.word.clone()));
                         self.voting_item = Some(VotingItem {
                             player_nickname: player.clone(),
@@ -101,10 +101,10 @@ impl Round {
         self.voting_item.clone()
     }
 
-    pub fn add_player_voting_word(
+    pub fn set_player_voting_word(
         &mut self,
         nickname: &str,
-        voting_word: Option<String>,
+        word: Option<String>,
     ) -> Result<(), Error> {
         match &self.voting_item {
             Some(voting_item) => {
@@ -121,15 +121,13 @@ impl Round {
                 ));
             }
         }
-
-        if !self.voting_word_exists_and_is_unused(nickname, voting_word.clone()) {
+        if !self.voting_word_exists_and_is_unused(nickname, word.clone()) {
             return Err(Error::CommandNotAllowed(
                 PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned(),
             ));
         }
 
-        self.players_voting_words
-            .insert(nickname.to_string(), voting_word);
+        self.player_voting_words.insert(nickname.to_string(), word);
         Ok(())
     }
 
@@ -154,11 +152,11 @@ impl Round {
 
     pub fn compute_score(&mut self) {
         let score = self
-            .players_voting_words
+            .player_voting_words
             .iter()
             .filter(|(_, submission_word)| submission_word.is_some())
             .count();
-        for (submission_nickname, submission_word) in &self.players_voting_words {
+        for (submission_nickname, submission_word) in &self.player_voting_words {
             if let Some(submission_word) = submission_word {
                 if let Some(words) = self.player_words.get_mut(submission_nickname) {
                     if let Some(word) = words.iter_mut().find(|word| &word.word == submission_word)
@@ -169,7 +167,7 @@ impl Round {
                 }
             }
         }
-        self.players_voting_words = HashMap::default();
+        self.player_voting_words = HashMap::default();
     }
 }
 
@@ -203,7 +201,7 @@ mod tests {
     fn round_voting_words_are_initialized_to_empty() {
         let round = get_round_on_writing_state();
 
-        assert!(round.players_voting_words.is_empty());
+        assert!(round.player_voting_words.is_empty());
     }
 
     #[test]
@@ -211,7 +209,7 @@ mod tests {
         let mut round = get_round_on_voting_state();
         round.next_voting_item();
 
-        let result = round.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = round.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
         assert_eq!(result, Ok(()));
     }
@@ -221,7 +219,7 @@ mod tests {
         let mut round = get_round_on_writing_state();
         round.add_player_words(PLAYER_1, words()).unwrap();
 
-        let result = round.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = round.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
         assert_eq!(
             result,
@@ -236,7 +234,7 @@ mod tests {
         let mut round = get_round_on_voting_state();
         round.next_voting_item();
 
-        let result = round.add_player_voting_word(PLAYER_1, Some(WORD_2.to_string()));
+        let result = round.set_player_voting_word(PLAYER_1, Some(WORD_2.to_string()));
 
         assert_eq!(
             result,
@@ -251,7 +249,7 @@ mod tests {
         let mut round = get_round_on_voting_state();
         round.next_voting_item();
 
-        let result = round.add_player_voting_word(PLAYER_2, Some("non_existing_word".to_string()));
+        let result = round.set_player_voting_word(PLAYER_2, Some("non_existing_word".to_string()));
 
         assert_eq!(
             result,
@@ -266,11 +264,11 @@ mod tests {
         let mut round = get_round_on_voting_state();
         round.next_voting_item();
         round
-            .add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()))
+            .set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()))
             .unwrap();
         round.compute_score();
 
-        let result = round.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = round.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
         assert_eq!(
             result,
@@ -296,9 +294,9 @@ mod tests {
         round.next_voting_item().unwrap();
 
         round
-            .add_player_voting_word(PLAYER_2, Some("p2_w1".to_string()))
+            .set_player_voting_word(PLAYER_2, Some("p2_w1".to_string()))
             .unwrap();
-        round.add_player_voting_word(PLAYER_3, None).unwrap();
+        round.set_player_voting_word(PLAYER_3, None).unwrap();
 
         round.compute_score();
 
@@ -308,7 +306,7 @@ mod tests {
         assert_eq!(get_word(&round, PLAYER_2, "p2_w2").score, 0);
         assert_eq!(get_word(&round, PLAYER_3, "p3_w1").score, 0);
         assert_eq!(get_word(&round, PLAYER_3, "p3_w2").score, 0);
-        assert!(round.players_voting_words.is_empty());
+        assert!(round.player_voting_words.is_empty());
         assert!(get_word(&round, PLAYER_1, "p1_w1").is_used);
         assert!(!get_word(&round, PLAYER_1, "p1_w2").is_used);
         assert!(get_word(&round, PLAYER_2, "p2_w1").is_used);

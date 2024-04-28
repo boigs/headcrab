@@ -183,10 +183,8 @@ impl PlayerActor {
                     Ok(WsMessageIn::PlayerWords { words }) => {
                         self.game.add_player_words(&self.nickname, words).await
                     }
-                    Ok(WsMessageIn::PlayerVotingWord { voting_word }) => {
-                        self.game
-                            .add_player_voting_word(&self.nickname, voting_word)
-                            .await
+                    Ok(WsMessageIn::PlayerVotingWord { word }) => {
+                        self.game.add_player_voting_word(&self.nickname, word).await
                     }
                     Ok(WsMessageIn::AcceptPlayersVotingWords) => {
                         self.game.accept_players_voting_words(&self.nickname).await
