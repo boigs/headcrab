@@ -121,6 +121,7 @@ impl Round {
                 ));
             }
         }
+
         if !self.voting_word_exists_and_is_unused(nickname, voting_word.clone()) {
             return Err(Error::CommandNotAllowed(
                 PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned(),
