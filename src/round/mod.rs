@@ -19,12 +19,10 @@ impl Word {
     }
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct RoundScoreState {
-    pub current_player: Option<(usize, String)>,
-    all_players_done: bool,
-    pub current_word: Option<String>,
-    pub player_word_submission: HashMap<String, Option<String>>,
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct VotingItem {
+    pub player_nickname: String,
+    pub word: String,
 }
 
 #[derive(Debug, Clone)]
@@ -32,34 +30,29 @@ pub struct Round {
     pub word: String,
     players: Vec<String>,
     pub player_words: HashMap<String, Vec<Word>>,
-    pub score: RoundScoreState,
+    pub player_voting_words: HashMap<String, Option<String>>,
+    pub voting_item: Option<VotingItem>,
 }
 
 const CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD: &str =
     "The current player cannot submit a voting word";
 const PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD: &str =
     "The player cannot submit a non-existing or an already used word for voting";
-const PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_PLAYER_IS_NOT_CHOSEN: &str =
-    "The player cannot submit a voting word when the current player is not chosen";
-const PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_WORD_IS_NOT_CHOSEN: &str =
-    "The player cannot submit a voting word when the current word is not chosen";
+const PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN: &str =
+    "The player cannot submit a voting word when the current voting item is not chosen";
 
 impl Round {
-    pub fn new(word: &str, players: Vec<String>) -> Result<Self, Error> {
-        if players.len() < 3 {
-            return Err(Error::log_and_create_internal(
-                "Cannot create a round for less than 3 players",
-            ));
-        }
-        Ok(Round {
+    pub fn new(word: &str, players: Vec<String>) -> Self {
+        Round {
             word: word.to_string(),
-            players,
             player_words: HashMap::new(),
-            score: RoundScoreState::default(),
-        })
+            players,
+            player_voting_words: HashMap::new(),
+            voting_item: None,
+        }
     }
 
-    pub fn add_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
+    pub fn add_player_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         let normalized_words: Vec<String> = words
             .iter()
             .map(|word| word.trim().to_string())
@@ -87,58 +80,35 @@ impl Round {
             .all(|player| self.player_words.contains_key(player))
     }
 
-    pub fn next_player_to_score(&mut self) -> Option<String> {
-        if self.score.all_players_done || self.players.is_empty() {
-            return None;
-        }
-        match self.score.current_player {
-            None => {
-                self.score.current_player = Some((0, self.players.first().unwrap().clone()));
-            }
-            Some((index, _)) => {
-                if index >= self.players.len() - 1 {
-                    self.score.all_players_done = true;
-                    self.score.current_player = None;
-                } else {
-                    let new_index = index + 1;
-                    self.score.current_player =
-                        Some((new_index, self.players.get(new_index).unwrap().clone()));
+    pub fn next_voting_item(&mut self) -> Option<VotingItem> {
+        for player in &self.players {
+            if let Some(words) = self.player_words.get_mut(player) {
+                for word in words {
+                    if !word.is_used {
+                        word.is_used = true;
+                        self.player_voting_words
+                            .insert(player.to_string(), Some(word.word.clone()));
+                        self.voting_item = Some(VotingItem {
+                            player_nickname: player.clone(),
+                            word: word.word.clone(),
+                        });
+                        return self.voting_item.clone();
+                    }
                 }
             }
         }
-        self.score
-            .current_player
-            .clone()
-            .map(|(_, nickname)| nickname)
+        self.voting_item = None;
+        self.voting_item.clone()
     }
 
-    pub fn next_word_to_score(&mut self) -> Option<String> {
-        let nickname_and_next_word = {
-            let (_, nickname) = self.score.current_player.clone()?;
-            let words = self.player_words.get_mut(&nickname)?;
-            let next_word = words.iter_mut().find(|word| !word.is_used)?;
-            next_word.is_used = true;
-            Some((nickname, next_word.word.to_string()))
-        };
-
-        if let Some((nickname, next_word)) = nickname_and_next_word.clone() {
-            self.score
-                .player_word_submission
-                .insert(nickname.to_string(), Some(next_word));
-        }
-
-        self.score.current_word = nickname_and_next_word.map(|(_, next_word)| next_word);
-        self.score.current_word.clone()
-    }
-
-    pub fn add_player_word_submission(
+    pub fn add_player_voting_word(
         &mut self,
         nickname: &str,
-        word: Option<String>,
+        voting_word: Option<String>,
     ) -> Result<(), Error> {
-        match self.score.clone().current_player {
-            Some((_, player)) => {
-                if player == nickname {
+        match &self.voting_item {
+            Some(voting_item) => {
+                if voting_item.player_nickname == nickname {
                     return Err(Error::CommandNotAllowed(
                         CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD.to_owned(),
                     ));
@@ -146,24 +116,19 @@ impl Round {
             }
             None => {
                 return Err(Error::CommandNotAllowed(
-                    PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_PLAYER_IS_NOT_CHOSEN.to_owned(),
+                    PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN
+                        .to_owned(),
                 ));
             }
         }
-        if self.score.current_word.is_none() {
-            return Err(Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_WORD_IS_NOT_CHOSEN.to_owned(),
-            ));
-        }
-        if !self.voting_word_exists_and_is_unused(nickname, word.clone()) {
+        if !self.voting_word_exists_and_is_unused(nickname, voting_word.clone()) {
             return Err(Error::CommandNotAllowed(
                 PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned(),
             ));
         }
 
-        self.score
-            .player_word_submission
-            .insert(nickname.to_string(), word);
+        self.player_voting_words
+            .insert(nickname.to_string(), voting_word);
         Ok(())
     }
 
@@ -186,18 +151,13 @@ impl Round {
         }
     }
 
-    pub fn players_submitted_words_count(&self) -> usize {
-        self.score.player_word_submission.len()
-    }
-
     pub fn compute_score(&mut self) {
         let score = self
-            .score
-            .player_word_submission
+            .player_voting_words
             .iter()
             .filter(|(_, submission_word)| submission_word.is_some())
             .count();
-        for (submission_nickname, submission_word) in &self.score.player_word_submission {
+        for (submission_nickname, submission_word) in &self.player_voting_words {
             if let Some(submission_word) = submission_word {
                 if let Some(words) = self.player_words.get_mut(submission_nickname) {
                     if let Some(word) = words.iter_mut().find(|word| &word.word == submission_word)
@@ -208,7 +168,7 @@ impl Round {
                 }
             }
         }
-        self.score.player_word_submission = HashMap::default();
+        self.player_voting_words = HashMap::default();
     }
 }
 
@@ -217,10 +177,9 @@ mod tests {
     use crate::{
         error::Error,
         round::{
-            CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD,
+            VotingItem, CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD,
             PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD,
-            PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_PLAYER_IS_NOT_CHOSEN,
-            PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_WORD_IS_NOT_CHOSEN,
+            PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN,
         },
     };
 
@@ -240,93 +199,83 @@ mod tests {
     }
 
     #[test]
-    fn player_can_send_voting_word() {
-        let mut round = get_round_on_voting_state();
+    fn round_voting_words_are_initialized_to_empty() {
+        let round = get_round_on_writing_state();
 
-        let result = round.add_player_word_submission(PLAYER_2, Some(WORD_1.to_string()));
-
-        assert!(result.is_ok());
+        assert!(round.player_voting_words.is_empty());
     }
 
     #[test]
-    fn player_cannot_submit_word_when_current_player_is_not_chosen() {
+    fn player_can_submit_voting_word() {
+        let mut round = get_round_on_voting_state();
+        round.next_voting_item();
+
+        let result = round.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn player_cannot_submit_voting_word_when_current_voting_item_is_not_chosen() {
         let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_1, words()).unwrap();
 
-        let result = round.add_player_word_submission(PLAYER_2, Some(WORD_1.to_string()));
+        let result = round.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_PLAYER_IS_NOT_CHOSEN.to_owned()
-            )
+            result,
+            Err(Error::CommandNotAllowed(
+                PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN.to_owned()
+            ))
         )
     }
 
     #[test]
-    fn player_cannot_submit_word_when_current_word_is_not_chosen() {
-        let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
-        round.next_player_to_score().unwrap();
-
-        let result = round.add_player_word_submission(PLAYER_2, Some(WORD_1.to_string()));
-
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_WORD_IS_NOT_CHOSEN.to_owned()
-            )
-        )
-    }
-
-    #[test]
-    fn current_player_cannot_submit_word() {
+    fn current_player_cannot_submit_voting_word() {
         let mut round = get_round_on_voting_state();
+        round.next_voting_item();
 
-        let result = round.add_player_word_submission(PLAYER_1, Some(WORD_2.to_string()));
+        let result = round.add_player_voting_word(PLAYER_1, Some(WORD_2.to_string()));
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD.to_owned())
+            result,
+            Err(Error::CommandNotAllowed(
+                CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD.to_owned()
+            ))
         )
     }
 
     #[test]
-    fn player_cannot_submit_non_existent_word() {
+    fn player_cannot_submit_non_existent_voting_word() {
         let mut round = get_round_on_voting_state();
+        round.next_voting_item();
 
-        let result =
-            round.add_player_word_submission(PLAYER_2, Some("non_existing_word".to_string()));
+        let result = round.add_player_voting_word(PLAYER_2, Some("non_existing_word".to_string()));
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(
+            result,
+            Err(Error::CommandNotAllowed(
                 PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned()
-            )
+            ))
         )
     }
 
-    // TODO: fix
     #[test]
-    fn player_cannot_submit_used_word() {
+    fn player_cannot_submit_used_voting_word() {
         let mut round = get_round_on_voting_state();
+        round.next_voting_item();
         round
-            .add_player_word_submission(PLAYER_2, Some(WORD_1.to_string()))
+            .add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()))
             .unwrap();
         round.compute_score();
 
-        let result = round.add_player_word_submission(PLAYER_2, Some(WORD_1.to_string()));
+        let result = round.add_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::CommandNotAllowed(
+            result,
+            Err(Error::CommandNotAllowed(
                 PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned()
-            )
+            ))
         )
     }
 
@@ -334,164 +283,102 @@ mod tests {
     fn compute_score_works() {
         let mut round = get_round_on_writing_state();
         round
-            .add_words(
-                PLAYER_1,
-                vec!["p1_word1".to_string(), "p1_word2".to_string()],
-            )
+            .add_player_words(PLAYER_1, vec!["p1_w1".to_string(), "p1_w2".to_string()])
             .unwrap();
         round
-            .add_words(
-                PLAYER_2,
-                vec!["p2_word1".to_string(), "p2_word2".to_string()],
-            )
+            .add_player_words(PLAYER_2, vec!["p2_w1".to_string(), "p2_w2".to_string()])
             .unwrap();
         round
-            .add_words(
-                PLAYER_3,
-                vec!["p3_word1".to_string(), "p3_word2".to_string()],
-            )
+            .add_player_words(PLAYER_3, vec!["p3_w1".to_string(), "p3_w2".to_string()])
             .unwrap();
-        round.next_player_to_score().unwrap();
-        round.next_word_to_score().unwrap();
+
+        round.next_voting_item().unwrap();
+
         round
-            .add_player_word_submission(PLAYER_2, Some("p2_word1".to_string()))
+            .add_player_voting_word(PLAYER_2, Some("p2_w1".to_string()))
             .unwrap();
-        round.add_player_word_submission(PLAYER_3, None).unwrap();
+        round.add_player_voting_word(PLAYER_3, None).unwrap();
 
         round.compute_score();
 
-        assert_eq!(get_word(&round, PLAYER_1, "p1_word1").score, 2);
-        assert_eq!(get_word(&round, PLAYER_1, "p1_word2").score, 0);
-        assert_eq!(get_word(&round, PLAYER_2, "p2_word1").score, 2);
-        assert_eq!(get_word(&round, PLAYER_2, "p2_word2").score, 0);
-        assert_eq!(get_word(&round, PLAYER_3, "p3_word1").score, 0);
-        assert_eq!(get_word(&round, PLAYER_3, "p3_word2").score, 0);
-        assert!(round.score.player_word_submission.is_empty());
-        assert!(get_word(&round, PLAYER_1, "p1_word1").is_used);
-        assert!(!get_word(&round, PLAYER_1, "p1_word2").is_used);
-        assert!(get_word(&round, PLAYER_2, "p2_word1").is_used);
-        assert!(!get_word(&round, PLAYER_2, "p2_word2").is_used);
-        assert!(!get_word(&round, PLAYER_3, "p3_word1").is_used);
-        assert!(!get_word(&round, PLAYER_3, "p3_word2").is_used);
+        assert_eq!(get_word(&round, PLAYER_1, "p1_w1").score, 2);
+        assert_eq!(get_word(&round, PLAYER_1, "p1_w2").score, 0);
+        assert_eq!(get_word(&round, PLAYER_2, "p2_w1").score, 2);
+        assert_eq!(get_word(&round, PLAYER_2, "p2_w2").score, 0);
+        assert_eq!(get_word(&round, PLAYER_3, "p3_w1").score, 0);
+        assert_eq!(get_word(&round, PLAYER_3, "p3_w2").score, 0);
+        assert!(round.player_voting_words.is_empty());
+        assert!(get_word(&round, PLAYER_1, "p1_w1").is_used);
+        assert!(!get_word(&round, PLAYER_1, "p1_w2").is_used);
+        assert!(get_word(&round, PLAYER_2, "p2_w1").is_used);
+        assert!(!get_word(&round, PLAYER_2, "p2_w2").is_used);
+        assert!(!get_word(&round, PLAYER_3, "p3_w1").is_used);
+        assert!(!get_word(&round, PLAYER_3, "p3_w2").is_used);
     }
 
     #[test]
-    fn given_create_round_when_three_players_or_more_then_ok() {
-        let result = Round::new(
-            "word",
-            vec![
-                PLAYER_1.to_string(),
-                PLAYER_2.to_string(),
-                PLAYER_3.to_string(),
-            ],
-        );
+    fn choose_next_voting_item_is_none_when_no_player_words() {
+        let mut round = get_round_on_writing_state();
 
-        assert!(result.is_ok());
+        assert_eq!(round.next_voting_item(), None);
+        assert_eq!(round.next_voting_item(), None);
     }
 
     #[test]
-    fn given_create_round_when_less_than_three_players_then_error() {
-        let result = Round::new("word", vec![PLAYER_1.to_string()]);
+    fn choose_next_voting_item_returns_items_in_order() {
+        let mut round = get_round_on_voting_state();
 
-        assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
-            Error::Internal("Cannot create a round for less than 3 players".to_string())
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_1.to_string(),
+                word: WORD_1.to_string()
+            })
         );
-    }
-
-    #[test]
-    fn given_some_players_when_choosing_next_player_then_chooses_correctly() {
-        let mut round = get_round_on_writing_state();
-
-        assert_eq!(round.next_player_to_score(), Some(PLAYER_1.to_string()));
-        assert_eq!(round.next_player_to_score(), Some(PLAYER_2.to_string()));
-        assert_eq!(round.next_player_to_score(), Some(PLAYER_3.to_string()));
-    }
-
-    #[test]
-    fn given_some_players_when_choosing_after_last_player_then_chooses_correctly() {
-        let mut round = get_round_on_writing_state();
-        round.next_player_to_score();
-        round.next_player_to_score();
-        round.next_player_to_score();
-
-        assert_eq!(round.next_player_to_score(), None);
-        assert_eq!(round.next_player_to_score(), None);
-    }
-
-    #[test]
-    fn when_current_player_is_none_next_word_to_score_is_none() {
-        let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
-
-        assert_eq!(round.next_word_to_score(), None);
-    }
-
-    #[test]
-    fn given_all_words_are_not_used_when_choosing_next_word_then_chooses_correctly() {
-        let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
-        round.next_player_to_score();
-
-        assert_eq!(round.next_word_to_score(), Some(WORD_1.to_string()));
-        let word = round
-            .player_words
-            .get(PLAYER_1)
-            .unwrap()
-            .iter()
-            .find(|word| word.word == WORD_1)
-            .unwrap();
-        assert!(word.is_used);
-    }
-
-    #[test]
-    fn given_the_first_two_words_are_used_when_choosing_next_word_then_chooses_the_second_word() {
-        let mut round = get_round_on_writing_state();
-        round
-            .add_words(
-                PLAYER_1,
-                vec![
-                    WORD_1.to_string(),
-                    WORD_2.to_string(),
-                    "last_word".to_string(),
-                ],
-            )
-            .unwrap();
-        round.next_player_to_score();
-
-        round.next_word_to_score();
-        round.compute_score();
-
-        round.next_word_to_score();
-        round.compute_score();
-
-        assert_eq!(round.next_word_to_score(), Some("last_word".to_string()));
-    }
-
-    #[test]
-    fn given_no_more_words_when_choosing_next_word_then_chooses_correctly() {
-        let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
-        round.next_player_to_score();
-
-        round.next_word_to_score();
-        round.compute_score();
-
-        round.next_word_to_score();
-        round.compute_score();
-
-        round.next_word_to_score();
-        round.compute_score();
-
-        assert_eq!(round.next_word_to_score(), None);
+        assert_eq!(
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_1.to_string(),
+                word: WORD_2.to_string()
+            })
+        );
+        assert_eq!(
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_2.to_string(),
+                word: WORD_1.to_string()
+            })
+        );
+        assert_eq!(
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_2.to_string(),
+                word: WORD_2.to_string()
+            })
+        );
+        assert_eq!(
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_3.to_string(),
+                word: WORD_1.to_string()
+            })
+        );
+        assert_eq!(
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_3.to_string(),
+                word: WORD_2.to_string()
+            })
+        );
+        assert_eq!(round.next_voting_item(), None);
+        assert_eq!(round.next_voting_item(), None);
     }
 
     #[test]
     fn have_all_players_submitted_words_is_true() {
         let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
-        round.add_words(PLAYER_2, words()).unwrap();
+        round.add_player_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_2, words()).unwrap();
 
         assert!(round
             .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
@@ -500,8 +387,12 @@ mod tests {
     #[test]
     fn have_all_players_submitted_words_is_true_when_empty_words() {
         let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, vec!["".to_string()]).unwrap();
-        round.add_words(PLAYER_2, vec!["".to_string()]).unwrap();
+        round
+            .add_player_words(PLAYER_1, vec!["".to_string()])
+            .unwrap();
+        round
+            .add_player_words(PLAYER_2, vec!["".to_string()])
+            .unwrap();
 
         assert!(round
             .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
@@ -510,7 +401,7 @@ mod tests {
     #[test]
     fn have_all_players_submitted_words_is_false() {
         let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_1, words()).unwrap();
 
         assert!(!round
             .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
@@ -520,7 +411,7 @@ mod tests {
     fn add_words_succeeds_when_unique_words() {
         let mut round = get_round_on_writing_state();
 
-        let result = round.add_words(
+        let result = round.add_player_words(
             PLAYER_1,
             vec![
                 "word1".to_string(),
@@ -530,14 +421,14 @@ mod tests {
             ],
         );
 
-        assert!(result.is_ok());
+        assert_eq!(result, Ok(()));
     }
 
     #[test]
     fn add_words_fails_when_repeated_words_before_normalization() {
         let mut round = get_round_on_writing_state();
 
-        let result = round.add_words(PLAYER_1, vec!["word".to_string(), "word".to_string()]);
+        let result = round.add_player_words(PLAYER_1, vec!["word".to_string(), "word".to_string()]);
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), Error::RepeatedWords);
@@ -547,9 +438,10 @@ mod tests {
     fn add_words_fails_when_repeated_words_after_normalization() {
         let mut round = get_round_on_writing_state();
 
-        let result = round.add_words(PLAYER_1, vec!["word".to_string(), "  word ".to_string()]);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), Error::RepeatedWords);
+        let result =
+            round.add_player_words(PLAYER_1, vec!["word".to_string(), "  word ".to_string()]);
+
+        assert_eq!(result, Err(Error::RepeatedWords));
     }
 
     #[test]
@@ -557,7 +449,7 @@ mod tests {
         let mut round = get_round_on_writing_state();
 
         round
-            .add_words(
+            .add_player_words(
                 PLAYER_1,
                 vec![
                     "  wOrd1 ".to_string(),
@@ -579,7 +471,7 @@ mod tests {
         let mut round = get_round_on_writing_state();
 
         round
-            .add_words(
+            .add_player_words(
                 PLAYER_1,
                 vec![
                     "word1".to_string(),
@@ -607,16 +499,13 @@ mod tests {
                 PLAYER_3.to_string(),
             ],
         )
-        .unwrap()
     }
 
     fn get_round_on_voting_state() -> Round {
         let mut round = get_round_on_writing_state();
-        round.add_words(PLAYER_1, words()).unwrap();
-        round.add_words(PLAYER_2, words()).unwrap();
-        round.add_words(PLAYER_3, words()).unwrap();
-        round.next_player_to_score().unwrap();
-        round.next_word_to_score().unwrap();
+        round.add_player_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_2, words()).unwrap();
+        round.add_player_words(PLAYER_3, words()).unwrap();
         round
     }
 

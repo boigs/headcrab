@@ -13,26 +13,23 @@ state_machine! {
     derive(Debug, Clone, PartialEq)
     pub GameFsm(Lobby)
 
-    Lobby(StartGame) => CreatingNewRound,
+    Lobby =>  {
+        StartGame => CreatingNewRound
+    },
     CreatingNewRound => {
-        StartRound => PlayersWritingWords,
+        StartRound => PlayersSubmittingWords,
         NoMoreRounds => EndOfGame,
     },
-    PlayersWritingWords => {
+    PlayersSubmittingWords => {
         // TODO: TimesUp => ScoreCounting,
-        PlayersFinished => ScoreCounting
+        AllPlayersSubmittedWords => ChooseNextVotingItem
     },
-    ScoreCounting(BeginScoreCounting) => ChooseNextPlayer,
-    ChooseNextPlayer => {
-        NoMorePlayers => EndOfRound,
-        NextPlayer => ChooseNextWord,
+    ChooseNextVotingItem => {
+        NextVotingItem => PlayersSubmittingVotingWord,
+        NoMoreVotingItems => EndOfRound,
     },
-    ChooseNextWord => {
-        NoMoreWords => ChooseNextPlayer,
-        NextWord => PlayersSendingWordSubmission,
-    },
-    PlayersSendingWordSubmission => {
-        AllPlayersSentWordSubmission => ChooseNextWord,
+    PlayersSubmittingVotingWord => {
+        AcceptPlayersVotingWords => ChooseNextVotingItem,
     },
     EndOfRound => {
         ContinueToNextRound => CreatingNewRound,

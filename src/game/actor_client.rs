@@ -94,20 +94,38 @@ impl GameClient {
         }
     }
 
-    pub async fn add_player_word_submission(
+    pub async fn add_player_voting_word(
         &self,
         nickname: &str,
-        word: Option<String>,
+        voting_word: Option<String>,
     ) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         self.send_command(
-            GameCommand::AddPlayerWordSubmission {
+            GameCommand::AddPlayerVotingWord {
                 nickname: nickname.to_string(),
-                word,
+                voting_word,
                 response_tx: tx,
             },
-            "GameCommand::AddPlayerWordSubmission",
+            "GameCommand::AddPlayerVotingWord",
+        )
+        .await?;
+
+        match rx.await {
+            Ok(GameEvent::Ok) => Ok(()),
+            error => Err(GameClient::handle_event_error(error)),
+        }
+    }
+
+    pub async fn accept_players_voting_words(&self, nickname: &str) -> Result<(), Error> {
+        let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
+
+        self.send_command(
+            GameCommand::AcceptPlayersVotingWords {
+                nickname: nickname.to_string(),
+                response_tx: tx,
+            },
+            "GameCommand::AcceptPlayersVotingWords",
         )
         .await?;
 
