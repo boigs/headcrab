@@ -15,7 +15,7 @@ pub struct TestPlayer {
 }
 
 impl TestPlayer {
-    pub async fn receive_game_sate(&mut self) -> Result<GameState, String> {
+    pub async fn receive_game_state(&mut self) -> Result<GameState, String> {
         match self.rx.next().await {
             Some(Ok(message)) => {
                 match serde_json::from_str(message.to_text().expect("Message was not a text")) {
@@ -50,7 +50,7 @@ impl TestPlayer {
             amount_of_rounds: 3,
         })
         .await;
-        self.receive_game_sate().await
+        self.receive_game_state().await
     }
 
     pub async fn send_words(&mut self) -> Result<GameState, String> {
@@ -60,30 +60,30 @@ impl TestPlayer {
     pub async fn send_custom_words(&mut self, words: Vec<String>) -> Result<GameState, String> {
         self.send_text_message(WsMessageIn::PlayerWords { words })
             .await;
-        self.receive_game_sate().await
+        self.receive_game_state().await
     }
 
     pub async fn send_voting_word(&mut self, word: Option<String>) -> Result<GameState, String> {
         self.send_text_message(WsMessageIn::PlayerVotingWord { word })
             .await;
-        self.receive_game_sate().await
+        self.receive_game_state().await
     }
 
     pub async fn accept_players_voting_words(&mut self) -> Result<GameState, String> {
         self.send_text_message(WsMessageIn::AcceptPlayersVotingWords)
             .await;
-        self.receive_game_sate().await
+        self.receive_game_state().await
     }
 
     pub async fn continue_to_next_round(&mut self) -> Result<GameState, String> {
         self.send_text_message(WsMessageIn::ContinueToNextRound)
             .await;
-        self.receive_game_sate().await
+        self.receive_game_state().await
     }
 
     pub async fn send_raw_message(&mut self, message: Message) -> Result<GameState, String> {
         self.send_message(message).await;
-        self.receive_game_sate().await
+        self.receive_game_state().await
     }
 
     pub async fn send_message(&mut self, message: Message) {

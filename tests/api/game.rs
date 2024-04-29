@@ -24,11 +24,11 @@ async fn when_player_already_exists_add_player_with_same_nickname_to_game_fails(
 async fn host_player_can_start_game() {
     let mut game = TestApp::create_game(GameFsmState::Lobby).await;
 
-    let sate = game.players[0].start_game().await.unwrap();
+    let state = game.players[0].start_game().await.unwrap();
 
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingWords);
-    assert_eq!(sate.rounds.len(), 1);
-    assert!(!sate.rounds.first().unwrap().word.is_empty());
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
+    assert_eq!(state.rounds.len(), 1);
+    assert!(!state.rounds.first().unwrap().word.is_empty());
 }
 
 #[tokio::test]
@@ -50,8 +50,8 @@ async fn game_cannot_be_started_with_less_than_three_players() {
 
     assert_eq!(result, Err("NOT_ENOUGH_PLAYERS".to_string()));
     // The game is still alive and the socket of player 1 is still open
-    let sate = game.players[0].receive_game_sate().await.unwrap();
-    assert_eq!(sate.state, GameFsmState::Lobby);
+    let state = game.players[0].receive_game_state().await.unwrap();
+    assert_eq!(state.state, GameFsmState::Lobby);
 }
 
 #[tokio::test]
@@ -62,14 +62,14 @@ async fn game_is_still_alive_when_all_players_leave() {
     drop(game.players);
     game.players = vec![];
 
-    let sate = game.add_player("p4").await.unwrap();
+    let state = game.add_player("p4").await.unwrap();
 
-    assert_eq!(sate.state, GameFsmState::Lobby);
-    assert_eq!(sate.players.len(), 4);
-    assert!(!sate.players.get(0).unwrap().is_connected);
-    assert!(!sate.players.get(0).unwrap().is_host);
-    assert!(sate.players.get(3).unwrap().is_connected);
-    assert!(sate.players.get(3).unwrap().is_host);
+    assert_eq!(state.state, GameFsmState::Lobby);
+    assert_eq!(state.players.len(), 4);
+    assert!(!state.players.get(0).unwrap().is_connected);
+    assert!(!state.players.get(0).unwrap().is_host);
+    assert!(state.players.get(3).unwrap().is_connected);
+    assert!(state.players.get(3).unwrap().is_host);
 }
 
 #[tokio::test]
@@ -96,8 +96,8 @@ async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
         .await;
     assert_eq!(result, Err("UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string()));
 
-    let sate = game.add_player("p4").await;
-    assert!(sate.is_ok());
+    let state = game.add_player("p4").await;
+    assert!(state.is_ok());
 }
 
 #[tokio::test]
@@ -109,8 +109,8 @@ async fn when_sending_invalid_message_game_it_is_reject_but_game_is_still_alive(
         .await;
     assert_eq!(result, Err("UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string()));
 
-    let sate = game.add_player("p4").await;
-    assert!(sate.is_ok());
+    let state = game.add_player("p4").await;
+    assert!(state.is_ok());
 }
 
 #[tokio::test]
@@ -128,26 +128,26 @@ async fn repeated_words_are_not_allowed() {
 async fn game_goes_to_players_sending_word_submission_when_all_players_send_words() {
     let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
 
-    let sate = game.players[0]
+    let state = game.players[0]
         .send_custom_words(vec!["w1".to_string()])
         .await
         .unwrap();
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingWords);
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
 
     let _ = game.players[1]
         .send_custom_words(vec!["w1".to_string()])
         .await
         .unwrap();
-    let sate = game.players[0].receive_game_sate().await.unwrap();
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingWords);
+    let state = game.players[0].receive_game_state().await.unwrap();
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
 
     let _ = game.players[2]
         .send_custom_words(vec!["w1".to_string()])
         .await
         .unwrap();
-    let sate = game.players[0].receive_game_sate().await.unwrap();
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingVotingWord);
-    assert_eq!(sate.rounds.len(), 1);
+    let state = game.players[0].receive_game_state().await.unwrap();
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingVotingWord);
+    assert_eq!(state.rounds.len(), 1);
 }
 
 #[tokio::test]
@@ -155,10 +155,10 @@ async fn player_visibility_of_other_players_words_is_correct() {
     let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
 
     // Player 1 prespective after entering on the voting state
-    let sate = game.players_send_words().await;
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingVotingWord);
+    let state = game.players_send_words().await;
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingVotingWord);
     // Submitted words
-    let words = sate.last_round().player_words;
+    let words = state.last_round().player_words;
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -169,7 +169,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     let p3_words = words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 0);
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 1);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w1".to_string()));
@@ -177,10 +177,10 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert!(!voting_words.contains_key(&game.players[2].nickname));
 
     // Player 2 prespective after sending a word
-    let sate = game.players[1].send_voting_word(None).await.unwrap();
-    let _ = game.players[0].receive_game_sate().await.unwrap();
-    let _ = game.players[2].receive_game_sate().await.unwrap();
-    let player_words = sate.last_round().player_words;
+    let state = game.players[1].send_voting_word(None).await.unwrap();
+    let _ = game.players[0].receive_game_state().await.unwrap();
+    let _ = game.players[2].receive_game_state().await.unwrap();
+    let player_words = state.last_round().player_words;
     assert_eq!(player_words.len(), 3);
     let p1_words = player_words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -193,7 +193,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     let p3_words = player_words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 0);
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 2);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w1".to_string()));
@@ -202,14 +202,14 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert!(!voting_words.contains_key(&game.players[2].nickname));
 
     // Player 3 prespective after sending a word
-    let sate = game.players[2]
+    let state = game.players[2]
         .send_voting_word(Some("p3_w2".to_string()))
         .await
         .unwrap();
-    let _ = game.players[0].receive_game_sate().await.unwrap();
-    let _ = game.players[1].receive_game_sate().await.unwrap();
+    let _ = game.players[0].receive_game_state().await.unwrap();
+    let _ = game.players[1].receive_game_state().await.unwrap();
     // Submitted words
-    let player_words = sate.last_round().player_words;
+    let player_words = state.last_round().player_words;
     assert_eq!(player_words.len(), 3);
     let p1_words = player_words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -222,7 +222,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(p3_words.get(0).unwrap().word, "p3_w1");
     assert_eq!(p3_words.get(1).unwrap().word, "p3_w2");
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 3);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w1".to_string()));
@@ -232,14 +232,14 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(p3_word, Some("p3_w2".to_string()));
 
     // Player 2 prespective after sending a word
-    let sate = game.players[1]
+    let state = game.players[1]
         .send_voting_word(Some("p2_w1".to_string()))
         .await
         .unwrap();
-    let _ = game.players[0].receive_game_sate().await.unwrap();
-    let _ = game.players[2].receive_game_sate().await.unwrap();
+    let _ = game.players[0].receive_game_state().await.unwrap();
+    let _ = game.players[2].receive_game_state().await.unwrap();
     // Submitted words
-    let player_words = sate.last_round().player_words;
+    let player_words = state.last_round().player_words;
     assert_eq!(player_words.len(), 3);
     let p1_words = player_words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -252,7 +252,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     let p3_words = player_words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 0);
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 3);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w1".to_string()));
@@ -263,9 +263,9 @@ async fn player_visibility_of_other_players_words_is_correct() {
 
     // Advance to next voting item
     // Player 1 prespective
-    let sate = game.players[0].accept_players_voting_words().await.unwrap();
+    let state = game.players[0].accept_players_voting_words().await.unwrap();
     // Submitted words
-    let words = sate.last_round().player_words;
+    let words = state.last_round().player_words;
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -278,7 +278,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(p3_words.len(), 1);
     assert_eq!(p3_words.get(0).unwrap().word, "p3_w2");
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 1);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w2".to_string()));
@@ -286,9 +286,9 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert!(!voting_words.contains_key(&game.players[2].nickname));
 
     // Player 2 prespective
-    let sate = &game.players[1].receive_game_sate().await.unwrap();
+    let state = &game.players[1].receive_game_state().await.unwrap();
     // Submitted words
-    let words = sate.last_round().player_words;
+    let words = state.last_round().player_words;
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -302,7 +302,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(p3_words.len(), 1);
     assert_eq!(p3_words.get(0).unwrap().word, "p3_w2");
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 1);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w2".to_string()));
@@ -310,9 +310,9 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert!(!voting_words.contains_key(&game.players[2].nickname));
 
     // Player 3 prespective
-    let sate = &game.players[2].receive_game_sate().await.unwrap();
+    let state = &game.players[2].receive_game_state().await.unwrap();
     // Submitted words
-    let words = sate.last_round().player_words;
+    let words = state.last_round().player_words;
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
@@ -326,7 +326,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(p3_words.get(0).unwrap().word, "p3_w1");
     assert_eq!(p3_words.get(1).unwrap().word, "p3_w2");
     // Voting words
-    let voting_words = sate.last_round().player_voting_words;
+    let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 1);
     let p1_word = voting_words.get(&game.players[0].nickname).unwrap().clone();
     assert_eq!(p1_word, Some("p1_w2".to_string()));
@@ -346,16 +346,16 @@ async fn players_can_complete_a_game() {
     let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
 
     game.complete_round().await;
-    let sate = game.continue_to_next_round().await;
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingWords);
+    let state = game.continue_to_next_round().await;
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
 
     game.complete_round().await;
-    let sate = game.continue_to_next_round().await;
-    assert_eq!(sate.state, GameFsmState::PlayersSubmittingWords);
+    let state = game.continue_to_next_round().await;
+    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
 
     game.complete_round().await;
-    let sate = game.continue_to_next_round().await;
-    assert_eq!(sate.state, GameFsmState::EndOfGame);
+    let state = game.continue_to_next_round().await;
+    assert_eq!(state.state, GameFsmState::EndOfGame);
 }
 
 async fn sleep(duration: Duration) {

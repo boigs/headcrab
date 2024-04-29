@@ -26,25 +26,25 @@ impl TestGame {
         };
         // Clear the messages on the other players
         for player in self.players.iter_mut() {
-            let _ = player.receive_game_sate().await.unwrap();
+            let _ = player.receive_game_state().await.unwrap();
         }
-        let sate = player.receive_game_sate().await?;
+        let state = player.receive_game_state().await?;
         self.players.push(player);
-        Ok(sate)
+        Ok(state)
     }
 
     pub async fn players_send_words(&mut self) -> GameState {
         let _ = self.players[0].send_words().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[1].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         let _ = self.players[1].send_words().await.unwrap();
-        let _ = self.players[0].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[0].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         let _ = self.players[2].send_words().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        self.players[0].receive_game_sate().await.unwrap()
+        let _ = self.players[1].receive_game_state().await.unwrap();
+        self.players[0].receive_game_state().await.unwrap()
     }
 
     pub async fn complete_round(&mut self) {
@@ -55,50 +55,50 @@ impl TestGame {
         // p1: [used, unused], p2: [used, unused], p3: [unused, unused]
         let voting_word = self.players[1].words.get(0).cloned();
         let _ = self.players[1].send_voting_word(voting_word).await.unwrap();
-        let _ = self.players[0].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[0].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         let _ = self.players[0].accept_players_voting_words().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[1].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         // Voting for p1_w2
         // p1: [used, used], p2: [used, unused], p3: [unused, unused]
         let _ = self.players[1].send_voting_word(None).await.unwrap();
-        let _ = self.players[0].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[0].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         let voting_word = self.players[2].words.get(1).cloned();
         let _ = self.players[2].send_voting_word(voting_word).await.unwrap();
-        let _ = self.players[0].receive_game_sate().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
+        let _ = self.players[0].receive_game_state().await.unwrap();
+        let _ = self.players[1].receive_game_state().await.unwrap();
 
         let _ = self.players[0].accept_players_voting_words().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[1].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         // Voting for p2_w2
         // p1: [used, used], p2: [used, used], p3: [unused, used]
         let _ = self.players[0].accept_players_voting_words().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let _ = self.players[1].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
         // Voting for p3_w1
         // p1: [used, used], p2: [used, used], p3: [used, used]
-        let sate: GameState = self.players[0].accept_players_voting_words().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let state: GameState = self.players[0].accept_players_voting_words().await.unwrap();
+        let _ = self.players[1].receive_game_state().await.unwrap();
+        let _ = self.players[2].receive_game_state().await.unwrap();
 
-        assert_eq!(sate.state, GameFsmState::EndOfRound);
+        assert_eq!(state.state, GameFsmState::EndOfRound);
     }
 
     pub async fn continue_to_next_round(&mut self) -> GameState {
         let (host, rest) = self.players.split_first_mut().unwrap();
-        let sate = host.continue_to_next_round().await.unwrap();
+        let state = host.continue_to_next_round().await.unwrap();
         for player in rest {
-            let _ = player.receive_game_sate().await.unwrap();
+            let _ = player.receive_game_state().await.unwrap();
         }
-        sate
+        state
     }
 }
 

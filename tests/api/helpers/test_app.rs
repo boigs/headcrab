@@ -75,38 +75,38 @@ impl TestApp {
         }
     }
 
-    pub async fn create_game(state: GameFsmState) -> TestGame {
+    pub async fn create_game(desired_state: GameFsmState) -> TestGame {
         let mut game = TestApp::create_game_without_players().await;
 
-        let sate = game.add_player("p1").await.unwrap();
-        assert_eq!(sate.state, GameFsmState::Lobby);
-        assert_eq!(sate.players.len(), 1);
-        assert_eq!(sate.players.get(0).unwrap().nickname, "p1");
-        assert!(sate.players.get(0).unwrap().is_host);
+        let state = game.add_player("p1").await.unwrap();
+        assert_eq!(state.state, GameFsmState::Lobby);
+        assert_eq!(state.players.len(), 1);
+        assert_eq!(state.players.get(0).unwrap().nickname, "p1");
+        assert!(state.players.get(0).unwrap().is_host);
 
         // Make sure to read the events the other players receive when new players join, so that we leave a "clean" response channel for the tests
-        let sate = game.add_player("p2").await.unwrap();
-        assert_eq!(sate.state, GameFsmState::Lobby);
-        assert_eq!(sate.players.len(), 2);
-        assert_eq!(sate.players.get(0).unwrap().nickname, "p1");
-        assert_eq!(sate.players.get(1).unwrap().nickname, "p2");
-        assert!(!sate.players.get(1).unwrap().is_host);
+        let state = game.add_player("p2").await.unwrap();
+        assert_eq!(state.state, GameFsmState::Lobby);
+        assert_eq!(state.players.len(), 2);
+        assert_eq!(state.players.get(0).unwrap().nickname, "p1");
+        assert_eq!(state.players.get(1).unwrap().nickname, "p2");
+        assert!(!state.players.get(1).unwrap().is_host);
 
-        let sate = game.add_player("p3").await.unwrap();
-        assert_eq!(sate.state, GameFsmState::Lobby);
-        assert_eq!(sate.players.len(), 3);
-        assert_eq!(sate.players.get(0).unwrap().nickname, "p1");
-        assert_eq!(sate.players.get(1).unwrap().nickname, "p2");
-        assert_eq!(sate.players.get(2).unwrap().nickname, "p3");
-        assert!(!sate.players.get(2).unwrap().is_host);
+        let state = game.add_player("p3").await.unwrap();
+        assert_eq!(state.state, GameFsmState::Lobby);
+        assert_eq!(state.players.len(), 3);
+        assert_eq!(state.players.get(0).unwrap().nickname, "p1");
+        assert_eq!(state.players.get(1).unwrap().nickname, "p2");
+        assert_eq!(state.players.get(2).unwrap().nickname, "p3");
+        assert!(!state.players.get(2).unwrap().is_host);
 
-        match state {
+        match desired_state {
             GameFsmState::Lobby => {}
             GameFsmState::PlayersSubmittingWords => {
-                let sate = game.players[0].start_game().await.unwrap();
-                let _ = game.players[1].receive_game_sate().await.unwrap();
-                let _ = game.players[2].receive_game_sate().await.unwrap();
-                assert_eq!(sate.state, GameFsmState::PlayersSubmittingWords)
+                let state = game.players[0].start_game().await.unwrap();
+                let _ = game.players[1].receive_game_state().await.unwrap();
+                let _ = game.players[2].receive_game_state().await.unwrap();
+                assert_eq!(state.state, GameFsmState::PlayersSubmittingWords)
             }
             GameFsmState::PlayersSubmittingVotingWord => todo!(),
             GameFsmState::EndOfRound => todo!(),
