@@ -135,11 +135,17 @@ impl PlayerActor {
     ) -> WsMessageOut {
         let rounds: Option<Vec<RoundDto>> = rounds.split_last().map(|(last_round, rest)| {
             let last_round = last_round.clone();
+            let current_voting_player_nickname = last_round
+                .voting_item
+                .clone()
+                .map(|voting_item| voting_item.player_nickname);
             let filtered_words: HashMap<String, Vec<WordDto>> = last_round
                 .player_words
                 .iter()
                 .map(|(nickname, words)| {
-                    let words: Vec<Word> = if our_nickname == nickname {
+                    let words: Vec<Word> = if our_nickname == nickname
+                        || current_voting_player_nickname == Some(nickname.to_string())
+                    {
                         words.to_vec()
                     } else {
                         words.iter().filter(|word| word.is_used).cloned().collect()
