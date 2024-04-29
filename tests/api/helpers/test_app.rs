@@ -86,7 +86,6 @@ impl TestApp {
 
         // Make sure to read the events the other players receive when new players join, so that we leave a "clean" response channel for the tests
         let sate = game.add_player("p2").await.unwrap();
-        let _ = game.players[0].receive_game_sate().await.unwrap();
         assert_eq!(sate.state, GameFsmState::Lobby);
         assert_eq!(sate.players.len(), 2);
         assert_eq!(sate.players.get(0).unwrap().nickname, "p1");
@@ -94,8 +93,6 @@ impl TestApp {
         assert!(!sate.players.get(1).unwrap().is_host);
 
         let sate = game.add_player("p3").await.unwrap();
-        let _ = game.players[0].receive_game_sate().await.unwrap();
-        let _ = game.players[1].receive_game_sate().await.unwrap();
         assert_eq!(sate.state, GameFsmState::Lobby);
         assert_eq!(sate.players.len(), 3);
         assert_eq!(sate.players.get(0).unwrap().nickname, "p1");

@@ -24,6 +24,10 @@ impl TestGame {
             tx,
             rx,
         };
+        // Clear the messages on the other players
+        for player in self.players.iter_mut() {
+            let _ = player.receive_game_sate().await.unwrap();
+        }
         let sate = player.receive_game_sate().await?;
         self.players.push(player);
         Ok(sate)
@@ -89,9 +93,11 @@ impl TestGame {
     }
 
     pub async fn continue_to_next_round(&mut self) -> GameState {
-        let sate = self.players[0].continue_to_next_round().await.unwrap();
-        let _ = self.players[1].receive_game_sate().await.unwrap();
-        let _ = self.players[2].receive_game_sate().await.unwrap();
+        let (host, rest) = self.players.split_first_mut().unwrap();
+        let sate = host.continue_to_next_round().await.unwrap();
+        for player in rest {
+            let _ = player.receive_game_sate().await.unwrap();
+        }
         sate
     }
 }

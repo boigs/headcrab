@@ -45,8 +45,6 @@ async fn game_cannot_be_started_with_less_than_three_players() {
     let mut game = TestApp::create_game_without_players().await;
     let _ = game.add_player("p1").await.unwrap();
     let _ = game.add_player("p2").await.unwrap();
-    // Skip the second GameState after player 2 joins
-    let _ = game.players[0].receive_game_sate().await;
 
     let result = game.players[0].start_game().await;
 
