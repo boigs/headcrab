@@ -202,7 +202,7 @@ async fn game_goes_to_players_sending_word_submission_when_all_players_send_word
 }
 
 #[tokio::test]
-async fn player_cannot_see_other_player_words() {
+async fn player_visibility_of_other_players_words_is_correct() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
     let mut game: GameTest = create_game(
@@ -212,24 +212,186 @@ async fn player_cannot_see_other_player_words() {
     )
     .await;
 
+    // Player 1 prespective after entering on the voting state
     let game_state = game.players_send_words().await;
-
     assert_eq!(game_state.state, "PlayersSubmittingVotingWord");
+    // Submitted words
+    let words = game_state.last_round().player_words;
+    assert_eq!(words.len(), 3);
+    let p1_words = words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 0);
+    let p3_words = words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 0);
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 1);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w1".to_string()));
+    assert!(!voting_words.contains_key(&game.player_2.nickname));
+    assert!(!voting_words.contains_key(&game.player_3.nickname));
 
-    let player_words = &game_state.rounds.last().unwrap().player_words;
+    // Player 2 prespective after sending a word
+    let game_state = game.player_2.send_voting_word(None).await.unwrap();
+    let _ = game.player_1.receive_game_sate().await.unwrap();
+    let _ = game.player_3.receive_game_sate().await.unwrap();
+    let player_words = game_state.last_round().player_words;
     assert_eq!(player_words.len(), 3);
+    let p1_words = player_words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = player_words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 2);
+    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.get(1).unwrap().word, "p2_w2");
+    let p3_words = player_words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 0);
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 2);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w1".to_string()));
+    let p2_word = voting_words.get(&game.player_2.nickname).unwrap().clone();
+    assert_eq!(p2_word, None);
+    assert!(!voting_words.contains_key(&game.player_3.nickname));
 
-    let player1_words = player_words.get(&game.player_1.nickname).unwrap();
-    assert_eq!(player1_words.len(), 1);
-    assert_eq!(player1_words.get(0).unwrap().word, "p1_w1");
+    // Player 3 prespective after sending a word
+    let game_state = game
+        .player_3
+        .send_voting_word(Some("p3_w2".to_string()))
+        .await
+        .unwrap();
+    let _ = game.player_1.receive_game_sate().await.unwrap();
+    let _ = game.player_2.receive_game_sate().await.unwrap();
+    // Submitted words
+    let player_words = game_state.last_round().player_words;
+    assert_eq!(player_words.len(), 3);
+    let p1_words = player_words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = player_words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 0);
+    let p3_words = player_words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 2);
+    assert_eq!(p3_words.get(0).unwrap().word, "p3_w1");
+    assert_eq!(p3_words.get(1).unwrap().word, "p3_w2");
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 3);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w1".to_string()));
+    let p2_word = voting_words.get(&game.player_2.nickname).unwrap().clone();
+    assert_eq!(p2_word, None);
+    let p3_word = voting_words.get(&game.player_3.nickname).unwrap().clone();
+    assert_eq!(p3_word, Some("p3_w2".to_string()));
 
-    let player2_words = player_words.get(&game.player_2.nickname).unwrap();
-    assert_eq!(player2_words.len(), 2);
-    assert_eq!(player2_words.get(0).unwrap().word, "p2_w1");
-    assert_eq!(player2_words.get(1).unwrap().word, "p2_w2");
+    // Player 2 prespective after sending a word
+    let game_state = game
+        .player_2
+        .send_voting_word(Some("p2_w1".to_string()))
+        .await
+        .unwrap();
+    let _ = game.player_1.receive_game_sate().await.unwrap();
+    let _ = game.player_3.receive_game_sate().await.unwrap();
+    // Submitted words
+    let player_words = game_state.last_round().player_words;
+    assert_eq!(player_words.len(), 3);
+    let p1_words = player_words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = player_words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 2);
+    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.get(1).unwrap().word, "p2_w2");
+    let p3_words = player_words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 0);
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 3);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w1".to_string()));
+    let p2_word = voting_words.get(&game.player_2.nickname).unwrap().clone();
+    assert_eq!(p2_word, Some("p2_w1".to_string()));
+    let p3_word = voting_words.get(&game.player_3.nickname).unwrap().clone();
+    assert_eq!(p3_word, Some("p3_w2".to_string()));
 
-    let player3_words = player_words.get(&game.player_3.nickname).unwrap();
-    assert!(player3_words.is_empty());
+    // Advance to next voting item
+    // Player 1 prespective
+    let game_state = game.player_1.accept_players_voting_words().await.unwrap();
+    // Submitted words
+    let words = game_state.last_round().player_words;
+    assert_eq!(words.len(), 3);
+    let p1_words = words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 1);
+    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    let p3_words = words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 1);
+    assert_eq!(p3_words.get(0).unwrap().word, "p3_w2");
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 1);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w2".to_string()));
+    assert!(!voting_words.contains_key(&game.player_2.nickname));
+    assert!(!voting_words.contains_key(&game.player_3.nickname));
+
+    // Player 2 prespective
+    let game_state = &game.player_2.receive_game_sate().await.unwrap();
+    // Submitted words
+    let words = game_state.last_round().player_words;
+    assert_eq!(words.len(), 3);
+    let p1_words = words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 2);
+    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.get(1).unwrap().word, "p2_w2");
+    let p3_words = words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 1);
+    assert_eq!(p3_words.get(0).unwrap().word, "p3_w2");
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 1);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w2".to_string()));
+    assert!(!voting_words.contains_key(&game.player_2.nickname));
+    assert!(!voting_words.contains_key(&game.player_3.nickname));
+
+    // Player 3 prespective
+    let game_state = &game.player_3.receive_game_sate().await.unwrap();
+    // Submitted words
+    let words = game_state.last_round().player_words;
+    assert_eq!(words.len(), 3);
+    let p1_words = words.get(&game.player_1.nickname).unwrap();
+    assert_eq!(p1_words.len(), 2);
+    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
+    let p2_words = words.get(&game.player_2.nickname).unwrap();
+    assert_eq!(p2_words.len(), 1);
+    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    let p3_words = words.get(&game.player_3.nickname).unwrap();
+    assert_eq!(p3_words.len(), 2);
+    assert_eq!(p3_words.get(0).unwrap().word, "p3_w1");
+    assert_eq!(p3_words.get(1).unwrap().word, "p3_w2");
+    // Voting words
+    let voting_words = game_state.last_round().player_voting_words;
+    assert_eq!(voting_words.len(), 1);
+    let p1_word = voting_words.get(&game.player_1.nickname).unwrap().clone();
+    assert_eq!(p1_word, Some("p1_w2".to_string()));
+    assert!(!voting_words.contains_key(&game.player_2.nickname));
+    assert!(!voting_words.contains_key(&game.player_3.nickname));
 }
 
 #[tokio::test]
@@ -424,8 +586,8 @@ impl GameTest {
             .send_words(self.player_3.words.clone())
             .await
             .unwrap();
-        let _ = self.player_1.receive_game_sate().await.unwrap();
-        self.player_2.receive_game_sate().await.unwrap()
+        let _ = self.player_2.receive_game_sate().await.unwrap();
+        self.player_1.receive_game_sate().await.unwrap()
     }
 
     pub async fn complete_round(&mut self) {
@@ -581,6 +743,12 @@ struct GameState {
     rounds: Vec<Round>,
 }
 
+impl GameState {
+    pub fn last_round(&self) -> Round {
+        self.rounds.last().unwrap().clone()
+    }
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Player {
@@ -589,14 +757,15 @@ struct Player {
     is_connected: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Round {
     word: String,
     player_words: HashMap<String, Vec<Word>>,
+    player_voting_words: HashMap<String, Option<String>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Word {
     word: String,
