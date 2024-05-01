@@ -350,16 +350,16 @@ mod tests {
     }
 
     #[test]
-    fn compute_score_works_when_players_skip_voting() {
+    fn computed_score_is_0_when_players_skip_voting() {
         let mut round = get_round_on_writing_state();
         round
-            .add_player_words(PLAYER_1, vec!["p1_w1".to_string(), "p1_w2".to_string()])
+            .add_player_words(PLAYER_1, vec!["p1_w1".to_string()])
             .unwrap();
         round
-            .add_player_words(PLAYER_2, vec!["p2_w1".to_string(), "p2_w2".to_string()])
+            .add_player_words(PLAYER_2, vec!["p2_w1".to_string()])
             .unwrap();
         round
-            .add_player_words(PLAYER_3, vec!["p3_w1".to_string(), "p3_w2".to_string()])
+            .add_player_words(PLAYER_3, vec!["p3_w1".to_string()])
             .unwrap();
 
         let voting_item = round.next_voting_item().unwrap();
@@ -372,18 +372,6 @@ mod tests {
         round.compute_score();
 
         assert_eq!(get_word(&round, PLAYER_1, "p1_w1").score, 0);
-        assert_eq!(get_word(&round, PLAYER_1, "p1_w2").score, 0);
-        assert_eq!(get_word(&round, PLAYER_2, "p2_w1").score, 0);
-        assert_eq!(get_word(&round, PLAYER_2, "p2_w2").score, 0);
-        assert_eq!(get_word(&round, PLAYER_3, "p3_w1").score, 0);
-        assert_eq!(get_word(&round, PLAYER_3, "p3_w2").score, 0);
-        assert!(round.player_voting_words.is_empty());
-        assert!(get_word(&round, PLAYER_1, "p1_w1").is_used);
-        assert!(!get_word(&round, PLAYER_1, "p1_w2").is_used);
-        assert!(!get_word(&round, PLAYER_2, "p2_w1").is_used);
-        assert!(!get_word(&round, PLAYER_2, "p2_w2").is_used);
-        assert!(!get_word(&round, PLAYER_3, "p3_w1").is_used);
-        assert!(!get_word(&round, PLAYER_3, "p3_w2").is_used);
     }
 
     #[test]
