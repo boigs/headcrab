@@ -11,21 +11,21 @@ use crate::{
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub(crate) enum WsMessageOut {
+    #[serde(rename_all = "camelCase")]
     Error {
         r#type: String,
         title: String,
         detail: String,
     },
+    #[serde(rename_all = "camelCase")]
     GameState {
         state: String,
         players: Vec<PlayerDto>,
         rounds: Vec<RoundDto>,
         amount_of_rounds: Option<u8>,
     },
-    ChatMessage {
-        sender: String,
-        content: String,
-    },
+    #[serde(rename_all = "camelCase")]
+    ChatMessage { sender: String, content: String },
 }
 
 #[derive(Deserialize)]
