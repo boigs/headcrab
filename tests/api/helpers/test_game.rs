@@ -141,11 +141,13 @@ pub struct Word {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum WsMessageOut {
+    #[serde(rename_all = "camelCase")]
     Error {
         r#type: String,
         title: String,
         detail: String,
     },
+    #[serde(rename_all = "camelCase")]
     GameState {
         state: GameFsmState,
         players: Vec<Player>,
