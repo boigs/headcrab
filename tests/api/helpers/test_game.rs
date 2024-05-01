@@ -140,7 +140,7 @@ pub struct Word {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "kind")]
-pub enum WsMessageOut {
+pub enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     Error {
         r#type: String,
@@ -158,7 +158,7 @@ pub enum WsMessageOut {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
-pub enum WsMessageIn {
+pub enum WsMessageOut {
     #[serde(rename_all = "camelCase")]
     StartGame {
         // We use i8 instead of u8 so that we can send a negative value to test the validation on this field

@@ -19,7 +19,7 @@ impl TestPlayer {
         match self.rx.next().await {
             Some(Ok(message)) => {
                 match serde_json::from_str(message.to_text().expect("Message was not a text")) {
-                    Ok(WsMessageOut::GameState {
+                    Ok(WsMessageIn::GameState {
                         state,
                         players,
                         rounds,
@@ -30,7 +30,7 @@ impl TestPlayer {
                         rounds,
                         amount_of_rounds,
                     }),
-                    Ok(WsMessageOut::Error {
+                    Ok(WsMessageIn::Error {
                         r#type,
                         title,
                         detail,
@@ -48,7 +48,7 @@ impl TestPlayer {
     }
 
     pub async fn start_game(&mut self, amount_of_rounds: i8) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::StartGame { amount_of_rounds })
+        self.send_text_message(WsMessageOut::StartGame { amount_of_rounds })
             .await;
         self.receive_game_state().await
     }
@@ -58,25 +58,25 @@ impl TestPlayer {
     }
 
     pub async fn send_custom_words(&mut self, words: Vec<String>) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::PlayerWords { words })
+        self.send_text_message(WsMessageOut::PlayerWords { words })
             .await;
         self.receive_game_state().await
     }
 
     pub async fn send_voting_word(&mut self, word: Option<String>) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::PlayerVotingWord { word })
+        self.send_text_message(WsMessageOut::PlayerVotingWord { word })
             .await;
         self.receive_game_state().await
     }
 
     pub async fn accept_players_voting_words(&mut self) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::AcceptPlayersVotingWords)
+        self.send_text_message(WsMessageOut::AcceptPlayersVotingWords)
             .await;
         self.receive_game_state().await
     }
 
     pub async fn continue_to_next_round(&mut self) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::ContinueToNextRound)
+        self.send_text_message(WsMessageOut::ContinueToNextRound)
             .await;
         self.receive_game_state().await
     }
@@ -90,7 +90,7 @@ impl TestPlayer {
         self.tx.send(message).await.expect("Could not send message");
     }
 
-    async fn send_text_message(&mut self, message: WsMessageIn) {
+    async fn send_text_message(&mut self, message: WsMessageOut) {
         self.send_message(Message::Text(
             serde_json::to_string(&message).expect("Could not serialize message"),
         ))
