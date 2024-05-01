@@ -81,24 +81,54 @@ impl Round {
     }
 
     pub fn next_voting_item(&mut self) -> Option<VotingItem> {
-        for player in &self.players {
-            if let Some(words) = self.player_words.get_mut(player) {
-                for word in words {
-                    if !word.is_used {
-                        word.is_used = true;
-                        self.player_voting_words
-                            .insert(player.to_string(), Some(word.word.clone()));
-                        self.voting_item = Some(VotingItem {
-                            player_nickname: player.clone(),
-                            word: word.word.clone(),
-                        });
-                        return self.voting_item.clone();
-                    }
-                }
+        self.voting_item = self.find_next_voting_item();
+        if let Some(voting_item) = &self.voting_item {
+            let word = self
+                .player_words
+                .get_mut(&voting_item.player_nickname)
+                .expect("The player entry must exist")
+                .iter_mut()
+                .find(|word| word.word == voting_item.word)
+                .expect("The word entry must exist");
+            word.is_used = true;
+            self.player_voting_words.insert(
+                voting_item.player_nickname.to_string(),
+                Some(voting_item.word.to_string()),
+            );
+            for nickname in self.get_players_to_auto_skip(voting_item.clone()) {
+                self.player_voting_words.insert(nickname, None);
             }
         }
-        self.voting_item = None;
+
         self.voting_item.clone()
+    }
+
+    fn find_next_voting_item(&self) -> Option<VotingItem> {
+        self.players
+            .iter()
+            .flat_map(|nickname| {
+                self.player_words
+                    .get(nickname)
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .filter(|word| !word.is_used)
+                    .map(|word| VotingItem {
+                        player_nickname: nickname.to_string(),
+                        word: word.word.to_string(),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .next()
+    }
+
+    fn get_players_to_auto_skip(&self, voting_item: VotingItem) -> Vec<String> {
+        self.player_words
+            .iter()
+            .filter(|(nickname, words)| {
+                **nickname != voting_item.player_nickname && words.iter().all(|word| word.is_used)
+            })
+            .map(|(nickname, _)| nickname.to_string())
+            .collect()
     }
 
     pub fn set_player_voting_word(
@@ -374,6 +404,22 @@ mod tests {
     }
 
     #[test]
+    fn next_voting_item_skips_first_players_when_no_words() {
+        let mut round = get_round_on_writing_state();
+        round.add_player_words(PLAYER_1, vec![]).unwrap();
+        round.add_player_words(PLAYER_2, vec![]).unwrap();
+        round.add_player_words(PLAYER_3, words()).unwrap();
+
+        assert_eq!(
+            round.next_voting_item(),
+            Some(VotingItem {
+                player_nickname: PLAYER_3.to_string(),
+                word: WORD_1.to_string()
+            })
+        )
+    }
+
+    #[test]
     fn have_all_players_submitted_words_is_true() {
         let mut round = get_round_on_writing_state();
         round.add_player_words(PLAYER_1, words()).unwrap();
@@ -487,6 +533,93 @@ mod tests {
         assert_eq!(words[0].word, "word1");
         assert_eq!(words[1].word, "word2");
         assert_eq!(words[2].word, "word3");
+    }
+
+    #[test]
+    fn on_next_voting_item_players_without_words_auto_skip() {
+        let mut round = get_round_on_writing_state();
+
+        round.add_player_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_2, vec![]).unwrap();
+        round.add_player_words(PLAYER_3, words()).unwrap();
+
+        let _ = round.next_voting_item().unwrap();
+
+        assert_eq!(
+            round.player_voting_words.get(PLAYER_1),
+            Some(&Some(WORD_1.to_string()))
+        );
+        assert_eq!(round.player_voting_words.get(PLAYER_2), Some(&None));
+        assert_eq!(round.player_voting_words.get(PLAYER_3), None);
+    }
+
+    #[test]
+    fn on_next_voting_item_players_without_words_auto_skip_for_first_players() {
+        let mut round = get_round_on_writing_state();
+
+        round.add_player_words(PLAYER_1, vec![]).unwrap();
+        round.add_player_words(PLAYER_2, vec![]).unwrap();
+        round.add_player_words(PLAYER_3, words()).unwrap();
+
+        let _ = round.next_voting_item().unwrap();
+
+        assert_eq!(round.player_voting_words.get(PLAYER_1), Some(&None));
+        assert_eq!(round.player_voting_words.get(PLAYER_2), Some(&None));
+        assert_eq!(
+            round.player_voting_words.get(PLAYER_3),
+            Some(&Some(WORD_1.to_string()))
+        );
+    }
+
+    #[test]
+    fn on_next_voting_item_players_with_only_used_words_auto_skip() {
+        let mut round = get_round_on_writing_state();
+
+        round.add_player_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_2, words()).unwrap();
+        round.add_player_words(PLAYER_3, words()).unwrap();
+
+        let _ = round.next_voting_item().unwrap();
+        let _ = round.set_player_voting_word(PLAYER_2, None).unwrap();
+        let _ = round
+            .set_player_voting_word(PLAYER_3, Some(WORD_1.to_string()))
+            .unwrap();
+        round.compute_score();
+        let _ = round.next_voting_item().unwrap();
+        let _ = round.set_player_voting_word(PLAYER_2, None).unwrap();
+        let _ = round
+            .set_player_voting_word(PLAYER_3, Some(WORD_2.to_string()))
+            .unwrap();
+        round.compute_score();
+        let _ = round.next_voting_item().unwrap();
+
+        assert_eq!(round.player_voting_words.get(PLAYER_1), Some(&None));
+        assert_eq!(
+            round.player_voting_words.get(PLAYER_2),
+            Some(&Some(WORD_1.to_string()))
+        );
+        assert_eq!(round.player_voting_words.get(PLAYER_3), Some(&None));
+    }
+
+    #[test]
+    fn on_next_voting_item_last_word_of_current_player_is_not_auto_skipped() {
+        let mut round = get_round_on_writing_state();
+
+        round.add_player_words(PLAYER_1, words()).unwrap();
+        round.add_player_words(PLAYER_2, vec![]).unwrap();
+        round.add_player_words(PLAYER_3, words()).unwrap();
+
+        let _ = round.next_voting_item().unwrap();
+        assert_eq!(
+            round.player_voting_words.get(PLAYER_1),
+            Some(&Some(WORD_1.to_string()))
+        );
+
+        let _ = round.next_voting_item().unwrap();
+        assert_eq!(
+            round.player_voting_words.get(PLAYER_1),
+            Some(&Some(WORD_2.to_string()))
+        );
     }
 
     fn get_round_on_writing_state() -> Round {
