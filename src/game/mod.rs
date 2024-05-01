@@ -269,8 +269,9 @@ mod tests {
     use crate::{
         error::Error,
         game::{
-            game_fsm::GameFsmState, INVALID_STATE_FOR_VOTING_WORD_SUBMISSION,
-            INVALID_STATE_FOR_WORDS_SUBMISSION, NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
+            game_fsm::GameFsmState, GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND,
+            INVALID_STATE_FOR_VOTING_WORD_SUBMISSION, INVALID_STATE_FOR_WORDS_SUBMISSION,
+            NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
             NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM, NON_HOST_PLAYER_CANNOT_START_GAME,
         },
     };
@@ -374,7 +375,7 @@ mod tests {
         assert_eq!(
             result,
             Err(Error::CommandNotAllowed(
-                "The game cannot be started with less than 1 round".to_string()
+                GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND.to_string()
             ))
         );
     }
