@@ -186,6 +186,8 @@ impl Round {
             .iter()
             .filter(|(_, submission_word)| submission_word.is_some())
             .count();
+        let score = if score > 1 { score } else { 0 };
+
         for (submission_nickname, submission_word) in &self.player_voting_words {
             if let Some(submission_word) = submission_word {
                 if let Some(words) = self.player_words.get_mut(submission_nickname) {
@@ -321,7 +323,9 @@ mod tests {
             .add_player_words(PLAYER_3, vec!["p3_w1".to_string(), "p3_w2".to_string()])
             .unwrap();
 
-        round.next_voting_item().unwrap();
+        let voting_item = round.next_voting_item().unwrap();
+
+        assert_eq!(&voting_item.word, "p1_w1");
 
         round
             .set_player_voting_word(PLAYER_2, Some("p2_w1".to_string()))
@@ -340,6 +344,43 @@ mod tests {
         assert!(get_word(&round, PLAYER_1, "p1_w1").is_used);
         assert!(!get_word(&round, PLAYER_1, "p1_w2").is_used);
         assert!(get_word(&round, PLAYER_2, "p2_w1").is_used);
+        assert!(!get_word(&round, PLAYER_2, "p2_w2").is_used);
+        assert!(!get_word(&round, PLAYER_3, "p3_w1").is_used);
+        assert!(!get_word(&round, PLAYER_3, "p3_w2").is_used);
+    }
+
+    #[test]
+    fn compute_score_works_when_players_skip_voting() {
+        let mut round = get_round_on_writing_state();
+        round
+            .add_player_words(PLAYER_1, vec!["p1_w1".to_string(), "p1_w2".to_string()])
+            .unwrap();
+        round
+            .add_player_words(PLAYER_2, vec!["p2_w1".to_string(), "p2_w2".to_string()])
+            .unwrap();
+        round
+            .add_player_words(PLAYER_3, vec!["p3_w1".to_string(), "p3_w2".to_string()])
+            .unwrap();
+
+        let voting_item = round.next_voting_item().unwrap();
+
+        assert_eq!(&voting_item.word, "p1_w1");
+
+        round.set_player_voting_word(PLAYER_2, None).unwrap();
+        round.set_player_voting_word(PLAYER_3, None).unwrap();
+
+        round.compute_score();
+
+        assert_eq!(get_word(&round, PLAYER_1, "p1_w1").score, 0);
+        assert_eq!(get_word(&round, PLAYER_1, "p1_w2").score, 0);
+        assert_eq!(get_word(&round, PLAYER_2, "p2_w1").score, 0);
+        assert_eq!(get_word(&round, PLAYER_2, "p2_w2").score, 0);
+        assert_eq!(get_word(&round, PLAYER_3, "p3_w1").score, 0);
+        assert_eq!(get_word(&round, PLAYER_3, "p3_w2").score, 0);
+        assert!(round.player_voting_words.is_empty());
+        assert!(get_word(&round, PLAYER_1, "p1_w1").is_used);
+        assert!(!get_word(&round, PLAYER_1, "p1_w2").is_used);
+        assert!(!get_word(&round, PLAYER_2, "p2_w1").is_used);
         assert!(!get_word(&round, PLAYER_2, "p2_w2").is_used);
         assert!(!get_word(&round, PLAYER_3, "p3_w1").is_used);
         assert!(!get_word(&round, PLAYER_3, "p3_w2").is_used);
