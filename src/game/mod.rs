@@ -147,18 +147,11 @@ impl Game {
         self.rounds.last_mut().unwrap()
     }
 
-    const DEFAULT_AMOUNT_OF_ROUNDS: u8 = 3;
-
     fn process_event(&mut self, event: &GameFsmInput) -> Result<(), Error> {
         match self.fsm.consume(event) {
             Ok(_) => match self.fsm.state() {
                 GameFsmState::CreatingNewRound => {
-                    if self.rounds.len()
-                        >= self
-                            .amount_of_rounds
-                            .unwrap_or(Game::DEFAULT_AMOUNT_OF_ROUNDS)
-                            .into()
-                    {
+                    if self.rounds.len() >= self.amount_of_rounds.unwrap_or(3).into() {
                         self.process_event(&GameFsmInput::NoMoreRounds)
                     } else {
                         self.start_new_round();
