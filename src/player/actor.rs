@@ -106,10 +106,17 @@ impl PlayerActor {
                 state,
                 players,
                 rounds,
+                amount_of_rounds,
             }) => {
                 send_message(
                     &mut self.websocket,
-                    &PlayerActor::serialize_game_state(&self.nickname, state, players, rounds),
+                    &PlayerActor::serialize_game_state(
+                        &self.nickname,
+                        state,
+                        players,
+                        rounds,
+                        amount_of_rounds,
+                    ),
                 )
                 .await
             }
@@ -132,6 +139,7 @@ impl PlayerActor {
         state: GameFsmState,
         players: Vec<Player>,
         rounds: Vec<Round>,
+        amount_of_rounds: Option<u8>,
     ) -> WsMessageOut {
         let rounds: Option<Vec<RoundDto>> = rounds.split_last().map(|(last_round, rest)| {
             let last_round = last_round.clone();
@@ -167,6 +175,7 @@ impl PlayerActor {
             state: state_to_string(state),
             players: players.into_iter().map(|player| player.into()).collect(),
             rounds: rounds.unwrap_or_default(),
+            amount_of_rounds,
         }
     }
 
@@ -179,7 +188,9 @@ impl PlayerActor {
                 "ping" => send_message_string(&mut self.websocket, "pong").await,
                 message => match parse_message(message) {
                     Ok(WsMessageIn::StartGame { amount_of_rounds }) => {
-                        self.game.start_game(&self.nickname).await?;
+                        self.game
+                            .start_game(&self.nickname, amount_of_rounds)
+                            .await?;
                         log::info!("Started game with amount of rounds {amount_of_rounds}");
                         Ok(())
                     }

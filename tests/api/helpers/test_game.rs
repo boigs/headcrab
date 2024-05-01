@@ -107,6 +107,7 @@ pub struct GameState {
     pub state: GameFsmState,
     pub players: Vec<Player>,
     pub rounds: Vec<Round>,
+    pub amount_of_rounds: Option<u8>,
 }
 
 impl GameState {
@@ -149,6 +150,7 @@ pub enum WsMessageOut {
         state: GameFsmState,
         players: Vec<Player>,
         rounds: Vec<Round>,
+        amount_of_rounds: Option<u8>,
     },
 }
 
@@ -157,7 +159,8 @@ pub enum WsMessageOut {
 pub enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     StartGame {
-        amount_of_rounds: u8,
+        // We use i8 instead of u8 so that we can send a negative value to test the validation on this field
+        amount_of_rounds: i8,
     },
     #[serde(rename_all = "camelCase")]
     PlayerWords {

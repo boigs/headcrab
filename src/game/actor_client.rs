@@ -46,13 +46,14 @@ impl GameClient {
         .await
     }
 
-    pub async fn start_game(&self, nickname: &str) -> Result<(), Error> {
+    pub async fn start_game(&self, nickname: &str, amount_of_rounds: u8) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         self.send_command(
             GameCommand::StartGame {
                 nickname: nickname.to_string(),
                 response_tx: tx,
+                amount_of_rounds,
             },
             "GameCommand::StartGame",
         )

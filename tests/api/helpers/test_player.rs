@@ -23,10 +23,12 @@ impl TestPlayer {
                         state,
                         players,
                         rounds,
+                        amount_of_rounds,
                     }) => Ok(GameState {
                         state,
                         players,
                         rounds,
+                        amount_of_rounds,
                     }),
                     Ok(WsMessageOut::Error {
                         r#type,
@@ -45,11 +47,9 @@ impl TestPlayer {
         }
     }
 
-    pub async fn start_game(&mut self) -> Result<GameState, String> {
-        self.send_text_message(WsMessageIn::StartGame {
-            amount_of_rounds: 3,
-        })
-        .await;
+    pub async fn start_game(&mut self, amount_of_rounds: i8) -> Result<GameState, String> {
+        self.send_text_message(WsMessageIn::StartGame { amount_of_rounds })
+            .await;
         self.receive_game_state().await
     }
 

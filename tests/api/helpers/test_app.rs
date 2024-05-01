@@ -103,7 +103,7 @@ impl TestApp {
         match desired_state {
             GameFsmState::Lobby => {}
             GameFsmState::PlayersSubmittingWords => {
-                let state = game.players[0].start_game().await.unwrap();
+                let state = game.players[0].start_game(3).await.unwrap();
                 let _ = game.players[1].receive_game_state().await.unwrap();
                 let _ = game.players[2].receive_game_state().await.unwrap();
                 assert_eq!(state.state, GameFsmState::PlayersSubmittingWords)

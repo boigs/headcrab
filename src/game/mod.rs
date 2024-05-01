@@ -14,9 +14,12 @@ pub struct Game {
     fsm: StateMachine<GameFsm>,
     players: Vec<Player>,
     rounds: Vec<Round>,
+    pub amount_of_rounds: Option<u8>,
 }
 
 const NON_HOST_PLAYER_CANNOT_START_GAME: &str = "Only the host player can start the game";
+const GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND: &str =
+    "The game cannot be started with less than 1 round";
 const INVALID_STATE_FOR_WORDS_SUBMISSION: &str = "The player can only send their words submission when the game is on the PlayersSubmittingWords state";
 const INVALID_STATE_FOR_VOTING_WORD_SUBMISSION: &str = "The player can only send their voting word when the game is on the PlayersSubmittingVotingWord state";
 const NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND: &str =
@@ -31,6 +34,7 @@ impl Game {
             fsm: StateMachine::default(),
             players: Vec::default(),
             rounds: Vec::default(),
+            amount_of_rounds: None,
         }
     }
 
@@ -94,12 +98,17 @@ impl Game {
         }
     }
 
-    pub fn start_game(&mut self, nickname: &str) -> Result<(), Error> {
+    pub fn start_game(&mut self, nickname: &str, amount_of_rounds: u8) -> Result<(), Error> {
         if self.is_host(nickname) {
-            if self.get_connected_players().len() >= 3 {
-                self.process_event(&GameFsmInput::StartGame)
-            } else {
+            if amount_of_rounds < 1 {
+                Err(Error::CommandNotAllowed(
+                    GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND.to_owned(),
+                ))
+            } else if self.get_connected_players().len() < 3 {
                 Err(Error::NotEnoughPlayers)
+            } else {
+                self.amount_of_rounds = Some(amount_of_rounds);
+                self.process_event(&GameFsmInput::StartGame)
             }
         } else {
             Err(Error::CommandNotAllowed(
@@ -142,7 +151,7 @@ impl Game {
         match self.fsm.consume(event) {
             Ok(_) => match self.fsm.state() {
                 GameFsmState::CreatingNewRound => {
-                    if self.rounds.len() >= 3 {
+                    if self.rounds.len() >= self.amount_of_rounds.unwrap_or(3).into() {
                         self.process_event(&GameFsmInput::NoMoreRounds)
                     } else {
                         self.start_new_round();
@@ -255,8 +264,9 @@ mod tests {
     use crate::{
         error::Error,
         game::{
-            game_fsm::GameFsmState, INVALID_STATE_FOR_VOTING_WORD_SUBMISSION,
-            INVALID_STATE_FOR_WORDS_SUBMISSION, NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
+            game_fsm::GameFsmState, GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND,
+            INVALID_STATE_FOR_VOTING_WORD_SUBMISSION, INVALID_STATE_FOR_WORDS_SUBMISSION,
+            NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
             NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM, NON_HOST_PLAYER_CANNOT_START_GAME,
         },
     };
@@ -345,16 +355,31 @@ mod tests {
         let mut game = Game::new("id");
         game.add_player(PLAYER_1).unwrap();
 
-        let result = game.start_game(PLAYER_1);
+        let result = game.start_game(PLAYER_1, 3);
 
         assert_eq!(result, Err(Error::NotEnoughPlayers));
+    }
+
+    #[test]
+    fn game_cannot_be_started_with_less_than_one_round() {
+        let mut game = Game::new("id");
+        game.add_player(PLAYER_1).unwrap();
+
+        let result = game.start_game(PLAYER_1, 0);
+
+        assert_eq!(
+            result,
+            Err(Error::CommandNotAllowed(
+                GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND.to_string()
+            ))
+        );
     }
 
     #[test]
     fn host_player_can_start_game() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.start_game(PLAYER_1);
+        let result = game.start_game(PLAYER_1, 3);
 
         assert_eq!(result, Ok(()));
     }
@@ -363,7 +388,7 @@ mod tests {
     fn non_host_player_cannot_start_game() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.start_game(PLAYER_2);
+        let result = game.start_game(PLAYER_2, 3);
 
         assert_eq!(
             result,
@@ -384,7 +409,7 @@ mod tests {
     fn game_initializes_first_round() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        game.start_game(PLAYER_1).unwrap();
+        game.start_game(PLAYER_1, 3).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
         assert_eq!(game.rounds().len(), 1);
@@ -519,15 +544,18 @@ mod tests {
 
     #[test]
     fn continue_to_next_round_proceeds_to_end_of_game() {
-        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
+        let mut game = get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, 3);
+        for _ in 0..game.amount_of_rounds.unwrap() {
+            complete_round(&mut game);
+            game.continue_to_next_round(PLAYER_1).unwrap();
+        }
+        assert_eq!(game.state(), &GameFsmState::EndOfGame);
 
-        complete_round(&mut game);
-        game.continue_to_next_round(PLAYER_1).unwrap();
-        complete_round(&mut game);
-        game.continue_to_next_round(PLAYER_1).unwrap();
-        complete_round(&mut game);
-        game.continue_to_next_round(PLAYER_1).unwrap();
-
+        let mut game = get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, 6);
+        for _ in 0..game.amount_of_rounds.unwrap() {
+            complete_round(&mut game);
+            game.continue_to_next_round(PLAYER_1).unwrap();
+        }
         assert_eq!(game.state(), &GameFsmState::EndOfGame);
     }
 
@@ -594,6 +622,10 @@ mod tests {
     }
 
     fn get_game(state: &GameFsmState) -> Game {
+        get_game_with_rounds(state, 3)
+    }
+
+    fn get_game_with_rounds(state: &GameFsmState, amount_of_rounds: u8) -> Game {
         let mut game = Game::new("id");
         game.add_player(PLAYER_1).unwrap();
         game.add_player(PLAYER_2).unwrap();
@@ -601,13 +633,15 @@ mod tests {
 
         match state {
             GameFsmState::Lobby => {}
-            GameFsmState::PlayersSubmittingWords => game.start_game(PLAYER_1).unwrap(),
+            GameFsmState::PlayersSubmittingWords => {
+                game.start_game(PLAYER_1, amount_of_rounds).unwrap()
+            }
             GameFsmState::PlayersSubmittingVotingWord => {
-                game.start_game(PLAYER_1).unwrap();
+                game.start_game(PLAYER_1, 3).unwrap();
                 send_players_words(&mut game);
             }
             GameFsmState::EndOfRound => {
-                game.start_game(PLAYER_1).unwrap();
+                game.start_game(PLAYER_1, amount_of_rounds).unwrap();
                 complete_round(&mut game);
             }
             _ => panic!("Unsupported desired state for unit tests"),
