@@ -20,6 +20,7 @@ pub(crate) enum WsMessageOut {
         state: String,
         players: Vec<PlayerDto>,
         rounds: Vec<RoundDto>,
+        amount_of_rounds: Option<u8>,
     },
     ChatMessage {
         sender: String,

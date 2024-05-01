@@ -24,7 +24,7 @@ async fn when_player_already_exists_add_player_with_same_nickname_to_game_fails(
 async fn host_player_can_start_game() {
     let mut game = TestApp::create_game(GameFsmState::Lobby).await;
 
-    let state = game.players[0].start_game().await.unwrap();
+    let state = game.players[0].start_game(3).await.unwrap();
 
     assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
     assert_eq!(state.rounds.len(), 1);
@@ -35,7 +35,7 @@ async fn host_player_can_start_game() {
 async fn non_host_player_cannot_start_game() {
     let mut game = TestApp::create_game(GameFsmState::Lobby).await;
 
-    let result = game.players[1].start_game().await;
+    let result = game.players[1].start_game(3).await;
 
     assert_eq!(result, Err("COMMAND_NOT_ALLOWED".to_string()));
 }
@@ -46,12 +46,36 @@ async fn game_cannot_be_started_with_less_than_three_players() {
     let _ = game.add_player("p1").await.unwrap();
     let _ = game.add_player("p2").await.unwrap();
 
-    let result = game.players[0].start_game().await;
+    let result = game.players[0].start_game(3).await;
 
     assert_eq!(result, Err("NOT_ENOUGH_PLAYERS".to_string()));
     // The game is still alive and the socket of player 1 is still open
     let state = game.players[0].receive_game_state().await.unwrap();
     assert_eq!(state.state, GameFsmState::Lobby);
+}
+
+#[tokio::test]
+async fn game_is_started_with_the_right_settings() {
+    let mut game = TestApp::create_game_without_players().await;
+
+    let _ = game.add_player("p1").await.unwrap();
+    let _ = game.add_player("p2").await.unwrap();
+    let state = game.add_player("p3").await.unwrap();
+    assert_eq!(state.amount_of_rounds, None);
+
+    let state = game.players[0].start_game(3).await.unwrap();
+    assert_eq!(state.amount_of_rounds, Some(3));
+}
+
+#[tokio::test]
+async fn game_cannot_be_started_with_less_than_1_round() {
+    let mut game = TestApp::create_game(GameFsmState::Lobby).await;
+    let result = game.players[0].start_game(0).await;
+    assert_eq!(result, Err("COMMAND_NOT_ALLOWED".to_string()));
+
+    let mut game = TestApp::create_game(GameFsmState::Lobby).await;
+    let result = game.players[0].start_game(-1).await;
+    assert_eq!(result, Err("UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string()));
 }
 
 #[tokio::test]

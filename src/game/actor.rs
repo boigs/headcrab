@@ -88,8 +88,12 @@ impl GameActor {
                         GameCommand::StartGame {
                             nickname,
                             response_tx,
+                            amount_of_rounds,
                         } => {
-                            let result = self.game.start_game(&nickname).map(|_| GameEvent::Ok);
+                            let result = self
+                                .game
+                                .start_game(&nickname, amount_of_rounds)
+                                .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
                         GameCommand::AddChatMessage { sender, content } => {
@@ -171,6 +175,7 @@ impl GameActor {
             state: self.game.state().clone(),
             players: self.game.players().to_vec(),
             rounds: self.game.rounds().to_vec(),
+            amount_of_rounds: self.game.amount_of_rounds,
         })
     }
 
@@ -193,6 +198,7 @@ pub(crate) enum GameCommand {
     StartGame {
         nickname: String,
         response_tx: OneshotSender<GameEvent>,
+        amount_of_rounds: u8,
     },
     AddChatMessage {
         sender: String,
@@ -249,6 +255,7 @@ pub enum GameWideEvent {
         state: GameFsmState,
         players: Vec<Player>,
         rounds: Vec<Round>,
+        amount_of_rounds: Option<u8>,
     },
     ChatMessage {
         sender: String,
