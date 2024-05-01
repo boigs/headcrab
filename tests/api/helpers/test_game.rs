@@ -159,6 +159,7 @@ pub enum WsMessageOut {
 pub enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     StartGame {
+        // We use i8 instead of u8 so that we can send a negative value to test the validation on this field
         amount_of_rounds: i8,
     },
     #[serde(rename_all = "camelCase")]
