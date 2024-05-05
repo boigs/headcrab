@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use crate::error::Error;
+use crate::error::{domain_error_type::DomainErrorType, Error};
 
 #[derive(Debug, Clone)]
 pub struct Word {
@@ -34,13 +34,6 @@ pub struct Round {
     pub voting_item: Option<VotingItem>,
 }
 
-const CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD: &str =
-    "The current player cannot submit a voting word";
-const PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD: &str =
-    "The player cannot submit a non-existing or an already used word for voting";
-const PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN: &str =
-    "The player cannot submit a voting word when the current voting item is not chosen";
-
 impl Round {
     pub fn new(word: &str, players: Vec<String>) -> Self {
         Round {
@@ -58,19 +51,30 @@ impl Round {
             .map(|word| word.trim().to_string())
             .filter(|word| !word.is_empty())
             .collect();
-        let unique_words = normalized_words
-            .clone()
-            .into_iter()
-            .collect::<HashSet<String>>();
+        let mut word_count: HashMap<String, u8> = HashMap::new();
+        for word in normalized_words.clone() {
+            let count = word_count.get(&word).unwrap_or(&0).to_owned();
+            word_count.insert(word, count + 1);
+        }
+        let mut repeated_words: Vec<String> = word_count
+            .iter()
+            .filter(|(_, count)| **count > 1)
+            .map(|(word, _)| word.to_string())
+            .collect();
 
-        if unique_words.len() == normalized_words.len() {
+        if repeated_words.is_empty() {
             self.player_words.insert(
                 nickname.to_string(),
                 normalized_words.into_iter().map(Word::new).collect(),
             );
             Ok(())
         } else {
-            Err(Error::RepeatedWords)
+            // Sort so that we can consistently assert the error message
+            repeated_words.sort();
+            Err(Error::Domain(
+                DomainErrorType::RepeatedWords,
+                repeated_words.join(","),
+            ))
         }
     }
 
@@ -139,21 +143,23 @@ impl Round {
         match &self.voting_item {
             Some(voting_item) => {
                 if voting_item.player_nickname == nickname {
-                    return Err(Error::CommandNotAllowed(
-                        CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD.to_owned(),
+                    return Err(Error::Domain(
+                        DomainErrorType::VotingItemPlayerCannotSubmitVotingWord,
+                        nickname.to_string(),
                     ));
                 }
             }
             None => {
-                return Err(Error::CommandNotAllowed(
-                    PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN
-                        .to_owned(),
+                return Err(Error::Domain(
+                    DomainErrorType::PlayerCannotSubmitVotingWordWhenVotingItemIsNone,
+                    nickname.to_string(),
                 ));
             }
         }
         if !self.voting_word_exists_and_is_unused(nickname, word.clone()) {
-            return Err(Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned(),
+            return Err(Error::Domain(
+                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord,
+                nickname.to_string(),
             ));
         }
 
@@ -206,12 +212,8 @@ impl Round {
 #[cfg(test)]
 mod tests {
     use crate::{
-        error::Error,
-        round::{
-            VotingItem, CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD,
-            PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD,
-            PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN,
-        },
+        error::{domain_error_type::DomainErrorType, Error},
+        round::VotingItem,
     };
 
     use super::{Round, Word};
@@ -255,8 +257,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_CURRENT_VOTING_ITEM_IS_NOT_CHOSEN.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::PlayerCannotSubmitVotingWordWhenVotingItemIsNone,
+                PLAYER_2.to_string()
             ))
         )
     }
@@ -270,8 +273,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                CURRENT_PLAYER_CANNOT_SUBMIT_VOTING_WORD.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::VotingItemPlayerCannotSubmitVotingWord,
+                PLAYER_1.to_string()
             ))
         )
     }
@@ -285,8 +289,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord,
+                PLAYER_2.to_string()
             ))
         )
     }
@@ -304,8 +309,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_VOTING_WORD.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord,
+                PLAYER_2.to_string()
             ))
         )
     }
@@ -502,20 +508,48 @@ mod tests {
     fn add_words_fails_when_repeated_words_before_normalization() {
         let mut round = get_round_on_writing_state();
 
-        let result = round.add_player_words(PLAYER_1, vec!["word".to_string(), "word".to_string()]);
+        let result = round.add_player_words(
+            PLAYER_1,
+            vec![
+                "word2".to_string(),
+                "word".to_string(),
+                "word".to_string(),
+                "unique".to_string(),
+                "word2".to_string(),
+            ],
+        );
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), Error::RepeatedWords);
+        assert_eq!(
+            result,
+            Err(Error::Domain(
+                DomainErrorType::RepeatedWords,
+                "word,word2".to_string()
+            ))
+        );
     }
 
     #[test]
     fn add_words_fails_when_repeated_words_after_normalization() {
         let mut round = get_round_on_writing_state();
 
-        let result =
-            round.add_player_words(PLAYER_1, vec!["word".to_string(), "  word ".to_string()]);
+        let result = round.add_player_words(
+            PLAYER_1,
+            vec![
+                " word2  ".to_string(),
+                "word ".to_string(),
+                "   word  ".to_string(),
+                " unique".to_string(),
+                " word2".to_string(),
+            ],
+        );
 
-        assert_eq!(result, Err(Error::RepeatedWords));
+        assert_eq!(
+            result,
+            Err(Error::Domain(
+                DomainErrorType::RepeatedWords,
+                "word,word2".to_string()
+            ))
+        );
     }
 
     #[test]

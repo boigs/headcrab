@@ -4,6 +4,7 @@ pub mod game_fsm;
 
 use rust_fsm::StateMachine;
 
+use crate::error::domain_error_type::DomainErrorType;
 use crate::error::Error;
 use crate::game::game_fsm::{GameFsm, GameFsmInput, GameFsmState};
 use crate::player::Player;
@@ -17,17 +18,10 @@ pub struct Game {
     pub amount_of_rounds: Option<u8>,
 }
 
-const NON_HOST_PLAYER_CANNOT_START_GAME: &str = "Only the host player can start the game";
-const GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND: &str =
-    "The game cannot be started with less than 1 round";
-const INVALID_STATE_FOR_WORDS_SUBMISSION: &str = "The player can only send their words submission when the game is on the PlayersSubmittingWords state";
-const INVALID_STATE_FOR_VOTING_WORD_SUBMISSION: &str = "The player can only send their voting word when the game is on the PlayersSubmittingVotingWord state";
-const NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND: &str =
-    "Only the host player can continue to the next round";
-const NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM: &str =
-    "Only the host player can continue to the next voting item";
-
 impl Game {
+    const MINIMUM_PLAYERS: u8 = 3;
+    const MINIMUM_ROUNDS: u8 = 1;
+
     pub fn new(id: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -70,7 +64,10 @@ impl Game {
 
         if let Some(player) = self.get_player_mut(nickname) {
             if player.is_connected {
-                return Err(Error::PlayerAlreadyExists(nickname.to_string()));
+                return Err(Error::Domain(
+                    DomainErrorType::PlayerAlreadyExists,
+                    nickname.to_string(),
+                ));
             } else {
                 player.is_connected = true;
             }
@@ -78,7 +75,10 @@ impl Game {
             let new_player = Player::new(nickname);
             self.players.push(new_player);
         } else {
-            return Err(Error::GameAlreadyInProgress);
+            return Err(Error::Domain(
+                DomainErrorType::GameAlreadyInProgress,
+                self.id.to_string(),
+            ));
         }
 
         self.assign_host();
@@ -101,18 +101,29 @@ impl Game {
     pub fn start_game(&mut self, nickname: &str, amount_of_rounds: u8) -> Result<(), Error> {
         if self.is_host(nickname) {
             if amount_of_rounds < 1 {
-                Err(Error::CommandNotAllowed(
-                    GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND.to_owned(),
+                Err(Error::Domain(
+                    DomainErrorType::NotEnoughRounds,
+                    format!(
+                        "The game cannot be started with less than {} rounds",
+                        Game::MINIMUM_ROUNDS
+                    ),
                 ))
             } else if self.get_connected_players().len() < 3 {
-                Err(Error::NotEnoughPlayers)
+                Err(Error::Domain(
+                    DomainErrorType::NotEnoughPlayers,
+                    format!(
+                        "The game cannot be started with less than {} players",
+                        Game::MINIMUM_PLAYERS
+                    ),
+                ))
             } else {
                 self.amount_of_rounds = Some(amount_of_rounds);
                 self.process_event(&GameFsmInput::StartGame)
             }
         } else {
-            Err(Error::CommandNotAllowed(
-                NON_HOST_PLAYER_CANNOT_START_GAME.to_owned(),
+            Err(Error::Domain(
+                DomainErrorType::NonHostPlayerCannotStartGame,
+                nickname.to_string(),
             ))
         }
     }
@@ -205,8 +216,12 @@ impl Game {
         // Verify the player hasn't already added this word as validated
         // If all players have sent something then compute the score and go to validate the next word
         if self.state() != &GameFsmState::PlayersSubmittingVotingWord {
-            return Err(Error::CommandNotAllowed(
-                INVALID_STATE_FOR_VOTING_WORD_SUBMISSION.to_owned(),
+            return Err(Error::Domain(
+                DomainErrorType::InvalidStateForVotingWordSubmission,
+                format!(
+                    "The state must be {}",
+                    GameFsmState::PlayersSubmittingVotingWord
+                ),
             ));
         }
         self.get_current_round_mut()
@@ -215,8 +230,9 @@ impl Game {
 
     pub fn add_player_words(&mut self, nickname: &str, words: Vec<String>) -> Result<(), Error> {
         if self.fsm.state() != &GameFsmState::PlayersSubmittingWords {
-            return Err(Error::CommandNotAllowed(
-                INVALID_STATE_FOR_WORDS_SUBMISSION.to_owned(),
+            return Err(Error::Domain(
+                DomainErrorType::InvalidStateForWordsSubmission,
+                format!("The state must be {}", GameFsmState::PlayersSubmittingWords),
             ));
         }
 
@@ -241,8 +257,9 @@ impl Game {
             self.get_current_round_mut().compute_score();
             self.process_event(&GameFsmInput::AcceptPlayersVotingWords)
         } else {
-            Err(Error::CommandNotAllowed(
-                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM.to_owned(),
+            Err(Error::Domain(
+                DomainErrorType::NonHostPlayerCannotContinueToNextVotingItem,
+                nickname.to_string(),
             ))
         }
     }
@@ -251,8 +268,9 @@ impl Game {
         if self.is_host(nickname) {
             self.process_event(&GameFsmInput::ContinueToNextRound)
         } else {
-            Err(Error::CommandNotAllowed(
-                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND.to_owned(),
+            Err(Error::Domain(
+                DomainErrorType::NonHostPlayerCannotContinueToNextRound,
+                nickname.to_string(),
             ))
         }
     }
@@ -262,13 +280,8 @@ impl Game {
 mod tests {
     use super::Game;
     use crate::{
-        error::Error,
-        game::{
-            game_fsm::GameFsmState, GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND,
-            INVALID_STATE_FOR_VOTING_WORD_SUBMISSION, INVALID_STATE_FOR_WORDS_SUBMISSION,
-            NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND,
-            NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM, NON_HOST_PLAYER_CANNOT_START_GAME,
-        },
+        error::{domain_error_type::DomainErrorType, Error},
+        game::game_fsm::GameFsmState,
     };
 
     static PLAYER_1: &str = "p1";
@@ -357,7 +370,13 @@ mod tests {
 
         let result = game.start_game(PLAYER_1, 3);
 
-        assert_eq!(result, Err(Error::NotEnoughPlayers));
+        assert_eq!(
+            result,
+            Err(Error::Domain(
+                DomainErrorType::NotEnoughPlayers,
+                "The game cannot be started with less than 3 players".to_string()
+            ))
+        );
     }
 
     #[test]
@@ -369,8 +388,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                GAME_CANNOT_BE_STARTED_WITH_LESS_THAN_ONE_ROUND.to_string()
+            Err(Error::Domain(
+                DomainErrorType::NotEnoughRounds,
+                "The game cannot be started with less than 1 rounds".to_string()
             ))
         );
     }
@@ -392,8 +412,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                NON_HOST_PLAYER_CANNOT_START_GAME.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::NonHostPlayerCannotStartGame,
+                PLAYER_2.to_string()
             ))
         );
     }
@@ -469,8 +490,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                INVALID_STATE_FOR_WORDS_SUBMISSION.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::InvalidStateForWordsSubmission,
+                "The state must be PlayersSubmittingWords".to_string()
             ))
         );
     }
@@ -503,8 +525,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                INVALID_STATE_FOR_VOTING_WORD_SUBMISSION.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::InvalidStateForVotingWordSubmission,
+                "The state must be PlayersSubmittingVotingWord".to_string()
             ))
         );
     }
@@ -526,8 +549,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::NonHostPlayerCannotContinueToNextRound,
+                PLAYER_2.to_string()
             ))
         );
     }
@@ -576,8 +600,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::CommandNotAllowed(
-                NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM.to_owned()
+            Err(Error::Domain(
+                DomainErrorType::NonHostPlayerCannotContinueToNextVotingItem,
+                PLAYER_2.to_string()
             ))
         );
     }
@@ -607,7 +632,13 @@ mod tests {
 
         let result = game.add_player("new_player");
 
-        assert_eq!(result, Err(Error::GameAlreadyInProgress));
+        assert_eq!(
+            result,
+            Err(Error::Domain(
+                DomainErrorType::GameAlreadyInProgress,
+                game.id
+            ))
+        );
     }
 
     #[test]

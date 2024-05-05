@@ -3,6 +3,7 @@ pub mod message;
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
 
+use crate::error::domain_error_type::DomainErrorType;
 use crate::error::Error;
 use crate::websocket::message::WsMessageOut;
 
@@ -50,14 +51,46 @@ pub async fn send_message_string(websocket: &mut WebSocket, value: &str) -> Resu
 
 fn error_to_ws_error(error: Error) -> WsMessageOut {
     match error {
+        Error::Domain(error_type, detail) => WsMessageOut::Error {
+            r#type: match error_type {
+                DomainErrorType::GameAlreadyInProgress => "GAME_ALREADY_IN_PROGRESS",
+                DomainErrorType::GameDoesNotExist => "GAME_DOES_NOT_EXIST",
+                DomainErrorType::InvalidStateForWordsSubmission => {
+                    "INVALID_STATE_FOR_WORDS_SUBMISSION"
+                }
+                DomainErrorType::InvalidStateForVotingWordSubmission => {
+                    "INVALID_STATE_FOR_VOTING_WORD_SUBMISSION"
+                }
+                DomainErrorType::NotEnoughPlayers => "NOT_ENOUGH_PLAYERS",
+                DomainErrorType::NotEnoughRounds => "NOT_ENOUGH_ROUNDS",
+                DomainErrorType::NonHostPlayerCannotContinueToNextRound => {
+                    "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND"
+                }
+                DomainErrorType::NonHostPlayerCannotContinueToNextVotingItem => {
+                    "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM"
+                }
+                DomainErrorType::NonHostPlayerCannotStartGame => {
+                    "NON_HOST_PLAYER_CANNOT_START_GAME"
+                }
+                DomainErrorType::PlayerAlreadyExists => "PLAYER_ALREADY_EXISTS",
+                DomainErrorType::PlayerCannotSubmitVotingWordWhenVotingItemIsNone => {
+                    "PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_VOTING_ITEM_IS_NONE"
+                }
+                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord => {
+                    "PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_WORD"
+                }
+                DomainErrorType::RepeatedWords => "REPEATED_WORDS",
+                DomainErrorType::VotingItemPlayerCannotSubmitVotingWord => {
+                    "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
+                }
+            }
+            .to_string(),
+            title: "Domain Error".to_string(),
+            detail,
+        },
         Error::Internal(_) => WsMessageOut::Error {
             r#type: "INTERNAL_SERVER".to_string(),
-            title: "Internal Server error".to_string(),
-            detail: error.to_string(),
-        },
-        Error::WebsocketClosed(_) => WsMessageOut::Error {
-            r#type: "WEBSOCKET_CLOSED".to_string(),
-            title: "The player websocket is closed".to_string(),
+            title: "Internal Server Error".to_string(),
             detail: error.to_string(),
         },
         Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
@@ -65,34 +98,9 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
             title: "Received an invalid message".to_string(),
             detail: error.to_string(),
         },
-        Error::CommandNotAllowed(_) => WsMessageOut::Error {
-            r#type: "COMMAND_NOT_ALLOWED".to_string(),
-            title: "The player cannot execute this command".to_string(),
-            detail: error.to_string(),
-        },
-        Error::NotEnoughPlayers => WsMessageOut::Error {
-            r#type: "NOT_ENOUGH_PLAYERS".to_string(),
-            title: "Not enough players".to_string(),
-            detail: error.to_string(),
-        },
-        Error::GameDoesNotExist(_) => WsMessageOut::Error {
-            r#type: "GAME_DOES_NOT_EXIST".to_string(),
-            title: "The game does not exist".to_string(),
-            detail: error.to_string(),
-        },
-        Error::PlayerAlreadyExists(_) => WsMessageOut::Error {
-            r#type: "PLAYER_ALREADY_EXISTS".to_string(),
-            title: "The player already exists".to_string(),
-            detail: error.to_string(),
-        },
-        Error::RepeatedWords => WsMessageOut::Error {
-            r#type: "REPEATED_WORDS".to_string(),
-            title: "There are repeated words".to_string(),
-            detail: error.to_string(),
-        },
-        Error::GameAlreadyInProgress => WsMessageOut::Error {
-            r#type: "GAME_ALREADY_IN_PROGRESS".to_string(),
-            title: "Cannot join because the game is already in progress".to_string(),
+        Error::WebsocketClosed(_) => WsMessageOut::Error {
+            r#type: "WEBSOCKET_CLOSED".to_string(),
+            title: "The player websocket is closed".to_string(),
             detail: error.to_string(),
         },
     }
