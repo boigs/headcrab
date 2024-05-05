@@ -21,6 +21,7 @@ pub struct Game {
 impl Game {
     const MINIMUM_PLAYERS: u8 = 3;
     const MINIMUM_ROUNDS: u8 = 1;
+    const DEFAULT_ROUNDS: u8 = 3;
 
     pub fn new(id: &str) -> Self {
         Self {
@@ -100,7 +101,7 @@ impl Game {
 
     pub fn start_game(&mut self, nickname: &str, amount_of_rounds: u8) -> Result<(), Error> {
         if self.is_host(nickname) {
-            if amount_of_rounds < 1 {
+            if amount_of_rounds < Game::MINIMUM_ROUNDS {
                 Err(Error::Domain(
                     DomainErrorType::NotEnoughRounds,
                     format!(
@@ -108,7 +109,7 @@ impl Game {
                         Game::MINIMUM_ROUNDS
                     ),
                 ))
-            } else if self.get_connected_players().len() < 3 {
+            } else if self.get_connected_players().len() < Game::MINIMUM_PLAYERS.into() {
                 Err(Error::Domain(
                     DomainErrorType::NotEnoughPlayers,
                     format!(
@@ -162,7 +163,9 @@ impl Game {
         match self.fsm.consume(event) {
             Ok(_) => match self.fsm.state() {
                 GameFsmState::CreatingNewRound => {
-                    if self.rounds.len() >= self.amount_of_rounds.unwrap_or(3).into() {
+                    if self.rounds.len()
+                        >= self.amount_of_rounds.unwrap_or(Game::DEFAULT_ROUNDS).into()
+                    {
                         self.process_event(&GameFsmInput::NoMoreRounds)
                     } else {
                         self.start_new_round();
