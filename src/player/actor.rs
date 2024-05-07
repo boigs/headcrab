@@ -88,6 +88,8 @@ impl PlayerActor {
     fn should_close_websocket(error: Error) -> bool {
         match error {
             Error::Domain(DomainError::GameAlreadyInProgress(_)) => true,
+            Error::Domain(DomainError::GameDoesNotExist(_)) => true,
+            Error::Domain(DomainError::PlayerAlreadyExists(_)) => true,
             Error::Domain(_) => false,
             Error::External(ExternalError::WebsocketClosed(_)) => true,
             Error::External(_) => false,
@@ -267,10 +269,10 @@ mod tests {
     #[test]
     fn should_close_websocket_is_false() {
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
-            DomainError::GameDoesNotExist("".to_string())
+            DomainError::NonHostPlayerCannotContinueToNextRound("".to_string())
         )));
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
-            DomainError::PlayerAlreadyExists("".to_string())
+            DomainError::NotEnoughRounds(0, 0)
         )));
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
             DomainError::NotEnoughPlayers(0, 0)
@@ -282,6 +284,12 @@ mod tests {
 
     #[test]
     fn should_close_websocket_is_true() {
+        assert!(PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::GameDoesNotExist("".to_string())
+        )));
+        assert!(PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::PlayerAlreadyExists("".to_string())
+        )));
         assert!(PlayerActor::should_close_websocket(Error::Domain(
             DomainError::GameAlreadyInProgress("".to_string())
         )));
