@@ -89,7 +89,6 @@ impl PlayerActor {
             Error::Domain(DomainError::GameAlreadyInProgress(_)) => true,
             Error::Domain(_) => false,
             Error::Internal(_) => true,
-            Error::UnprocessableMessage(_, _) => false,
             Error::WebsocketClosed(_) => true,
         }
     }
@@ -232,14 +231,14 @@ impl PlayerActor {
                     "connection timed out; missing 'Ping' messages".to_string(),
                 ))
             }
-            Ok(Some(Err(error))) => Err(Error::UnprocessableMessage(
+            Ok(Some(Err(error))) => Err(Error::Domain(DomainError::UnprocessableMessage(
                 "Message cannot be loaded".to_string(),
                 error.to_string(),
-            )),
-            Ok(Some(Ok(_))) => Err(Error::UnprocessableMessage(
+            ))),
+            Ok(Some(Ok(_))) => Err(Error::Domain(DomainError::UnprocessableMessage(
                 "Unsupported message type".to_string(),
                 "Unsupported message type".to_string(),
-            )),
+            ))),
         }
     }
 
@@ -269,9 +268,9 @@ mod tests {
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
             DomainError::NotEnoughPlayers(0, 0)
         )));
-        assert!(!PlayerActor::should_close_websocket(
-            Error::UnprocessableMessage("".to_string(), "".to_string())
-        ));
+        assert!(!PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::UnprocessableMessage("".to_string(), "".to_string())
+        )));
     }
 
     #[test]

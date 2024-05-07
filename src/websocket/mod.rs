@@ -26,8 +26,12 @@ pub async fn close(websocket: WebSocket) {
 }
 
 pub fn parse_message(message: &str) -> Result<WsMessageIn, Error> {
-    serde_json::from_str(message)
-        .map_err(|error| Error::UnprocessableMessage(message.to_string(), error.to_string()))
+    serde_json::from_str(message).map_err(|error| {
+        Error::Domain(DomainError::UnprocessableMessage(
+            message.to_string(),
+            error.to_string(),
+        ))
+    })
 }
 
 pub async fn send_message<T>(websocket: &mut WebSocket, value: &T) -> Result<(), Error>
@@ -78,6 +82,7 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                     "PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_WORD"
                 }
                 DomainError::RepeatedWords { .. } => "REPEATED_WORDS",
+                DomainError::UnprocessableMessage(_, _) => "UNPROCESSABLE_MESSAGE",
                 DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
                     "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
                 }
@@ -95,11 +100,6 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
         Error::Internal(_) => WsMessageOut::Error {
             r#type: "INTERNAL_SERVER".to_string(),
             title: "Internal Server Error".to_string(),
-            detail: error.to_string(),
-        },
-        Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
-            r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
-            title: "Received an invalid message".to_string(),
             detail: error.to_string(),
         },
         Error::WebsocketClosed(_) => WsMessageOut::Error {
