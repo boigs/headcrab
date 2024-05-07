@@ -76,11 +76,11 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 }
                 DomainError::NonHostPlayerCannotStartGame(_) => "NON_HOST_PLAYER_CANNOT_START_GAME",
                 DomainError::PlayerAlreadyExists(_) => "PLAYER_ALREADY_EXISTS",
-                DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(_) => {
-                    "PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_VOTING_ITEM_IS_NONE"
-                }
                 DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(_) => {
                     "PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_WORD"
+                }
+                DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(_) => {
+                    "PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_VOTING_ITEM_IS_NONE"
                 }
                 DomainError::RepeatedWords { .. } => "REPEATED_WORDS",
                 DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {

@@ -30,12 +30,12 @@ pub enum DomainError {
     NonHostPlayerCannotStartGame(String),
     #[error("A player with the same nickname already exists. Nickname: '{0}'.")]
     PlayerAlreadyExists(String),
-    #[error("A player cannot submit a Voting Word when the current Voting Item is none. Nickname: '{0}'.")]
-    PlayerCannotSubmitVotingWordWhenVotingItemIsNone(String),
     #[error(
         "A player cannot submit a non-existing or used word as a Voting Word. Nickname: '{0}'."
     )]
     PlayerCannotSubmitNonExistingOrUsedVotingWord(String),
+    #[error("A player cannot submit a Voting Word when the current Voting Item is none. Nickname: '{0}'.")]
+    PlayerCannotSubmitVotingWordWhenVotingItemIsNone(String),
     #[error(
         "A player cannot submit Words with repeated words. Nickname: '{nickname}', RepeatedWords: '{}'.", .repeated_words.join(",")
     )]
