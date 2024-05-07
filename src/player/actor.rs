@@ -5,7 +5,7 @@ use tokio::select;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
 
-use crate::error::domain_error_type::DomainErrorType;
+use crate::error::domain_error::DomainError;
 use crate::error::Error;
 use crate::game::actor::GameWideEvent;
 use crate::game::actor_client::GameClient;
@@ -86,8 +86,8 @@ impl PlayerActor {
 
     fn should_close_websocket(error: Error) -> bool {
         match error {
-            Error::Domain(DomainErrorType::GameAlreadyInProgress, _) => true,
-            Error::Domain(_, _) => false,
+            Error::Domain(DomainError::GameAlreadyInProgress(_)) => true,
+            Error::Domain(_) => false,
             Error::Internal(_) => true,
             Error::UnprocessableMessage(_, _) => false,
             Error::WebsocketClosed(_) => true,
@@ -254,23 +254,20 @@ impl PlayerActor {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::domain_error_type::DomainErrorType;
+    use crate::error::domain_error::DomainError;
     use crate::error::Error;
     use crate::player::actor::PlayerActor;
 
     #[test]
     fn should_close_websocket_is_false() {
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
-            DomainErrorType::GameDoesNotExist,
-            "".to_string()
+            DomainError::GameDoesNotExist("".to_string())
         )));
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
-            DomainErrorType::PlayerAlreadyExists,
-            "".to_string()
+            DomainError::PlayerAlreadyExists("".to_string())
         )));
         assert!(!PlayerActor::should_close_websocket(Error::Domain(
-            DomainErrorType::NotEnoughPlayers,
-            "".to_string()
+            DomainError::NotEnoughPlayers(0, 0)
         )));
         assert!(!PlayerActor::should_close_websocket(
             Error::UnprocessableMessage("".to_string(), "".to_string())
@@ -280,8 +277,7 @@ mod tests {
     #[test]
     fn should_close_websocket_is_true() {
         assert!(PlayerActor::should_close_websocket(Error::Domain(
-            DomainErrorType::GameAlreadyInProgress,
-            "".to_string()
+            DomainError::GameAlreadyInProgress("".to_string())
         )));
         assert!(PlayerActor::should_close_websocket(Error::Internal(
             "".to_string()

@@ -5,7 +5,7 @@ use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
 
 use crate::config::GameSettings;
-use crate::error::domain_error_type::DomainErrorType;
+use crate::error::domain_error::DomainError;
 use crate::error::Error;
 use crate::game::actor::GameActor;
 use crate::game::actor_client::GameClient;
@@ -41,10 +41,9 @@ impl GameFactory {
     pub fn get_game(&self, game_id: &str) -> Result<&GameClient, Error> {
         match self.game_channels.get(game_id) {
             Some(game) => Ok(game),
-            None => Err(Error::Domain(
-                DomainErrorType::GameDoesNotExist,
+            None => Err(Error::Domain(DomainError::GameDoesNotExist(
                 game_id.to_string(),
-            )),
+            ))),
         }
     }
 
@@ -67,7 +66,7 @@ impl GameFactory {
 mod tests {
     use crate::{
         config::GameSettings,
-        error::{domain_error_type::DomainErrorType, Error},
+        error::{domain_error::DomainError, Error},
     };
 
     use super::GameFactory;
@@ -100,10 +99,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err(),
-            Error::Domain(
-                DomainErrorType::GameDoesNotExist,
-                "invalid_game".to_string()
-            )
+            Error::Domain(DomainError::GameDoesNotExist("invalid_game".to_string()))
         );
     }
 }

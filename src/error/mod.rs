@@ -1,13 +1,13 @@
-pub mod domain_error_type;
+pub mod domain_error;
 
 use thiserror::Error;
 
-use self::domain_error_type::DomainErrorType;
+use self::domain_error::DomainError;
 
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum Error {
-    #[error("Domain Error. Error: '{1}'.")]
-    Domain(DomainErrorType, String),
+    #[error("Domain Error.")]
+    Domain(DomainError),
     #[error("Internal Error. Error: '{0}'.")]
     Internal(String),
     #[error("Received a bad formatted message. Message: '{1}', Error: '{0}'.")]

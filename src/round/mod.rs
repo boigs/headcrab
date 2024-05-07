@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::error::{domain_error_type::DomainErrorType, Error};
+use crate::error::{domain_error::DomainError, Error};
 
 #[derive(Debug, Clone)]
 pub struct Word {
@@ -71,10 +71,10 @@ impl Round {
         } else {
             // Sort so that we can consistently assert the error message
             repeated_words.sort();
-            Err(Error::Domain(
-                DomainErrorType::RepeatedWords,
-                repeated_words.join(","),
-            ))
+            Err(Error::Domain(DomainError::RepeatedWords {
+                nickname: nickname.to_string(),
+                repeated_words,
+            }))
         }
     }
 
@@ -144,22 +144,21 @@ impl Round {
             Some(voting_item) => {
                 if voting_item.player_nickname == nickname {
                     return Err(Error::Domain(
-                        DomainErrorType::VotingItemPlayerCannotSubmitVotingWord,
-                        nickname.to_string(),
+                        DomainError::VotingItemPlayerCannotSubmitVotingWord(nickname.to_string()),
                     ));
                 }
             }
             None => {
                 return Err(Error::Domain(
-                    DomainErrorType::PlayerCannotSubmitVotingWordWhenVotingItemIsNone,
-                    nickname.to_string(),
+                    DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(
+                        nickname.to_string(),
+                    ),
                 ));
             }
         }
         if !self.voting_word_exists_and_is_unused(nickname, word.clone()) {
             return Err(Error::Domain(
-                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord,
-                nickname.to_string(),
+                DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(nickname.to_string()),
             ));
         }
 
@@ -212,7 +211,7 @@ impl Round {
 #[cfg(test)]
 mod tests {
     use crate::{
-        error::{domain_error_type::DomainErrorType, Error},
+        error::{domain_error::DomainError, Error},
         round::VotingItem,
     };
 
@@ -258,8 +257,7 @@ mod tests {
         assert_eq!(
             result,
             Err(Error::Domain(
-                DomainErrorType::PlayerCannotSubmitVotingWordWhenVotingItemIsNone,
-                PLAYER_2.to_string()
+                DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(PLAYER_2.to_string())
             ))
         )
     }
@@ -274,8 +272,7 @@ mod tests {
         assert_eq!(
             result,
             Err(Error::Domain(
-                DomainErrorType::VotingItemPlayerCannotSubmitVotingWord,
-                PLAYER_1.to_string()
+                DomainError::VotingItemPlayerCannotSubmitVotingWord(PLAYER_1.to_string())
             ))
         )
     }
@@ -290,8 +287,7 @@ mod tests {
         assert_eq!(
             result,
             Err(Error::Domain(
-                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord,
-                PLAYER_2.to_string()
+                DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(PLAYER_2.to_string())
             ))
         )
     }
@@ -310,8 +306,7 @@ mod tests {
         assert_eq!(
             result,
             Err(Error::Domain(
-                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord,
-                PLAYER_2.to_string()
+                DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(PLAYER_2.to_string())
             ))
         )
     }
@@ -521,10 +516,10 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::Domain(
-                DomainErrorType::RepeatedWords,
-                "word,word2".to_string()
-            ))
+            Err(Error::Domain(DomainError::RepeatedWords {
+                nickname: PLAYER_1.to_string(),
+                repeated_words: vec!["word".to_string(), "word2".to_string()]
+            }))
         );
     }
 
@@ -545,10 +540,10 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(Error::Domain(
-                DomainErrorType::RepeatedWords,
-                "word,word2".to_string()
-            ))
+            Err(Error::Domain(DomainError::RepeatedWords {
+                nickname: PLAYER_1.to_string(),
+                repeated_words: vec!["word".to_string(), "word2".to_string()]
+            }))
         );
     }
 

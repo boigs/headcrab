@@ -3,7 +3,7 @@ pub mod message;
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
 
-use crate::error::domain_error_type::DomainErrorType;
+use crate::error::domain_error::DomainError;
 use crate::error::Error;
 use crate::websocket::message::WsMessageOut;
 
@@ -51,42 +51,46 @@ pub async fn send_message_string(websocket: &mut WebSocket, value: &str) -> Resu
 
 fn error_to_ws_error(error: Error) -> WsMessageOut {
     match error {
-        Error::Domain(error_type, detail) => WsMessageOut::Error {
-            r#type: match error_type {
-                DomainErrorType::GameAlreadyInProgress => "GAME_ALREADY_IN_PROGRESS",
-                DomainErrorType::GameDoesNotExist => "GAME_DOES_NOT_EXIST",
-                DomainErrorType::InvalidStateForWordsSubmission => {
+        Error::Domain(domain_error) => WsMessageOut::Error {
+            r#type: match domain_error {
+                DomainError::GameAlreadyInProgress(_) => "GAME_ALREADY_IN_PROGRESS",
+                DomainError::GameDoesNotExist(_) => "GAME_DOES_NOT_EXIST",
+                DomainError::InvalidStateForWordsSubmission(_, _) => {
                     "INVALID_STATE_FOR_WORDS_SUBMISSION"
                 }
-                DomainErrorType::InvalidStateForVotingWordSubmission => {
+                DomainError::InvalidStateForVotingWordSubmission(_, _) => {
                     "INVALID_STATE_FOR_VOTING_WORD_SUBMISSION"
                 }
-                DomainErrorType::NotEnoughPlayers => "NOT_ENOUGH_PLAYERS",
-                DomainErrorType::NotEnoughRounds => "NOT_ENOUGH_ROUNDS",
-                DomainErrorType::NonHostPlayerCannotContinueToNextRound => {
+                DomainError::NotEnoughPlayers(_, _) => "NOT_ENOUGH_PLAYERS",
+                DomainError::NotEnoughRounds(_, _) => "NOT_ENOUGH_ROUNDS",
+                DomainError::NonHostPlayerCannotContinueToNextRound(_) => {
                     "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND"
                 }
-                DomainErrorType::NonHostPlayerCannotContinueToNextVotingItem => {
+                DomainError::NonHostPlayerCannotContinueToNextVotingItem(_) => {
                     "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM"
                 }
-                DomainErrorType::NonHostPlayerCannotStartGame => {
-                    "NON_HOST_PLAYER_CANNOT_START_GAME"
-                }
-                DomainErrorType::PlayerAlreadyExists => "PLAYER_ALREADY_EXISTS",
-                DomainErrorType::PlayerCannotSubmitVotingWordWhenVotingItemIsNone => {
+                DomainError::NonHostPlayerCannotStartGame(_) => "NON_HOST_PLAYER_CANNOT_START_GAME",
+                DomainError::PlayerAlreadyExists(_) => "PLAYER_ALREADY_EXISTS",
+                DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(_) => {
                     "PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_VOTING_ITEM_IS_NONE"
                 }
-                DomainErrorType::PlayerCannotSubmitNonExistingOrUsedVotingWord => {
+                DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(_) => {
                     "PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_WORD"
                 }
-                DomainErrorType::RepeatedWords => "REPEATED_WORDS",
-                DomainErrorType::VotingItemPlayerCannotSubmitVotingWord => {
+                DomainError::RepeatedWords { .. } => "REPEATED_WORDS",
+                DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
                     "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
                 }
             }
             .to_string(),
             title: "Domain Error".to_string(),
-            detail,
+            detail: match domain_error {
+                DomainError::RepeatedWords {
+                    nickname: _,
+                    repeated_words,
+                } => repeated_words.join(","),
+                _ => domain_error.to_string(),
+            },
         },
         Error::Internal(_) => WsMessageOut::Error {
             r#type: "INTERNAL_SERVER".to_string(),
