@@ -90,10 +90,9 @@ impl PlayerActor {
             Error::Domain(DomainError::GameAlreadyInProgress(_)) => true,
             Error::Domain(DomainError::GameDoesNotExist(_)) => true,
             Error::Domain(DomainError::PlayerAlreadyExists(_)) => true,
-            Error::Domain(_) => false,
             Error::External(ExternalError::WebsocketClosed(_)) => true,
-            Error::External(_) => false,
             Error::Internal(_) => true,
+            _ => false,
         }
     }
 
