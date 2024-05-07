@@ -86,14 +86,14 @@ impl PlayerActor {
     }
 
     fn should_close_websocket(error: Error) -> bool {
-        match error {
-            Error::Domain(DomainError::GameAlreadyInProgress(_)) => true,
-            Error::Domain(DomainError::GameDoesNotExist(_)) => true,
-            Error::Domain(DomainError::PlayerAlreadyExists(_)) => true,
-            Error::External(ExternalError::WebsocketClosed(_)) => true,
-            Error::Internal(_) => true,
-            _ => false,
-        }
+        matches!(
+            error,
+            Error::Domain(DomainError::GameAlreadyInProgress(_))
+                | Error::Domain(DomainError::GameDoesNotExist(_))
+                | Error::Domain(DomainError::PlayerAlreadyExists(_))
+                | Error::External(ExternalError::WebsocketClosed(_))
+                | Error::Internal(_)
+        )
     }
 
     async fn receive_game_wide_message(

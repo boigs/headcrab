@@ -93,7 +93,7 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 }
                 ExternalError::WebsocketClosed(_) => "WEBSOCKET_CLOSED",
             },
-            Error::Internal(_) => "INTERNAL_ERROR",
+            Error::Internal(_) => "INTERNAL",
         }
         .to_string(),
         title: error.to_string(),
