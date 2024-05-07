@@ -5,6 +5,8 @@ use tokio::select;
 use tokio::time::error::Elapsed;
 use tokio::time::timeout;
 
+use crate::error::domain_error::DomainError;
+use crate::error::external_error::ExternalError;
 use crate::error::Error;
 use crate::game::actor::GameWideEvent;
 use crate::game::actor_client::GameClient;
@@ -85,15 +87,11 @@ impl PlayerActor {
 
     fn should_close_websocket(error: Error) -> bool {
         match error {
+            Error::Domain(DomainError::GameAlreadyInProgress(_)) => true,
+            Error::Domain(_) => false,
+            Error::External(ExternalError::WebsocketClosed(_)) => true,
+            Error::External(_) => false,
             Error::Internal(_) => true,
-            Error::WebsocketClosed(_) => true,
-            Error::UnprocessableMessage(_, _) => false,
-            Error::CommandNotAllowed(_) => false,
-            Error::NotEnoughPlayers => false,
-            Error::GameDoesNotExist(_) => false,
-            Error::PlayerAlreadyExists(_) => false,
-            Error::RepeatedWords => false,
-            Error::GameAlreadyInProgress => true,
         }
     }
 
@@ -215,33 +213,37 @@ impl PlayerActor {
             // browser said "close"
             Ok(Some(Ok(Message::Close(_)))) => {
                 self.log_connection_lost_with_player("browser sent 'Close' websocket frame");
-                Err(Error::WebsocketClosed(
+                Err(Error::External(ExternalError::WebsocketClosed(
                     "browser sent 'Close' websocket frame".to_string(),
-                ))
+                )))
             }
             // websocket was closed
             Ok(None) => {
                 self.log_connection_lost_with_player("other end of websocket was closed abruptly");
-                Err(Error::WebsocketClosed(
+                Err(Error::External(ExternalError::WebsocketClosed(
                     "other end of websocket was closed abruptly".to_string(),
-                ))
+                )))
             }
             // timeout without receiving anything from player
             Err(_) => {
                 self.log_connection_lost_with_player(
                     "connection timed out; missing 'Ping' messages",
                 );
-                Err(Error::WebsocketClosed(
+                Err(Error::External(ExternalError::WebsocketClosed(
                     "connection timed out; missing 'Ping' messages".to_string(),
-                ))
+                )))
             }
-            Ok(Some(Err(error))) => Err(Error::UnprocessableMessage(
-                "Message cannot be loaded".to_string(),
-                error.to_string(),
+            Ok(Some(Err(error))) => Err(Error::External(
+                ExternalError::UnprocessableWebsocketMessage(
+                    "Message cannot be loaded".to_string(),
+                    error.to_string(),
+                ),
             )),
-            Ok(Some(Ok(_))) => Err(Error::UnprocessableMessage(
-                "Unsupported message type".to_string(),
-                "Unsupported message type".to_string(),
+            Ok(Some(Ok(_))) => Err(Error::External(
+                ExternalError::UnprocessableWebsocketMessage(
+                    "Unsupported message type".to_string(),
+                    "Unsupported message type".to_string(),
+                ),
             )),
         }
     }
@@ -257,35 +259,37 @@ impl PlayerActor {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::domain_error::DomainError;
+    use crate::error::external_error::ExternalError;
     use crate::error::Error;
     use crate::player::actor::PlayerActor;
 
     #[test]
     fn should_close_websocket_is_false() {
-        assert!(!PlayerActor::should_close_websocket(
-            Error::GameDoesNotExist("".to_owned())
-        ));
-        assert!(!PlayerActor::should_close_websocket(
-            Error::PlayerAlreadyExists("".to_owned())
-        ));
-        assert!(!PlayerActor::should_close_websocket(
-            Error::NotEnoughPlayers
-        ));
-        assert!(!PlayerActor::should_close_websocket(
-            Error::CommandNotAllowed("".to_owned())
-        ));
-        assert!(!PlayerActor::should_close_websocket(
-            Error::UnprocessableMessage("".to_string(), "".to_string())
-        ));
+        assert!(!PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::GameDoesNotExist("".to_string())
+        )));
+        assert!(!PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::PlayerAlreadyExists("".to_string())
+        )));
+        assert!(!PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::NotEnoughPlayers(0, 0)
+        )));
+        assert!(!PlayerActor::should_close_websocket(Error::External(
+            ExternalError::UnprocessableWebsocketMessage("".to_string(), "".to_string())
+        )));
     }
 
     #[test]
     fn should_close_websocket_is_true() {
-        assert!(PlayerActor::should_close_websocket(Error::Internal(
-            "".to_owned()
+        assert!(PlayerActor::should_close_websocket(Error::Domain(
+            DomainError::GameAlreadyInProgress("".to_string())
         )));
-        assert!(PlayerActor::should_close_websocket(Error::WebsocketClosed(
-            "".to_owned()
+        assert!(PlayerActor::should_close_websocket(Error::Internal(
+            "".to_string()
+        )));
+        assert!(PlayerActor::should_close_websocket(Error::External(
+            ExternalError::WebsocketClosed("".to_string())
         )));
     }
 }

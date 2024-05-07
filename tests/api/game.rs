@@ -37,7 +37,7 @@ async fn non_host_player_cannot_start_game() {
 
     let result = game.players[1].start_game(3).await;
 
-    assert_eq!(result, Err("COMMAND_NOT_ALLOWED".to_string()));
+    assert_eq!(result, Err("NON_HOST_PLAYER_CANNOT_START_GAME".to_string()));
 }
 
 #[tokio::test]
@@ -71,7 +71,7 @@ async fn game_is_started_with_the_right_settings() {
 async fn game_cannot_be_started_with_less_than_1_round() {
     let mut game = TestApp::create_game(GameFsmState::Lobby).await;
     let result = game.players[0].start_game(0).await;
-    assert_eq!(result, Err("COMMAND_NOT_ALLOWED".to_string()));
+    assert_eq!(result, Err("NOT_ENOUGH_ROUNDS".to_string()));
 
     let mut game = TestApp::create_game(GameFsmState::Lobby).await;
     let result = game.players[0].start_game(-1).await;

@@ -3,6 +3,8 @@ pub mod message;
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
 
+use crate::error::domain_error::DomainError;
+use crate::error::external_error::ExternalError;
 use crate::error::Error;
 use crate::websocket::message::WsMessageOut;
 
@@ -25,8 +27,12 @@ pub async fn close(websocket: WebSocket) {
 }
 
 pub fn parse_message(message: &str) -> Result<WsMessageIn, Error> {
-    serde_json::from_str(message)
-        .map_err(|error| Error::UnprocessableMessage(message.to_string(), error.to_string()))
+    serde_json::from_str(message).map_err(|error| {
+        Error::External(ExternalError::UnprocessableWebsocketMessage(
+            message.to_string(),
+            error.to_string(),
+        ))
+    })
 }
 
 pub async fn send_message<T>(websocket: &mut WebSocket, value: &T) -> Result<(), Error>
@@ -45,55 +51,62 @@ pub async fn send_message_string(websocket: &mut WebSocket, value: &str) -> Resu
     websocket
         .send(Message::Text(value.to_string()))
         .await
-        .map_err(|error| Error::WebsocketClosed(error.to_string()))
+        .map_err(|error| Error::External(ExternalError::WebsocketClosed(error.to_string())))
 }
 
 fn error_to_ws_error(error: Error) -> WsMessageOut {
-    match error {
-        Error::Internal(_) => WsMessageOut::Error {
-            r#type: "INTERNAL_SERVER".to_string(),
-            title: "Internal Server error".to_string(),
-            detail: error.to_string(),
-        },
-        Error::WebsocketClosed(_) => WsMessageOut::Error {
-            r#type: "WEBSOCKET_CLOSED".to_string(),
-            title: "The player websocket is closed".to_string(),
-            detail: error.to_string(),
-        },
-        Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
-            r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
-            title: "Received an invalid message".to_string(),
-            detail: error.to_string(),
-        },
-        Error::CommandNotAllowed(_) => WsMessageOut::Error {
-            r#type: "COMMAND_NOT_ALLOWED".to_string(),
-            title: "The player cannot execute this command".to_string(),
-            detail: error.to_string(),
-        },
-        Error::NotEnoughPlayers => WsMessageOut::Error {
-            r#type: "NOT_ENOUGH_PLAYERS".to_string(),
-            title: "Not enough players".to_string(),
-            detail: error.to_string(),
-        },
-        Error::GameDoesNotExist(_) => WsMessageOut::Error {
-            r#type: "GAME_DOES_NOT_EXIST".to_string(),
-            title: "The game does not exist".to_string(),
-            detail: error.to_string(),
-        },
-        Error::PlayerAlreadyExists(_) => WsMessageOut::Error {
-            r#type: "PLAYER_ALREADY_EXISTS".to_string(),
-            title: "The player already exists".to_string(),
-            detail: error.to_string(),
-        },
-        Error::RepeatedWords => WsMessageOut::Error {
-            r#type: "REPEATED_WORDS".to_string(),
-            title: "There are repeated words".to_string(),
-            detail: error.to_string(),
-        },
-        Error::GameAlreadyInProgress => WsMessageOut::Error {
-            r#type: "GAME_ALREADY_IN_PROGRESS".to_string(),
-            title: "Cannot join because the game is already in progress".to_string(),
-            detail: error.to_string(),
+    WsMessageOut::Error {
+        r#type: match error {
+            Error::Domain(ref domain_error) => match domain_error {
+                DomainError::GameAlreadyInProgress(_) => "GAME_ALREADY_IN_PROGRESS",
+                DomainError::GameDoesNotExist(_) => "GAME_DOES_NOT_EXIST",
+                DomainError::InvalidStateForWordsSubmission(_, _) => {
+                    "INVALID_STATE_FOR_WORDS_SUBMISSION"
+                }
+                DomainError::InvalidStateForVotingWordSubmission(_, _) => {
+                    "INVALID_STATE_FOR_VOTING_WORD_SUBMISSION"
+                }
+                DomainError::NotEnoughPlayers(_, _) => "NOT_ENOUGH_PLAYERS",
+                DomainError::NotEnoughRounds(_, _) => "NOT_ENOUGH_ROUNDS",
+                DomainError::NonHostPlayerCannotContinueToNextRound(_) => {
+                    "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_ROUND"
+                }
+                DomainError::NonHostPlayerCannotContinueToNextVotingItem(_) => {
+                    "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEXT_VOTING_ITEM"
+                }
+                DomainError::NonHostPlayerCannotStartGame(_) => "NON_HOST_PLAYER_CANNOT_START_GAME",
+                DomainError::PlayerAlreadyExists(_) => "PLAYER_ALREADY_EXISTS",
+                DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(_) => {
+                    "PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_VOTING_ITEM_IS_NONE"
+                }
+                DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(_) => {
+                    "PLAYER_CANNOT_SUBMIT_NON_EXISTING_OR_USED_WORD"
+                }
+                DomainError::RepeatedWords { .. } => "REPEATED_WORDS",
+                DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
+                    "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
+                }
+            },
+            Error::External(ref external_error) => match external_error {
+                ExternalError::UnprocessableWebsocketMessage(_, _) => {
+                    "UNPROCESSABLE_WEBSOCKET_MESSAGE"
+                }
+                ExternalError::WebsocketClosed(_) => "WEBSOCKET_CLOSED",
+            },
+            Error::Internal(_) => "INTERNAL_ERROR",
+        }
+        .to_string(),
+        title: error.to_string(),
+        detail: match error {
+            Error::Domain(domain_error) => match domain_error {
+                DomainError::RepeatedWords {
+                    nickname: _,
+                    repeated_words,
+                } => repeated_words.join(","),
+                _ => domain_error.to_string(),
+            },
+            Error::External(external_error) => external_error.to_string(),
+            Error::Internal(internal_error) => internal_error.to_string(),
         },
     }
 }
