@@ -56,7 +56,7 @@ impl Round {
             let count = word_count.get(&word).unwrap_or(&0).to_owned();
             word_count.insert(word, count + 1);
         }
-        let mut repeated_words: Vec<String> = word_count
+        let repeated_words: Vec<String> = word_count
             .iter()
             .filter(|(_, count)| **count > 1)
             .map(|(word, _)| word.to_string())
@@ -69,8 +69,6 @@ impl Round {
             );
             Ok(())
         } else {
-            // Sort so that we can consistently assert the error message
-            repeated_words.sort();
             Err(Error::Domain(DomainError::RepeatedWords {
                 nickname: nickname.to_string(),
                 repeated_words,
@@ -514,12 +512,10 @@ mod tests {
             ],
         );
 
-        assert_eq!(
+        assert_repeated_words_error(
             result,
-            Err(Error::Domain(DomainError::RepeatedWords {
-                nickname: PLAYER_1.to_string(),
-                repeated_words: vec!["word".to_string(), "word2".to_string()]
-            }))
+            PLAYER_1,
+            vec!["word".to_string(), "word2".to_string()],
         );
     }
 
@@ -538,13 +534,31 @@ mod tests {
             ],
         );
 
-        assert_eq!(
+        assert_repeated_words_error(
             result,
-            Err(Error::Domain(DomainError::RepeatedWords {
-                nickname: PLAYER_1.to_string(),
-                repeated_words: vec!["word".to_string(), "word2".to_string()]
-            }))
+            PLAYER_1,
+            vec!["word".to_string(), "word2".to_string()],
         );
+    }
+
+    fn assert_repeated_words_error(
+        result: Result<(), Error>,
+        expected_nickname: &str,
+        expected_repeated_words: Vec<String>,
+    ) {
+        assert!(result.is_err());
+        let (actual_nickname, actual_repeated_words) = match result.unwrap_err() {
+            Error::Domain(DomainError::RepeatedWords {
+                nickname,
+                repeated_words,
+            }) => (nickname, repeated_words),
+            _ => panic!("The error is not a DomainError::RepeatedWords error."),
+        };
+        assert_eq!(actual_nickname, expected_nickname);
+        assert_eq!(actual_repeated_words.len(), expected_repeated_words.len());
+        actual_repeated_words
+            .iter()
+            .for_each(|word| assert!(expected_repeated_words.contains(word)));
     }
 
     #[test]
