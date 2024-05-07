@@ -1,19 +1,18 @@
 pub mod domain_error;
+pub mod external_error;
 
 use thiserror::Error;
 
-use self::domain_error::DomainError;
+use self::{domain_error::DomainError, external_error::ExternalError};
 
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum Error {
     #[error("Domain Error.")]
     Domain(DomainError),
+    #[error("External Error.")]
+    External(ExternalError),
     #[error("Internal Error. Error: '{0}'.")]
     Internal(String),
-    #[error("Received a bad formatted message. Message: '{1}', Error: '{0}'.")]
-    UnprocessableMessage(String, String),
-    #[error("The websocket with the player is closed. Reason: '{0}'.")]
-    WebsocketClosed(String),
 }
 
 impl Error {

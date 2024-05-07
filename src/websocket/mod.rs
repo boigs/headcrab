@@ -4,6 +4,7 @@ use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
 
 use crate::error::domain_error::DomainError;
+use crate::error::external_error::ExternalError;
 use crate::error::Error;
 use crate::websocket::message::WsMessageOut;
 
@@ -26,8 +27,12 @@ pub async fn close(websocket: WebSocket) {
 }
 
 pub fn parse_message(message: &str) -> Result<WsMessageIn, Error> {
-    serde_json::from_str(message)
-        .map_err(|error| Error::UnprocessableMessage(message.to_string(), error.to_string()))
+    serde_json::from_str(message).map_err(|error| {
+        Error::External(ExternalError::UnprocessableWebsocketMessage(
+            message.to_string(),
+            error.to_string(),
+        ))
+    })
 }
 
 pub async fn send_message<T>(websocket: &mut WebSocket, value: &T) -> Result<(), Error>
@@ -46,13 +51,13 @@ pub async fn send_message_string(websocket: &mut WebSocket, value: &str) -> Resu
     websocket
         .send(Message::Text(value.to_string()))
         .await
-        .map_err(|error| Error::WebsocketClosed(error.to_string()))
+        .map_err(|error| Error::External(ExternalError::WebsocketClosed(error.to_string())))
 }
 
 fn error_to_ws_error(error: Error) -> WsMessageOut {
-    match error {
-        Error::Domain(domain_error) => WsMessageOut::Error {
-            r#type: match domain_error {
+    WsMessageOut::Error {
+        r#type: match error {
+            Error::Domain(ref domain_error) => match domain_error {
                 DomainError::GameAlreadyInProgress(_) => "GAME_ALREADY_IN_PROGRESS",
                 DomainError::GameDoesNotExist(_) => "GAME_DOES_NOT_EXIST",
                 DomainError::InvalidStateForWordsSubmission(_, _) => {
@@ -81,31 +86,27 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
                     "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
                 }
-            }
-            .to_string(),
-            title: "Domain Error".to_string(),
-            detail: match domain_error {
+            },
+            Error::External(ref external_error) => match external_error {
+                ExternalError::UnprocessableWebsocketMessage(_, _) => {
+                    "UNPROCESSABLE_WEBSOCKET_MESSAGE"
+                }
+                ExternalError::WebsocketClosed(_) => "WEBSOCKET_CLOSED",
+            },
+            Error::Internal(_) => "INTERNAL_ERROR",
+        }
+        .to_string(),
+        title: error.to_string(),
+        detail: match error {
+            Error::Domain(domain_error) => match domain_error {
                 DomainError::RepeatedWords {
                     nickname: _,
                     repeated_words,
                 } => repeated_words.join(","),
                 _ => domain_error.to_string(),
             },
-        },
-        Error::Internal(_) => WsMessageOut::Error {
-            r#type: "INTERNAL_SERVER".to_string(),
-            title: "Internal Server Error".to_string(),
-            detail: error.to_string(),
-        },
-        Error::UnprocessableMessage(_, _) => WsMessageOut::Error {
-            r#type: "UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string(),
-            title: "Received an invalid message".to_string(),
-            detail: error.to_string(),
-        },
-        Error::WebsocketClosed(_) => WsMessageOut::Error {
-            r#type: "WEBSOCKET_CLOSED".to_string(),
-            title: "The player websocket is closed".to_string(),
-            detail: error.to_string(),
+            Error::External(external_error) => external_error.to_string(),
+            Error::Internal(internal_error) => internal_error.to_string(),
         },
     }
 }
