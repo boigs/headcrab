@@ -84,15 +84,7 @@ impl Round {
 
     pub fn next_voting_item(&mut self) -> Option<VotingItem> {
         self.voting_item = self.find_next_voting_item();
-        if let Some(voting_item) = &self.voting_item {
-            let word = self
-                .player_words
-                .get_mut(&voting_item.player_nickname)
-                .expect("The player entry must exist")
-                .iter_mut()
-                .find(|word| word.word == voting_item.word)
-                .expect("The word entry must exist");
-            word.is_used = true;
+        if let Some(ref voting_item) = self.voting_item {
             self.player_voting_words.insert(
                 voting_item.player_nickname.to_string(),
                 Some(voting_item.word.to_string()),
@@ -101,7 +93,6 @@ impl Round {
                 self.player_voting_words.insert(nickname, None);
             }
         }
-
         self.voting_item.clone()
     }
 
@@ -392,6 +383,7 @@ mod tests {
                 word: WORD_1.to_string()
             })
         );
+        round.compute_score();
         assert_eq!(
             round.next_voting_item(),
             Some(VotingItem {
@@ -399,6 +391,7 @@ mod tests {
                 word: WORD_2.to_string()
             })
         );
+        round.compute_score();
         assert_eq!(
             round.next_voting_item(),
             Some(VotingItem {
@@ -406,6 +399,7 @@ mod tests {
                 word: WORD_1.to_string()
             })
         );
+        round.compute_score();
         assert_eq!(
             round.next_voting_item(),
             Some(VotingItem {
@@ -413,6 +407,7 @@ mod tests {
                 word: WORD_2.to_string()
             })
         );
+        round.compute_score();
         assert_eq!(
             round.next_voting_item(),
             Some(VotingItem {
@@ -420,6 +415,7 @@ mod tests {
                 word: WORD_1.to_string()
             })
         );
+        round.compute_score();
         assert_eq!(
             round.next_voting_item(),
             Some(VotingItem {
@@ -427,7 +423,9 @@ mod tests {
                 word: WORD_2.to_string()
             })
         );
+        round.compute_score();
         assert_eq!(round.next_voting_item(), None);
+        round.compute_score();
         assert_eq!(round.next_voting_item(), None);
     }
 
@@ -690,7 +688,7 @@ mod tests {
         let _ = round.next_voting_item().unwrap();
         assert_eq!(
             round.player_voting_words.get(PLAYER_1),
-            Some(&Some(WORD_2.to_string()))
+            Some(&Some(WORD_1.to_string()))
         );
     }
 
