@@ -75,7 +75,7 @@ async fn game_cannot_be_started_with_less_than_1_round() {
 
     let mut game = TestApp::create_game(GameFsmState::Lobby).await;
     let result = game.players[0].start_game(-1).await;
-    assert_eq!(result, Err("UNPROCESSABLE_MESSAGE".to_string()));
+    assert_eq!(result, Err("UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string()));
 }
 
 #[tokio::test]
@@ -118,7 +118,7 @@ async fn unknown_websocket_text_message_is_rejected_but_game_still_alive() {
     let result = game.players[0]
         .send_raw_message(Message::Text("invalid".to_string()))
         .await;
-    assert_eq!(result, Err("UNPROCESSABLE_MESSAGE".to_string()));
+    assert_eq!(result, Err("UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string()));
 
     let state = game.add_player("p4").await;
     assert!(state.is_ok());
@@ -131,7 +131,7 @@ async fn when_sending_invalid_message_game_it_is_reject_but_game_is_still_alive(
     let result = game.players[0]
         .send_raw_message(Message::Binary(vec![]))
         .await;
-    assert_eq!(result, Err("UNPROCESSABLE_MESSAGE".to_string()));
+    assert_eq!(result, Err("UNPROCESSABLE_WEBSOCKET_MESSAGE".to_string()));
 
     let state = game.add_player("p4").await;
     assert!(state.is_ok());

@@ -43,8 +43,6 @@ pub enum DomainError {
         nickname: String,
         repeated_words: Vec<String>,
     },
-    #[error("Received a bad formatted message. Message: '{1}', Error: '{0}'.")]
-    UnprocessableMessage(String, String),
     #[error("The player of the current Voting Item cannot submit a Voting Word. Nickname: '{0}'.")]
     VotingItemPlayerCannotSubmitVotingWord(String),
 }
