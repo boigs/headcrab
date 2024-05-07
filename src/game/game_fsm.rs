@@ -1,5 +1,3 @@
-use std::fmt;
-
 use rust_fsm::state_machine;
 
 /*
@@ -35,11 +33,5 @@ state_machine! {
     },
     EndOfRound => {
         ContinueToNextRound => CreatingNewRound,
-    }
-}
-
-impl fmt::Display for GameFsmState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
     }
 }

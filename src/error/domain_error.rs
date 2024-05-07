@@ -8,10 +8,10 @@ pub enum DomainError {
     GameAlreadyInProgress(String),
     #[error("The game does not exist. GameId: '{0}'.")]
     GameDoesNotExist(String),
-    #[error("Invalid state for submitting Words. ActualState: '{0}', ExpectedState: '{1}'.")]
+    #[error("Invalid state for submitting Words. ActualState: '{0:?}', ExpectedState: '{1:?}'.")]
     InvalidStateForWordsSubmission(GameFsmState, GameFsmState),
     #[error(
-        "Invalid state for submitting a Voting Word. ActualState: '{0}', ExpectedState: '{1}'."
+        "Invalid state for submitting a Voting Word. ActualState: '{0:?}', ExpectedState: '{1:?}'."
     )]
     InvalidStateForVotingWordSubmission(GameFsmState, GameFsmState),
     #[error("Not enough players to start the game. ActualPlayers: '{0}', MinimumPlayers: '{1}'.")]
