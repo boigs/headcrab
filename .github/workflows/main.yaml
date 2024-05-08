@@ -68,6 +68,7 @@ jobs:
         with:
           #image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
           image-name: test
+          kubernetes-file: k8s.yaml
 
   deploy-service:
     name: Service -> Deploy
