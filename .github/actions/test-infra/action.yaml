@@ -18,7 +18,6 @@ runs:
       shell: bash
       run: |
         microk8s kubectl diff -f k8s.yaml
-        echo "$diff"
         echo "value=$diff" >> "$GITHUB_OUTPUT"
 
     - name: Comment diff
