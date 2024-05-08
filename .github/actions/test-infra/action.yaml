@@ -21,8 +21,9 @@ runs:
           echo 'KUBECTL_DIFF<<EOF'
           microk8s kubectl diff -f k8s.yaml
           echo EOF
-        } >> "$GITHUB_ENV"
-        echo "${{ env.KUBECTL_DIFF }}"
+        } >> "$KUBECTL_DIFF"
+        echo "$KUBECTL_DIFF"
+        echo "$KUBECTL_DIFF" >> "$GITHUB_ENV"
 
     - name: Comment diff
       if: github.ref_name != 'main'
