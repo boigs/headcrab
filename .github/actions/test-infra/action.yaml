@@ -21,7 +21,7 @@ runs:
         echo $diff
         {
           echo 'KUBECTL_DIFF<<EOF'
-          echo $diff
+          echo "$diff"
           echo EOF
         } >> "$GITHUB_ENV"
 
