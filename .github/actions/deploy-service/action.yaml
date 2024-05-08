@@ -17,28 +17,5 @@ runs:
       if: github.ref_name == 'main'
       shell: bash
       run: |
-        diff=`microk8s kubectl apply -f k8s.yaml >> 
+        microk8s kubectl apply -f k8s.yaml
         microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s
-
-    - name: Deploy
-      if: github.ref_name != 'main'
-      id: diff
-      shell: bash
-      run: |
-        diff=`microk8s kubectl diff -f k8s.yaml`
-        echo "value=$diff" >> "$GITHUB_OUTPUT"
-
-    - name: Comment diff
-      if: github.ref_name != 'main'
-      uses: marocchino/sticky-pull-request-comment@5ec44f8ee5ecf07ea2e7410866738fb7890eb756
-      with:
-        message: |
-          ## kubectl diff 
-          <details>
-            <summary>
-              Show diff
-            </summary>
-            ```diff
-            ${{ steps.diff.outputs.value }}
-            ```
-          </details>
