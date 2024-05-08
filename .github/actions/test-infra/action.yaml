@@ -17,6 +17,7 @@ runs:
       run: sed -i -E "s#headcrab_image#${{ inputs.image-name }}#g" k8s.yaml
 
     - name: Kubectl diff
+      if: false
       # The diff command returns an error code when there are changes, without the {0} the whole step is marked as failed
       shell: bash {0}
       run: |
@@ -29,7 +30,8 @@ runs:
         } >> "$GITHUB_ENV"
 
     - name: Comment diff
-      if: github.ref_name != 'main'
+      if: false
+      #if: github.ref_name != 'main'
       uses: marocchino/sticky-pull-request-comment@5ec44f8ee5ecf07ea2e7410866738fb7890eb756
       with:
         message: |
