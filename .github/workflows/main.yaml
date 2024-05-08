@@ -11,7 +11,7 @@ on:
 
 concurrency:
   group: ${{ github.ref || github.run_id }}
-  cancel-in-progress: true    
+  cancel-in-progress: true
 
 env:
   SERVICE_IMAGE_NAME: localhost:32000/headcrab
@@ -48,10 +48,9 @@ jobs:
           dockerfile-path: ./Dockerfile
           image-name: ${{ env.SERVICE_IMAGE_NAME }}
           build-args: RUST_VERSION=${{ env.RUST_VERSION }}
-          is-main-branch: ${{ github.ref_name == 'main' }}
 
   deploy-service:
-    name: Service -> Deploy ${{ github.ref_name != 'main' && '(Plan Only)' || '' }}
+    name: Service -> Deploy
     needs: [publish-service-image]
     runs-on: self-hosted
     steps:
@@ -62,4 +61,3 @@ jobs:
         uses: ./.github/actions/deploy-service
         with:
           image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
-          deploy: ${{ github.ref_name == 'main' }}
