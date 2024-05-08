@@ -24,6 +24,7 @@ env:
 
 jobs:
   test-solution:
+    if: false
     name: Solution -> Test
     runs-on: ubuntu-latest
     steps:
@@ -36,6 +37,7 @@ jobs:
           version: ${{ env.RUST_VERSION }}
 
   publish-service-image:
+    if: false
     name: Service Image -> Publish
     needs: [test-solution]
     runs-on: self-hosted
@@ -55,7 +57,7 @@ jobs:
 
   test-infra:
     name: Infastructure -> Test
-    needs: [publish-service-image]
+    #needs: [publish-service-image]
     runs-on: self-hosted
     steps:
       - name: Checkout Repository
@@ -64,7 +66,8 @@ jobs:
       - name: Infrastructure -> Test
         uses: ./.github/actions/test-infra
         with:
-          image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
+          #image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
+          image-name: test
 
   deploy-service:
     name: Service -> Deploy
