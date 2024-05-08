@@ -45,4 +45,4 @@ runs:
 
     - name: Kubectl dry run
       shell: bash
-      run: kubectl apply -f ${{ inputs.kubernetes-file }} --dry-run=server
+      run: microk8s kubectl apply -f ${{ inputs.kubernetes-file }} --dry-run=server
