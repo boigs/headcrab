@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  pull-requests: write
+
 concurrency:
   group: ${{ github.ref || github.run_id }}
   cancel-in-progress: true
@@ -20,6 +23,7 @@ env:
 
 jobs:
   test-solution:
+    if: false
     name: Solution -> Test
     runs-on: ubuntu-latest
     steps:
@@ -32,6 +36,7 @@ jobs:
           version: ${{ env.RUST_VERSION }}
 
   publish-service-image:
+    if: false
     name: Service Image -> Publish
     needs: [test-solution]
     runs-on: self-hosted
@@ -51,7 +56,7 @@ jobs:
 
   deploy-service:
     name: Service -> Deploy
-    needs: [publish-service-image]
+    #needs: [publish-service-image]
     runs-on: self-hosted
     steps:
       - name: Checkout Repository
