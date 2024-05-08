@@ -2,9 +2,6 @@ name: Infrastructure -> Test
 description: Tests the infrastructure
 
 inputs:
-  image-name:
-    description: The service Docker image name
-    required: true
   kubernetes-file:
     description: The Kubernetes file to test
     required: true
@@ -12,12 +9,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Set the Service Docker image to deploy in k8s.yaml
-      shell: bash
-      run: sed -i -E "s#headcrab_image#${{ inputs.image-name }}#g" k8s.yaml
-
     - name: Kubectl diff
-      if: false
       # The diff command returns an error code when there are changes, without the {0} the whole step is marked as failed
       shell: bash {0}
       run: |
@@ -29,9 +21,8 @@ runs:
           echo EOF
         } >> "$GITHUB_ENV"
 
-    - name: Comment diff
-      if: false
-      #if: github.ref_name != 'main'
+    - name: PR comment diff
+      if: github.ref_name != 'main'
       uses: marocchino/sticky-pull-request-comment@5ec44f8ee5ecf07ea2e7410866738fb7890eb756
       with:
         message: |
@@ -45,6 +36,6 @@ runs:
 
           </details>
 
-    - name: Kubectl dry run
+    - name: Kubectl dry-run
       shell: bash
       run: microk8s kubectl apply -f ${{ inputs.kubernetes-file }} --dry-run=server

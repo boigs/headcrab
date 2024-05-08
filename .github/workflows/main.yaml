@@ -24,7 +24,6 @@ env:
 
 jobs:
   test-solution:
-    if: false
     name: Solution -> Test
     runs-on: ubuntu-latest
     steps:
@@ -37,7 +36,6 @@ jobs:
           version: ${{ env.RUST_VERSION }}
 
   publish-service-image:
-    if: false
     name: Service Image -> Publish
     needs: [test-solution]
     runs-on: self-hosted
@@ -55,30 +53,24 @@ jobs:
           image-name: ${{ env.SERVICE_IMAGE_NAME }}
           build-args: RUST_VERSION=${{ env.RUST_VERSION }}
 
-  test-infra:
-    name: Infastructure -> Test
-    #needs: [publish-service-image]
+  deploy-service:
+    name: Service -> Deploy
+    needs: [publish-service-image]
     runs-on: self-hosted
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Set the Service Docker image to deploy in k8s.yaml
+        shell: bash
+        run: sed -i -E "s#headcrab_image#${{ needs.publish-service-image.outputs.image-sha-tag }}#g" k8s.yaml
 
       - name: Infrastructure -> Test
         uses: ./.github/actions/test-infra
         with:
-          #image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
-          image-name: test
           kubernetes-file: k8s.yaml
-
-  deploy-service:
-    name: Service -> Deploy
-    needs: [publish-service-image, test-infra]
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
 
       - name: Service -> Deploy
         uses: ./.github/actions/deploy-service
         with:
-          image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
+          kubernetes-file: k8s.yaml
