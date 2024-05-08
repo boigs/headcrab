@@ -22,8 +22,8 @@ runs:
           echo 'DIFF<<EOF'
           microk8s kubectl diff -f k8s.yaml
           echo EOF
-        } >> "$DIFF"
-        echo "$DIFF"
+        } >> "$GITHUB_ENV"
+        echo "${{ env.DIFF }}"
 
     - name: Comment diff
       #if: false
