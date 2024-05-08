@@ -5,6 +5,9 @@ inputs:
   image-name:
     description: The service Docker image name
     required: true
+  kubernetes-file:
+    description: The Kubernetes file to test
+    required: true
 
 runs:
   using: composite
@@ -17,7 +20,7 @@ runs:
       # The diff command returns an error code when there are changes, without the {0} the whole step is marked as failed
       shell: bash {0}
       run: |
-        diff=`microk8s kubectl diff -f k8s.yaml`
+        diff=`microk8s kubectl diff -f ${{ inputs.kubernetes-file }}`
         echo $diff
         {
           echo 'KUBECTL_DIFF<<EOF'
@@ -39,3 +42,7 @@ runs:
             ```
 
           </details>
+
+    - name: Kubectl dry run
+      shell: bash
+      run: kubectl apply -f ${{ inputs.kubernetes-file }} --dry-run=server
