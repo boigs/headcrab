@@ -16,7 +16,7 @@ runs:
     - name: Kubectl diff
       id: diff
       # The diff command returns an error code when there are changes, without the {0} the whole step is marked as failed
-      shell: bash
+      shell: bash {0}
       run: |
         {
           echo 'DIFF<<EOF'
