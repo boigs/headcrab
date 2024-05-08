@@ -61,8 +61,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Service -> Deploy
-        uses: ./.github/actions/deploy-service
+      - name: Infrastructure -> Test
+        uses: ./.github/actions/test-infra
         with:
           image-name: ${{ needs.publish-service-image.outputs.image-sha-tag }}
 
