@@ -10,7 +10,7 @@ on:
       - synchronize
 
 concurrency:
-  group: ${{ github.ref }}-pr-title-check
+  group: ${{ github.ref }}-pr-title
   cancel-in-progress: true
 
 jobs:
