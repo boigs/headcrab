@@ -10,7 +10,7 @@ runs:
   using: composite
   steps:
     - name: Deploy
-      if: github.ref_name != 'main'
+      if: github.ref_name == 'main'
       shell: bash
       run: |
         microk8s kubectl apply --filename ${{ inputs.file }} --server-side
