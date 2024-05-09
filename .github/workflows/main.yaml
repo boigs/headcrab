@@ -23,20 +23,18 @@ env:
   RUST_VERSION: 1.77.0
 
 jobs:
-  check-conventional-commit:
-    name: Check Conventional Commit
+  test-pr-title:
+    name: PR Title -> Test
     runs-on: ubuntu-latest
     steps:
-      - name: check-for-cc
+      - name: PR Title -> Test
         if: github.ref_name != 'main'
-        id: check-for-cc
         uses: agenthunt/conventional-commit-checker-action@9e552d650d0e205553ec7792d447929fc78e012b
         with:
           pr-body-regex: ".*"
 
   test-solution:
     name: Solution -> Test
-    needs: [check-conventional-commit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
