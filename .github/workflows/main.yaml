@@ -31,7 +31,7 @@ jobs:
         if: github.ref_name != 'main'
         uses: agenthunt/conventional-commit-checker-action@9e552d650d0e205553ec7792d447929fc78e012b
         with:
-          pr-body-regex: ".*"
+          pr-body-regex: .*
 
   test-solution:
     name: Solution -> Test
