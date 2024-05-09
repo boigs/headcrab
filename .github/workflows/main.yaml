@@ -5,8 +5,8 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
+    branches: [main]
+    types: [opened, edited, synchronize]
   workflow_dispatch:
 
 concurrency:
@@ -19,8 +19,17 @@ env:
   RUST_VERSION: 1.77.0
 
 jobs:
+  check-conventional-commit:
+    name: Check Conventional Commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: check-for-cc
+        id: check-for-cc
+        uses: agenthunt/conventional-commit-checker-action@v2.0.0
+
   test-solution:
     name: Solution -> Test
+    needs: [check-conventional-commit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
