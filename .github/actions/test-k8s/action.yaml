@@ -26,7 +26,7 @@ runs:
       with:
         header: ${{ inputs.file }}
         message: |
-          ## kubectl diff 
+          ## kubectl diff ${{ inputs.file }}
           <details>
             <summary>Show diff</summary>
 
