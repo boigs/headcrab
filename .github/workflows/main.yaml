@@ -7,10 +7,6 @@ on:
   pull_request:
     branches:
       - main
-    types:
-      - opened
-      - edited
-      - synchronize
   workflow_dispatch:
 
 concurrency:
@@ -23,16 +19,6 @@ env:
   RUST_VERSION: 1.77.0
 
 jobs:
-  check-pr-title:
-    name: PR Title -> Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: PR Title -> Check
-        if: github.ref_name != 'main'
-        uses: agenthunt/conventional-commit-checker-action@9e552d650d0e205553ec7792d447929fc78e012b
-        with:
-          pr-body-regex: .*
-
   test-solution:
     name: Solution -> Test
     runs-on: ubuntu-latest

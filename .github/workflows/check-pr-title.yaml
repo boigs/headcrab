@@ -1,0 +1,25 @@
+name: PR Title
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - synchronize
+
+concurrency:
+  group: ${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check-pr-title:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check
+        if: github.ref_name != 'main'
+        uses: agenthunt/conventional-commit-checker-action@9e552d650d0e205553ec7792d447929fc78e012b
+        with:
+          pr-body-regex: .*
