@@ -9,9 +9,9 @@ on:
       - main
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.ref || github.run_id }}
-  cancel-in-progress: true
+#concurrency:
+#  group: ${{ github.ref || github.run_id }}
+#  cancel-in-progress: true
 
 env:
   SERVICE_IMAGE_NAME: localhost:32000/headcrab

@@ -9,9 +9,9 @@ on:
       - edited
       - synchronize
 
-concurrency:
-  group: ${{ github.ref || github.run_id }}
-  cancel-in-progress: true
+#concurrency:
+#  group: ${{ github.ref || github.run_id }}
+#  cancel-in-progress: true
 
 jobs:
   check-pr-title:
