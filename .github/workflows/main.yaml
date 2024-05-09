@@ -23,7 +23,7 @@ env:
   RUST_VERSION: 1.77.0
 
 jobs:
-  test-pr-title:
+  check-pr-title:
     name: PR Title -> Check
     runs-on: ubuntu-latest
     steps:
