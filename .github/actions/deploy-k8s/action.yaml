@@ -13,5 +13,5 @@ runs:
       if: github.ref_name == 'main'
       shell: bash
       run: |
-        microk8s kubectl apply -f ${{ inputs.file }}
+        microk8s kubectl apply --filename ${{ inputs.file }} --server-side
         microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s
