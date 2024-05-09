@@ -2,23 +2,16 @@ name: Service -> Deploy
 description: Deploys the service
 
 inputs:
-  image-name:
-    description: The service Docker image name
-    required: true
-  deploy:
-    description: If the service should be deployed or not
+  kubernetes-file:
+    description: The Kubernetes file to deploy
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Set the Service Docker image to deploy in k8s.yaml
-      shell: bash
-      run: sed -i -E "s#headcrab_image#${{ inputs.image-name }}#g" k8s.yaml
-      
     - name: Deploy
-      if: inputs.deploy == 'true'
+      if: github.ref_name == 'main'
       shell: bash
       run: |
-        microk8s kubectl apply -f k8s.yaml
+        microk8s kubectl apply -f ${{ inputs.kubernetes-file }}
         microk8s kubectl rollout status deployment/headcrab-deployment --watch=true --timeout=60s

@@ -11,9 +11,6 @@ inputs:
   build-args:
     description: The Docker build-args
     required: false
-  is-main-branch:
-    description: If the image is built in the main branch
-    required: true
 outputs:
   image-sha-tag:
     description: The image name with the sha tag
@@ -34,8 +31,8 @@ runs:
         images: ${{ inputs.image-name }}
         tags: type=sha
         flavor: |
-          latest=${{ inputs.is-main-branch }}
-          suffix=${{ inputs.is-main-branch == 'true' && ' ' || '-pr' }}
+          latest=${{ github.ref_name == 'main' }}
+          suffix=${{ github.ref_name == 'main' && ' ' || '-pr' }}
 
     - name: Build Image
       uses: docker/build-push-action@v5
