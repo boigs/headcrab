@@ -1,8 +1,7 @@
-name: Infrastructure -> Test
-description: Tests the infrastructure
-
+name: K8s -> Test
+description: Tests Kubernetes
 inputs:
-  kubernetes-file:
+  file:
     description: The Kubernetes file to test
     required: true
 
@@ -13,7 +12,7 @@ runs:
       # The diff command returns an error code when there are changes, without the {0} the whole step is marked as failed
       shell: bash {0}
       run: |
-        diff=`microk8s kubectl diff -f ${{ inputs.kubernetes-file }}`
+        diff=`microk8s kubectl diff -f ${{ inputs.file }}`
         echo $diff
         {
           echo 'KUBECTL_DIFF<<EOF'
@@ -25,8 +24,9 @@ runs:
       if: github.ref_name != 'main'
       uses: marocchino/sticky-pull-request-comment@5ec44f8ee5ecf07ea2e7410866738fb7890eb756
       with:
+        header: ${{ inputs.file }}
         message: |
-          ## kubectl diff 
+          ## kubectl diff ${{ inputs.file }}
           <details>
             <summary>Show diff</summary>
 
@@ -38,4 +38,4 @@ runs:
 
     - name: Kubectl dry-run
       shell: bash
-      run: microk8s kubectl apply -f ${{ inputs.kubernetes-file }} --dry-run=server
+      run: microk8s kubectl apply -f ${{ inputs.file }} --dry-run=server

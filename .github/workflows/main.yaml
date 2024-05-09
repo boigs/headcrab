@@ -1,4 +1,4 @@
-name: Rust
+name: Headcrab
 
 on:
   push:
@@ -8,10 +8,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-
-permissions:
-  contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.ref || github.run_id }}
@@ -65,12 +61,12 @@ jobs:
         shell: bash
         run: sed -i -E "s#headcrab_image#${{ needs.publish-service-image.outputs.image-sha-tag }}#g" k8s.yaml
 
-      - name: Infrastructure -> Test
-        uses: ./.github/actions/test-infra
+      - name: K8s -> Test
+        uses: ./.github/actions/test-k8s
         with:
-          kubernetes-file: k8s.yaml
+          file: k8s.yaml
 
-      - name: Service -> Deploy
-        uses: ./.github/actions/deploy-service
+      - name: K8s -> Deploy
+        uses: ./.github/actions/deploy-k8s
         with:
-          kubernetes-file: k8s.yaml
+          file: k8s.yaml
