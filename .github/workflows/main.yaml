@@ -1,12 +1,12 @@
-name: Headcrab
+name: Main
 
 on:
   push:
     branches:
       - main
   pull_request:
-    branches: [main]
-    types: [opened, edited, synchronize]
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -19,20 +19,8 @@ env:
   RUST_VERSION: 1.77.0
 
 jobs:
-  check-conventional-commit:
-    name: Check Conventional Commit
-    runs-on: ubuntu-latest
-    steps:
-      - name: check-for-cc
-        if: github.ref != 'refs/heads/main'
-        id: check-for-cc
-        uses: agenthunt/conventional-commit-checker-action@v2.0.0
-        with:
-          pr-body-regex: ".*"
-
   test-solution:
     name: Solution -> Test
-    needs: [check-conventional-commit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
