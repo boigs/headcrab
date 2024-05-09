@@ -12,7 +12,7 @@ runs:
       # The diff command returns an error code when there are changes, without the {0} the whole step is marked as failed
       shell: bash {0}
       run: |
-        diff=`microk8s kubectl diff -f ${{ inputs.file }}` --server-side
+        diff=`microk8s kubectl diff --filename ${{ inputs.file }}` --server-side
         echo $diff
         {
           echo 'KUBECTL_DIFF<<EOF'
@@ -38,4 +38,4 @@ runs:
 
     - name: Kubectl dry-run
       shell: bash
-      run: microk8s kubectl apply -f ${{ inputs.file }} --dry-run=server
+      run: microk8s kubectl apply --filename ${{ inputs.file }} --dry-run=server --server-side
