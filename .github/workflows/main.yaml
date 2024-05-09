@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check-for-cc
+        if: github.ref != 'refs/heads/main'
         id: check-for-cc
         uses: agenthunt/conventional-commit-checker-action@v2.0.0
         with:
