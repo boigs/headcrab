@@ -1,7 +1,9 @@
 pub mod actor;
 pub mod actor_client;
 pub mod game_fsm;
+mod game_word;
 
+use rand::{seq::SliceRandom, thread_rng};
 use rust_fsm::StateMachine;
 
 use crate::error::domain_error::DomainError;
@@ -10,8 +12,11 @@ use crate::game::game_fsm::{GameFsm, GameFsmInput, GameFsmState};
 use crate::player::Player;
 use crate::round::Round;
 
+use self::game_word::GameWord;
+
 pub struct Game {
     id: String,
+    words: Vec<GameWord>,
     fsm: StateMachine<GameFsm>,
     players: Vec<Player>,
     rounds: Vec<Round>,
@@ -23,14 +28,43 @@ impl Game {
     const MINIMUM_ROUNDS: u8 = 1;
     const DEFAULT_ROUNDS: u8 = 3;
 
-    pub fn new(id: &str) -> Self {
+    pub fn new(id: &str, words: Vec<String>) -> Self {
+        let words = if words.len() >= Game::MINIMUM_ROUNDS.into() {
+            words
+        } else {
+            log::error!("Game created without enough words, defaulting to the built-in list of words. GameId: {}, ActualWords: {}, MinimumWords: {}", id, words.len(), Game::MINIMUM_ROUNDS);
+            Game::default_words()
+        };
+
         Self {
             id: id.to_string(),
+            // Create a pre-shuffled list of words, so that we don't need to do random picks every round
+            words: Game::shuffle_words(words),
             fsm: StateMachine::default(),
             players: Vec::default(),
             rounds: Vec::default(),
             amount_of_rounds: None,
         }
+    }
+
+    fn default_words() -> Vec<String> {
+        ["summer", "space", "dog", "pizza", "rock", "picnic", "surf"]
+            .iter()
+            .map(|word| word.to_string())
+            .collect()
+    }
+
+    fn shuffle_words(words: Vec<String>) -> Vec<GameWord> {
+        let mut words: Vec<GameWord> = words
+            .into_iter()
+            .map(|word| GameWord {
+                value: word,
+                is_used: false,
+            })
+            .collect();
+        let mut rng = thread_rng();
+        words.shuffle(&mut rng);
+        words
     }
 
     pub fn id(&self) -> &str {
@@ -185,7 +219,7 @@ impl Game {
     }
 
     fn start_new_round(&mut self) {
-        let word = Game::choose_random_word();
+        let word = self.choose_random_word();
         let round = Round::new(
             &word,
             self.players()
@@ -196,8 +230,24 @@ impl Game {
         self.rounds.push(round);
     }
 
-    fn choose_random_word() -> String {
-        "alien".to_string()
+    fn choose_random_word(&mut self) -> String {
+        match self.words.iter_mut().find(|word| !word.is_used) {
+            Some(word) => {
+                word.is_used = true;
+                word.value.to_string()
+            }
+            None => {
+                log::error!("Ran out of unused random words, resetting the used words. GameId: {}, AmountOfWords: {}, AmountOfRounds: {}", self.id, self.rounds.len(), self.words.len());
+                self.words = Game::shuffle_words(
+                    self.words
+                        .iter()
+                        .map(|word| word.value.to_string())
+                        .collect(),
+                );
+                // This is a recursive call, it will always do just 1 recursive call as we ensure the game is constructed with at least 1 word
+                self.choose_random_word()
+            }
+        }
     }
 
     pub fn set_player_voting_word(
@@ -269,6 +319,8 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::Game;
     use crate::{
         error::{domain_error::DomainError, Error},
@@ -296,7 +348,7 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let mut game = Game::new("id");
+        let mut game = get_empty_game();
 
         game.add_player(PLAYER_1).unwrap();
 
@@ -356,7 +408,7 @@ mod tests {
 
     #[test]
     fn game_cannot_be_started_with_less_than_three_players() {
-        let mut game = Game::new("id");
+        let mut game = get_empty_game();
         game.add_player(PLAYER_1).unwrap();
 
         let result = game.start_game(PLAYER_1, 3);
@@ -369,7 +421,7 @@ mod tests {
 
     #[test]
     fn game_cannot_be_started_with_less_than_one_round() {
-        let mut game = Game::new("id");
+        let mut game = get_empty_game();
         game.add_player(PLAYER_1).unwrap();
 
         let result = game.start_game(PLAYER_1, 0);
@@ -405,7 +457,7 @@ mod tests {
 
     #[test]
     fn game_starts_in_lobby() {
-        let game = Game::new("id");
+        let game = get_empty_game();
 
         assert_eq!(game.state(), &GameFsmState::Lobby);
     }
@@ -440,7 +492,7 @@ mod tests {
 
     #[test]
     fn all_players_are_disconnected_is_true_when_empty_players() {
-        let game = Game::new("id");
+        let game = get_empty_game();
 
         assert!(game.all_players_are_disconnected());
     }
@@ -633,12 +685,83 @@ mod tests {
         assert_eq!(result, Ok(()));
     }
 
+    #[test]
+    fn next_round_chooses_different_word() {
+        let amount_of_rounds: u8 = Game::default_words().len().try_into().unwrap();
+        let mut used_words: HashSet<String> = HashSet::new();
+        let mut game =
+            get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, amount_of_rounds);
+        for _ in 0..amount_of_rounds {
+            let round = game.rounds().last().unwrap();
+            assert!(!used_words.contains(&round.word));
+            used_words.insert(round.word.to_string());
+            complete_round(&mut game);
+            game.continue_to_next_round(PLAYER_1).unwrap();
+        }
+        assert_eq!(game.state(), &GameFsmState::EndOfGame);
+    }
+
+    #[test]
+    fn word_is_repeated_when_more_rounds_than_words() {
+        let amount_of_rounds: u8 = (Game::default_words().len() + 1).try_into().unwrap();
+        let mut used_words: HashSet<String> = HashSet::new();
+        let mut game =
+            get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, amount_of_rounds);
+        for round_index in 0..amount_of_rounds {
+            let round = game.rounds().last().unwrap();
+            if round_index == amount_of_rounds - 1 {
+                assert!(used_words.contains(&round.word));
+            }
+            used_words.insert(round.word.to_string());
+            complete_round(&mut game);
+            game.continue_to_next_round(PLAYER_1).unwrap();
+        }
+        assert_eq!(game.state(), &GameFsmState::EndOfGame);
+    }
+
+    #[test]
+    fn different_games_choose_words_in_different_order() {
+        let amount_of_rounds: u8 = Game::default_words().len().try_into().unwrap();
+
+        let mut game_1_words: Vec<String> = vec![];
+        let mut game_1 =
+            get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, amount_of_rounds);
+        for _ in 0..amount_of_rounds {
+            let round = game_1.rounds().last().unwrap();
+            game_1_words.push(round.word.to_string());
+            complete_round(&mut game_1);
+            game_1.continue_to_next_round(PLAYER_1).unwrap();
+        }
+
+        let mut game_2_words: Vec<String> = vec![];
+        let mut game_2 =
+            get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, amount_of_rounds);
+        for _ in 0..amount_of_rounds {
+            let round = game_2.rounds().last().unwrap();
+            game_2_words.push(round.word.to_string());
+            complete_round(&mut game_2);
+            game_2.continue_to_next_round(PLAYER_1).unwrap();
+        }
+
+        assert_eq!(game_1_words.len(), game_2_words.len());
+        // This unit test is not deterministic, as we suffle words in a random way every time we construct a new game,
+        // and we do not provide any seed. The chance of two games ending up with the same word order is pretty small,
+        // so I think we can assume this won't happen often, we can always increase the amount of words for the tests
+        // to further decrease the chances
+        assert!((0..game_1_words.len())
+            .any(|word_index| game_1_words[word_index] != game_2_words[word_index]));
+    }
+
+    fn get_empty_game() -> Game {
+        Game::new("id", Game::default_words())
+    }
+
     fn get_game(state: &GameFsmState) -> Game {
         get_game_with_rounds(state, 3)
     }
 
     fn get_game_with_rounds(state: &GameFsmState, amount_of_rounds: u8) -> Game {
-        let mut game = Game::new("id");
+        let mut game = get_empty_game();
         game.add_player(PLAYER_1).unwrap();
         game.add_player(PLAYER_2).unwrap();
         game.add_player(PLAYER_3).unwrap();
