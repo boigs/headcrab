@@ -3,6 +3,7 @@ pub mod actor_client;
 
 use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
+use std::fs::File;
 
 use crate::config::GameSettings;
 use crate::error::domain_error::DomainError;
@@ -14,13 +15,23 @@ use crate::game_factory::actor_client::GameFactoryClient;
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,
     game_settings: GameSettings,
+    words: Vec<String>,
 }
 
 impl GameFactory {
+    const WORDS_FILE_PATH: &str = "words/en.json";
+
     pub fn new(game_settings: GameSettings) -> Self {
+        let words = GameFactory::read_words_from_file(GameFactory::WORDS_FILE_PATH);
+        log::info!(
+            "Words loaded. File: '{}', Words: '{}'.",
+            GameFactory::WORDS_FILE_PATH,
+            words.join(",")
+        );
         GameFactory {
             game_channels: HashMap::default(),
             game_settings,
+            words,
         }
     }
 
@@ -28,7 +39,12 @@ impl GameFactory {
         let id = self.create_unique_game_id();
         self.game_channels.insert(
             id.clone(),
-            GameActor::spawn(&id, self.game_settings.clone(), game_factory),
+            GameActor::spawn(
+                &id,
+                self.game_settings.clone(),
+                self.words.clone(),
+                game_factory,
+            ),
         );
 
         id
@@ -45,6 +61,15 @@ impl GameFactory {
                 game_id.to_string(),
             ))),
         }
+    }
+
+    fn read_words_from_file(file_path: &str) -> Vec<String> {
+        let file = File::open(file_path).unwrap_or_else(|error| {
+            panic!("Could not load words file. File: '{file_path}', Error: '{error}'.")
+        });
+        serde_json::from_reader(file).unwrap_or_else(|error| {
+            panic!("Could not parse the words json. File: '{file_path}', Error: '{error}'.")
+        })
     }
 
     fn create_unique_game_id(&self) -> String {

@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
-use std::vec;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::oneshot::Sender as OneshotSender;
 use tokio::sync::{
@@ -28,15 +27,13 @@ pub struct GameActor {
 }
 
 impl GameActor {
-    pub fn spawn(id: &str, settings: GameSettings, game_factory: GameFactoryClient) -> GameClient {
-        let game = Game::new(
-            id,
-            vec![
-                "alien".to_string(),
-                "summer".to_string(),
-                "soccer".to_string(),
-            ],
-        );
+    pub fn spawn(
+        id: &str,
+        settings: GameSettings,
+        words: Vec<String>,
+        game_factory: GameFactoryClient,
+    ) -> GameClient {
+        let game = Game::new(id, words);
         let (game_tx, game_rx): (Sender<GameCommand>, Receiver<GameCommand>) = mpsc::channel(128);
         let (broadcast_tx, _): (
             broadcast::Sender<GameWideEvent>,
