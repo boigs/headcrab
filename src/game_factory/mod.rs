@@ -19,7 +19,7 @@ pub struct GameFactory {
 }
 
 impl GameFactory {
-    const WORDS_FILE_PATH: &str = "words/en.json";
+    const WORDS_FILE_PATH: &'static str = "words/en.json";
 
     pub fn new(game_settings: GameSettings) -> Self {
         let words = GameFactory::read_words_from_file(GameFactory::WORDS_FILE_PATH);
