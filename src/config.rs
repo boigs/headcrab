@@ -23,6 +23,7 @@ pub struct ApplicationSettings {
 #[derive(serde::Deserialize, Clone)]
 pub struct GameSettings {
     pub inactivity_timeout_seconds: u64,
+    pub words_file: String,
 }
 
 impl GameSettings {

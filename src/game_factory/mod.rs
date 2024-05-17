@@ -20,13 +20,11 @@ pub struct GameFactory {
 }
 
 impl GameFactory {
-    const WORDS_FILE_PATH: &'static str = "words/en.txt";
-
     pub fn new(game_settings: GameSettings) -> Self {
-        let words = GameFactory::read_words_from_file(GameFactory::WORDS_FILE_PATH);
+        let words = GameFactory::read_words_from_file(&game_settings.words_file);
         log::info!(
             "Words loaded. File: '{}', Words: '{}'.",
-            GameFactory::WORDS_FILE_PATH,
+            game_settings.words_file,
             words.join(",")
         );
         GameFactory {
@@ -107,6 +105,7 @@ mod tests {
     fn add_player_works() {
         let game_factory = GameFactory::new(GameSettings {
             inactivity_timeout_seconds: 1,
+            words_file: "".to_string(),
         });
 
         let id = game_factory.create_unique_game_id();
@@ -125,6 +124,7 @@ mod tests {
     fn get_game_fails_when_game_does_not_exist() {
         let game_factory = GameFactory::new(GameSettings {
             inactivity_timeout_seconds: 1,
+            words_file: "".to_string(),
         });
 
         let result = game_factory.get_game("invalid_game");
