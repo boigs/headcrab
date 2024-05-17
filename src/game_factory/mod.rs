@@ -3,8 +3,6 @@ pub mod actor_client;
 
 use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 use crate::config::GameSettings;
 use crate::error::domain_error::DomainError;
@@ -20,13 +18,7 @@ pub struct GameFactory {
 }
 
 impl GameFactory {
-    pub fn new(game_settings: GameSettings) -> Self {
-        let words = GameFactory::read_words_from_file(&game_settings.words_file);
-        log::info!(
-            "Words loaded. File: '{}', Words: '{}'.",
-            game_settings.words_file,
-            words.join(",")
-        );
+    pub fn new(game_settings: GameSettings, words: Vec<String>) -> Self {
         GameFactory {
             game_channels: HashMap::default(),
             game_settings,
@@ -62,21 +54,6 @@ impl GameFactory {
         }
     }
 
-    fn read_words_from_file(file_path: &str) -> Vec<String> {
-        let file = File::open(file_path).unwrap_or_else(|error| {
-            panic!("Could not load words file. File: '{file_path}', Error: '{error}'.")
-        });
-        BufReader::new(file)
-            .lines()
-            .map(|line| {
-                line.expect("Could not parse one of the word lines.")
-                    .trim()
-                    .to_lowercase()
-            })
-            .filter(|word| !word.is_empty())
-            .collect()
-    }
-
     fn create_unique_game_id(&self) -> String {
         loop {
             let id = Alphanumeric
@@ -103,10 +80,12 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let game_factory = GameFactory::new(GameSettings {
-            inactivity_timeout_seconds: 1,
-            words_file: "".to_string(),
-        });
+        let game_factory = GameFactory::new(
+            GameSettings {
+                inactivity_timeout_seconds: 1,
+            },
+            vec![],
+        );
 
         let id = game_factory.create_unique_game_id();
 
@@ -122,10 +101,12 @@ mod tests {
 
     #[test]
     fn get_game_fails_when_game_does_not_exist() {
-        let game_factory = GameFactory::new(GameSettings {
-            inactivity_timeout_seconds: 1,
-            words_file: "".to_string(),
-        });
+        let game_factory = GameFactory::new(
+            GameSettings {
+                inactivity_timeout_seconds: 1,
+            },
+            vec![],
+        );
 
         let result = game_factory.get_game("invalid_game");
 

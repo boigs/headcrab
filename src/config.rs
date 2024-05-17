@@ -10,6 +10,7 @@ use crate::error::Error;
 pub struct Config {
     pub application: ApplicationSettings,
     pub game: GameSettings,
+    pub words_file: String,
     pub allow_cors: bool,
 }
 
@@ -23,7 +24,6 @@ pub struct ApplicationSettings {
 #[derive(serde::Deserialize, Clone)]
 pub struct GameSettings {
     pub inactivity_timeout_seconds: u64,
-    pub words_file: String,
 }
 
 impl GameSettings {
