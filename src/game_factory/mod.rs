@@ -75,6 +75,7 @@ impl GameFactory {
                     .trim()
                     .to_lowercase()
             })
+            .filter(|word| !word.is_empty())
             .collect()
     }
 
