@@ -4,6 +4,7 @@ pub mod actor_client;
 use rand::distributions::{Alphanumeric, DistString};
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 use crate::config::GameSettings;
 use crate::error::domain_error::DomainError;
@@ -19,7 +20,7 @@ pub struct GameFactory {
 }
 
 impl GameFactory {
-    const WORDS_FILE_PATH: &'static str = "words/en.json";
+    const WORDS_FILE_PATH: &'static str = "words/en.txt";
 
     pub fn new(game_settings: GameSettings) -> Self {
         let words = GameFactory::read_words_from_file(GameFactory::WORDS_FILE_PATH);
@@ -67,9 +68,14 @@ impl GameFactory {
         let file = File::open(file_path).unwrap_or_else(|error| {
             panic!("Could not load words file. File: '{file_path}', Error: '{error}'.")
         });
-        serde_json::from_reader(file).unwrap_or_else(|error| {
-            panic!("Could not parse the words json. File: '{file_path}', Error: '{error}'.")
-        })
+        BufReader::new(file)
+            .lines()
+            .map(|line| {
+                line.expect("Could not parse one of the word lines.")
+                    .trim()
+                    .to_lowercase()
+            })
+            .collect()
     }
 
     fn create_unique_game_id(&self) -> String {
