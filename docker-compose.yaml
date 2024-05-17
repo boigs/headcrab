@@ -1,0 +1,11 @@
+services:
+  headcrab:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      args:
+        RUST_VERSION: 1.77.0
+    environment:
+      - ENVIRONMENT=dev
+    ports:
+      - 4001:4000
