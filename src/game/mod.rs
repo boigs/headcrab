@@ -123,7 +123,7 @@ impl Game {
             player.is_connected = false;
             player.is_host = false;
             self.assign_host();
-            Ok(())
+            self.check_transition_to_voting()
         } else {
             Err(Error::log_and_create_internal(&format!(
                 "Tried to disconnect player '{nickname}' but it does not exist."
@@ -279,8 +279,21 @@ impl Game {
             )));
         }
 
-        if let Some(round) = self.rounds.last_mut() {
-            round.add_player_words(nickname, words)?;
+        let round = self
+            .rounds
+            .last_mut()
+            .expect("Missing round, there is a bug in the code.");
+        round.add_player_words(nickname, words)?;
+
+        self.check_transition_to_voting()
+    }
+
+    fn check_transition_to_voting(&mut self) -> Result<(), Error> {
+        if self.fsm.state() == &GameFsmState::PlayersSubmittingWords {
+            let round = self
+                .rounds
+                .last_mut()
+                .expect("Missing round, there is a bug in the code.");
             let connected_players: Vec<String> = self
                 .players
                 .iter()
@@ -295,7 +308,6 @@ impl Game {
                 return self.process_event(&GameFsmInput::AllPlayersSubmittedWords);
             }
         }
-
         Ok(())
     }
 
@@ -601,6 +613,18 @@ mod tests {
                 )
             ))
         );
+    }
+
+    #[test]
+    fn when_last_player_without_words_submission_is_disonnected_games_proceeds_to_voting() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
+        game.add_player_words(PLAYER_1, words()).unwrap();
+        game.add_player_words(PLAYER_2, words()).unwrap();
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
+
+        game.disconnect_player(PLAYER_3).unwrap();
+
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
     }
 
     #[test]
