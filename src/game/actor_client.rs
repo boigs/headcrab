@@ -154,6 +154,24 @@ impl GameClient {
         }
     }
 
+    pub async fn continue_to_new_game(&self, nickname: &str) -> Result<(), Error> {
+        let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
+
+        self.send_command(
+            GameCommand::ContinueToNewGame {
+                nickname: nickname.to_string(),
+                response_tx: tx,
+            },
+            "GameCommand::ContinueToNewGame",
+        )
+        .await?;
+
+        match rx.await {
+            Ok(GameEvent::Ok) => Ok(()),
+            error => Err(GameClient::handle_event_error(error)),
+        }
+    }
+
     async fn send_command(&self, command: GameCommand, command_name: &str) -> Result<(), Error> {
         self.game_tx.send(command).await.map_err(|error| {
             Error::log_and_create_internal(&format!("The Game channel is closed, cloud not send command '{command_name}'. Error: '{error}'"))

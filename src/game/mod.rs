@@ -315,6 +315,19 @@ impl Game {
             ))
         }
     }
+
+    pub fn continue_to_new_game(&mut self, nickname: &str) -> Result<(), Error> {
+        if self.is_host(nickname) {
+            self.process_event(&GameFsmInput::ContinueToNewGame)?;
+            self.amount_of_rounds = None;
+            self.rounds = Vec::default();
+            Ok(())
+        } else {
+            Err(Error::Domain(
+                DomainError::NonHostPlayerCannotContinueToNewGame(nickname.to_string()),
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -752,6 +765,35 @@ mod tests {
             .any(|word_index| game_1_words[word_index] != game_2_words[word_index]));
     }
 
+    #[test]
+    fn continue_to_new_game_fails_when_player_is_not_host() {
+        let mut game = get_game(&GameFsmState::EndOfGame);
+
+        let result = game.continue_to_new_game(PLAYER_2);
+
+        assert_eq!(
+            result,
+            Err(Error::Domain(
+                DomainError::NonHostPlayerCannotContinueToNewGame(PLAYER_2.to_string())
+            ))
+        );
+    }
+
+    #[test]
+    fn continue_to_new_game_proceeds_to_lobby() {
+        let mut game = get_game(&GameFsmState::EndOfGame);
+        let expected_used_words = game.words.iter().filter(|word| word.is_used).count();
+
+        let result = game.continue_to_new_game(PLAYER_1);
+        let actual_used_words = game.words.iter().filter(|word| word.is_used).count();
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(game.state(), &GameFsmState::Lobby);
+        assert_eq!(actual_used_words, expected_used_words);
+        assert!(game.rounds().is_empty());
+        assert!(game.amount_of_rounds.is_none());
+    }
+
     fn get_empty_game() -> Game {
         Game::new("id", Game::default_words())
     }
@@ -778,6 +820,13 @@ mod tests {
             GameFsmState::EndOfRound => {
                 game.start_game(PLAYER_1, amount_of_rounds).unwrap();
                 complete_round(&mut game);
+            }
+            GameFsmState::EndOfGame => {
+                game.start_game(PLAYER_1, amount_of_rounds).unwrap();
+                for _ in 0..game.amount_of_rounds.unwrap() {
+                    complete_round(&mut game);
+                    game.continue_to_next_round(PLAYER_1).unwrap();
+                }
             }
             _ => panic!("Unsupported desired state for unit tests"),
         }

@@ -208,6 +208,9 @@ impl PlayerActor {
                     Ok(WsMessageIn::ContinueToNextRound) => {
                         self.game.continue_to_next_round(&self.nickname).await
                     }
+                    Ok(WsMessageIn::ContinueToNewGame) => {
+                        self.game.continue_to_new_game(&self.nickname).await
+                    }
                     Err(error) => Err(error),
                 },
             },

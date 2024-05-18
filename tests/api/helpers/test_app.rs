@@ -100,18 +100,28 @@ impl TestApp {
         assert_eq!(state.players.get(2).unwrap().nickname, "p3");
         assert!(!state.players.get(2).unwrap().is_host);
 
-        match desired_state {
-            GameFsmState::Lobby => {}
+        let state = match desired_state {
+            GameFsmState::Lobby => state.state,
             GameFsmState::PlayersSubmittingWords => {
-                let state = game.players[0].start_game(3).await.unwrap();
+                let _ = game.players[0]
+                    .start_game(TestGame::AMOUNT_OF_ROUNDS)
+                    .await
+                    .unwrap();
                 let _ = game.players[1].receive_game_state().await.unwrap();
-                let _ = game.players[2].receive_game_state().await.unwrap();
-                assert_eq!(state.state, GameFsmState::PlayersSubmittingWords)
+                game.players[2].receive_game_state().await.unwrap().state
             }
             GameFsmState::PlayersSubmittingVotingWord => todo!(),
             GameFsmState::EndOfRound => todo!(),
-            GameFsmState::EndOfGame => todo!(),
-        }
+            GameFsmState::EndOfGame => {
+                let mut state = game.players[0].start_game(3).await.unwrap();
+                for _ in 0..TestGame::AMOUNT_OF_ROUNDS {
+                    let _ = game.complete_round().await;
+                    state = game.continue_to_next_round().await;
+                }
+                state.state
+            }
+        };
+        assert_eq!(state, desired_state);
 
         game
     }

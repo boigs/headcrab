@@ -155,6 +155,16 @@ impl GameActor {
                                 .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
+                        GameCommand::ContinueToNewGame {
+                            nickname,
+                            response_tx,
+                        } => {
+                            let result = self
+                                .game
+                                .continue_to_new_game(&nickname)
+                                .map(|_| GameEvent::Ok);
+                            Some((result, nickname, response_tx))
+                        }
                     };
                     if let Some((result, nickname, response_tx)) = response {
                         let event = match result {
@@ -224,6 +234,10 @@ pub(crate) enum GameCommand {
         response_tx: OneshotSender<GameEvent>,
     },
     ContinueToNextRound {
+        nickname: String,
+        response_tx: OneshotSender<GameEvent>,
+    },
+    ContinueToNewGame {
         nickname: String,
         response_tx: OneshotSender<GameEvent>,
     },

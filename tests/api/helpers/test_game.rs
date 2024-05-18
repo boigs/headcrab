@@ -12,6 +12,8 @@ pub struct TestGame {
 }
 
 impl TestGame {
+    pub const AMOUNT_OF_ROUNDS: i8 = 3;
+
     pub async fn add_player(&mut self, nickname: &str) -> Result<GameState, String> {
         let (tx, rx) = self
             .app
@@ -100,6 +102,15 @@ impl TestGame {
         }
         state
     }
+
+    pub async fn continue_to_new_game(&mut self) -> GameState {
+        let (host, rest) = self.players.split_first_mut().unwrap();
+        let state = host.continue_to_new_game().await.unwrap();
+        for player in rest {
+            let _ = player.receive_game_state().await.unwrap();
+        }
+        state
+    }
 }
 
 #[derive(Deserialize, Debug, PartialEq)]
@@ -174,6 +185,7 @@ pub enum WsMessageOut {
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
+    ContinueToNewGame,
 }
 
 #[derive(Deserialize, Debug, PartialEq)]
