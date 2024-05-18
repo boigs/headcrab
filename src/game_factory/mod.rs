@@ -14,13 +14,15 @@ use crate::game_factory::actor_client::GameFactoryClient;
 pub struct GameFactory {
     game_channels: HashMap<String, GameClient>,
     game_settings: GameSettings,
+    words: Vec<String>,
 }
 
 impl GameFactory {
-    pub fn new(game_settings: GameSettings) -> Self {
+    pub fn new(game_settings: GameSettings, words: Vec<String>) -> Self {
         GameFactory {
             game_channels: HashMap::default(),
             game_settings,
+            words,
         }
     }
 
@@ -28,7 +30,12 @@ impl GameFactory {
         let id = self.create_unique_game_id();
         self.game_channels.insert(
             id.clone(),
-            GameActor::spawn(&id, self.game_settings.clone(), game_factory),
+            GameActor::spawn(
+                &id,
+                self.game_settings.clone(),
+                self.words.clone(),
+                game_factory,
+            ),
         );
 
         id
@@ -73,9 +80,12 @@ mod tests {
 
     #[test]
     fn add_player_works() {
-        let game_factory = GameFactory::new(GameSettings {
-            inactivity_timeout_seconds: 1,
-        });
+        let game_factory = GameFactory::new(
+            GameSettings {
+                inactivity_timeout_seconds: 1,
+            },
+            vec![],
+        );
 
         let id = game_factory.create_unique_game_id();
 
@@ -91,9 +101,12 @@ mod tests {
 
     #[test]
     fn get_game_fails_when_game_does_not_exist() {
-        let game_factory = GameFactory::new(GameSettings {
-            inactivity_timeout_seconds: 1,
-        });
+        let game_factory = GameFactory::new(
+            GameSettings {
+                inactivity_timeout_seconds: 1,
+            },
+            vec![],
+        );
 
         let result = game_factory.get_game("invalid_game");
 

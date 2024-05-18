@@ -32,7 +32,7 @@ impl Game {
         let words = if words.len() >= Game::MINIMUM_ROUNDS.into() {
             words
         } else {
-            log::error!("Game created without enough words, defaulting to the built-in list of words. GameId: {}, ActualWords: {}, MinimumWords: {}", id, words.len(), Game::MINIMUM_ROUNDS);
+            log::error!("Game created without enough words, defaulting to the built-in list of words. GameId: '{}', ActualWords: '{}', MinimumWords: '{}'", id, words.len(), Game::MINIMUM_ROUNDS);
             Game::default_words()
         };
 
@@ -237,7 +237,7 @@ impl Game {
                 word.value.to_string()
             }
             None => {
-                log::error!("Ran out of unused random words, resetting the used words. GameId: {}, AmountOfWords: {}, AmountOfRounds: {}", self.id, self.rounds.len(), self.words.len());
+                log::error!("Ran out of unused random words, resetting the used words. GameId: '{}', AmountOfWords: '{}', AmountOfRounds: '{}'", self.id, self.rounds.len(), self.words.len());
                 self.words = Game::shuffle_words(
                     self.words
                         .iter()

@@ -10,6 +10,7 @@ use crate::error::Error;
 pub struct Config {
     pub application: ApplicationSettings,
     pub game: GameSettings,
+    pub words_file: String,
     pub allow_cors: bool,
 }
 

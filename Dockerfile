@@ -21,6 +21,7 @@ FROM debian:12.5-slim AS final
 WORKDIR /app
 COPY --from=builder /app/target/release/headcrab /usr/local/bin
 COPY config config
+COPY words words
 
 RUN addgroup --system --gid 1001 appgroup
 RUN adduser --system --uid 1001 --ingroup appgroup app
