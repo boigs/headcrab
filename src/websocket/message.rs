@@ -137,7 +137,6 @@ pub fn state_to_string(state: GameFsmState) -> String {
     match state {
         GameFsmState::Lobby => "Lobby".to_string(),
         GameFsmState::PlayersSubmittingWords => "PlayersSubmittingWords".to_string(),
-        GameFsmState::ChooseNextVotingItem => "ChooseNextVotingItem".to_string(),
         GameFsmState::PlayersSubmittingVotingWord => "PlayersSubmittingVotingWord".to_string(),
         GameFsmState::EndOfRound => "EndOfRound".to_string(),
         GameFsmState::EndOfGame => "EndOfGame".to_string(),

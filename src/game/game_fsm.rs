@@ -18,14 +18,11 @@ state_machine! {
     },
     PlayersSubmittingWords => {
         // TODO: TimesUp => ScoreCounting,
-        AllPlayersSubmittedWords => ChooseNextVotingItem
-    },
-    ChooseNextVotingItem => {
-        NextVotingItem => PlayersSubmittingVotingWord,
-        NoMoreVotingItems => EndOfRound,
+        AllPlayersSubmittedWords => PlayersSubmittingVotingWord
     },
     PlayersSubmittingVotingWord => {
-        AcceptPlayersVotingWords => ChooseNextVotingItem,
+        NextVotingItem => PlayersSubmittingVotingWord,
+        NoMoreVotingItems => EndOfRound,
     },
     EndOfRound => {
         NextRound => PlayersSubmittingWords,

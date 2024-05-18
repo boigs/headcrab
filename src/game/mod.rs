@@ -144,9 +144,8 @@ impl Game {
                     Game::MINIMUM_PLAYERS.into(),
                 )))
             } else {
-                self.amount_of_rounds = Some(amount_of_rounds);
                 self.process_event(&GameFsmInput::StartGame)?;
-                self.start_new_round();
+                self.amount_of_rounds = Some(amount_of_rounds);
                 Ok(())
             }
         } else {
@@ -187,27 +186,33 @@ impl Game {
     }
 
     fn process_event(&mut self, event: &GameFsmInput) -> Result<(), Error> {
-        match self.fsm.consume(event) {
+        let result = match self.fsm.consume(event) {
             Ok(_) => match self.fsm.state() {
                 GameFsmState::Lobby => Ok(()),
-                GameFsmState::PlayersSubmittingWords => Ok(()),
-                GameFsmState::PlayersSubmittingVotingWord => Ok(()),
-                GameFsmState::ChooseNextVotingItem => {
+                GameFsmState::PlayersSubmittingWords => {
+                    self.start_new_round();
+                    Ok(())
+                }
+                GameFsmState::PlayersSubmittingVotingWord => {
                     if self.get_current_round_mut().next_voting_item().is_some() {
-                        self.process_event(&GameFsmInput::NextVotingItem)
+                        self.fsm.consume(&GameFsmInput::NextVotingItem)
                     } else {
-                        self.process_event(&GameFsmInput::NoMoreVotingItems)
+                        self.fsm.consume(&GameFsmInput::NoMoreVotingItems)
                     }
+                    .map(|_| ())
                 }
                 GameFsmState::EndOfRound => Ok(()),
                 GameFsmState::EndOfGame => Ok(()),
             },
-            Err(error) => Err(Error::log_and_create_internal(&format!(
+            Err(error) => Err(error),
+        };
+        result.map_err(|error| {
+            Error::log_and_create_internal(&format!(
                 "The fsm in state {:?} can't transition with an event {:?}. Error: '{error}'.",
                 self.fsm.state(),
                 event
-            ))),
-        }
+            ))
+        })
     }
 
     fn start_new_round(&mut self) {
@@ -290,7 +295,11 @@ impl Game {
     pub fn accept_players_voting_words(&mut self, nickname: &str) -> Result<(), Error> {
         if self.is_host(nickname) {
             self.get_current_round_mut().compute_score();
-            self.process_event(&GameFsmInput::AcceptPlayersVotingWords)
+            if self.get_current_round_mut().next_voting_item().is_some() {
+                self.process_event(&GameFsmInput::NextVotingItem)
+            } else {
+                self.process_event(&GameFsmInput::NoMoreVotingItems)
+            }
         } else {
             Err(Error::Domain(
                 DomainError::NonHostPlayerCannotContinueToNextVotingItem(nickname.to_string()),
@@ -304,7 +313,6 @@ impl Game {
                 self.process_event(&GameFsmInput::NoMoreRounds)
             } else {
                 self.process_event(&GameFsmInput::NextRound)?;
-                self.start_new_round();
                 Ok(())
             }
         } else {
@@ -637,7 +645,7 @@ mod tests {
 
         let result = game.accept_players_voting_words(PLAYER_1);
 
-        assert_eq!(result, Err(Error::Internal("The fsm in state PlayersSubmittingWords can't transition with an event AcceptPlayersVotingWords. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
+        assert_eq!(result, Err(Error::Internal("The fsm in state PlayersSubmittingWords can't transition with an event NoMoreVotingItems. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
     }
 
     #[test]
@@ -826,7 +834,6 @@ mod tests {
                     game.continue_to_next_round(PLAYER_1).unwrap();
                 }
             }
-            _ => panic!("Unsupported desired state for unit tests"),
         }
         assert_eq!(game.state(), state);
 
