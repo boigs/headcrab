@@ -154,15 +154,15 @@ impl GameClient {
         }
     }
 
-    pub async fn continue_to_new_game(&self, nickname: &str) -> Result<(), Error> {
+    pub async fn play_again(&self, nickname: &str) -> Result<(), Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         self.send_command(
-            GameCommand::ContinueToNewGame {
+            GameCommand::PlayAgain {
                 nickname: nickname.to_string(),
                 response_tx: tx,
             },
-            "GameCommand::ContinueToNewGame",
+            "GameCommand::PlayAgain",
         )
         .await?;
 

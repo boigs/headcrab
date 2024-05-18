@@ -35,6 +35,6 @@ state_machine! {
         ContinueToNextRound => CreatingNewRound,
     },
     EndOfGame => {
-        ContinueToNewGame => Lobby
+        PlayAgain => Lobby
     }
 }

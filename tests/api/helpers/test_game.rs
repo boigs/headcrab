@@ -103,9 +103,9 @@ impl TestGame {
         state
     }
 
-    pub async fn continue_to_new_game(&mut self) -> GameState {
+    pub async fn play_again(&mut self) -> GameState {
         let (host, rest) = self.players.split_first_mut().unwrap();
-        let state = host.continue_to_new_game().await.unwrap();
+        let state = host.play_again().await.unwrap();
         for player in rest {
             let _ = player.receive_game_state().await.unwrap();
         }
@@ -185,7 +185,7 @@ pub enum WsMessageOut {
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
-    ContinueToNewGame,
+    PlayAgain,
 }
 
 #[derive(Deserialize, Debug, PartialEq)]

@@ -49,7 +49,7 @@ pub enum WsMessageIn {
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
-    ContinueToNewGame,
+    PlayAgain,
 }
 
 #[derive(Serialize)]

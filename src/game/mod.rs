@@ -316,15 +316,15 @@ impl Game {
         }
     }
 
-    pub fn continue_to_new_game(&mut self, nickname: &str) -> Result<(), Error> {
+    pub fn play_again(&mut self, nickname: &str) -> Result<(), Error> {
         if self.is_host(nickname) {
-            self.process_event(&GameFsmInput::ContinueToNewGame)?;
+            self.process_event(&GameFsmInput::PlayAgain)?;
             self.amount_of_rounds = None;
             self.rounds = Vec::default();
             Ok(())
         } else {
             Err(Error::Domain(
-                DomainError::NonHostPlayerCannotContinueToNewGame(nickname.to_string()),
+                DomainError::NonHostPlayerCannotSendPlayAgain(nickname.to_string()),
             ))
         }
     }
@@ -766,25 +766,25 @@ mod tests {
     }
 
     #[test]
-    fn continue_to_new_game_fails_when_player_is_not_host() {
+    fn play_again_fails_when_player_is_not_host() {
         let mut game = get_game(&GameFsmState::EndOfGame);
 
-        let result = game.continue_to_new_game(PLAYER_2);
+        let result = game.play_again(PLAYER_2);
 
         assert_eq!(
             result,
             Err(Error::Domain(
-                DomainError::NonHostPlayerCannotContinueToNewGame(PLAYER_2.to_string())
+                DomainError::NonHostPlayerCannotSendPlayAgain(PLAYER_2.to_string())
             ))
         );
     }
 
     #[test]
-    fn continue_to_new_game_proceeds_to_lobby() {
+    fn play_again_proceeds_to_lobby() {
         let mut game = get_game(&GameFsmState::EndOfGame);
         let expected_used_words = game.words.iter().filter(|word| word.is_used).count();
 
-        let result = game.continue_to_new_game(PLAYER_1);
+        let result = game.play_again(PLAYER_1);
         let actual_used_words = game.words.iter().filter(|word| word.is_used).count();
 
         assert_eq!(result, Ok(()));

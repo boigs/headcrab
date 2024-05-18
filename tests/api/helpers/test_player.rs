@@ -81,9 +81,8 @@ impl TestPlayer {
         self.receive_game_state().await
     }
 
-    pub async fn continue_to_new_game(&mut self) -> Result<GameState, String> {
-        self.send_text_message(WsMessageOut::ContinueToNewGame)
-            .await;
+    pub async fn play_again(&mut self) -> Result<GameState, String> {
+        self.send_text_message(WsMessageOut::PlayAgain).await;
         self.receive_game_state().await
     }
 

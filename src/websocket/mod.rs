@@ -68,7 +68,7 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 }
                 DomainError::NotEnoughPlayers(_, _) => "NOT_ENOUGH_PLAYERS",
                 DomainError::NotEnoughRounds(_, _) => "NOT_ENOUGH_ROUNDS",
-                DomainError::NonHostPlayerCannotContinueToNewGame(_) => {
+                DomainError::NonHostPlayerCannotSendPlayAgain(_) => {
                     "NON_HOST_PLAYER_CANNOT_CONTINUE_TO_NEW_GAME"
                 }
                 DomainError::NonHostPlayerCannotContinueToNextRound(_) => {

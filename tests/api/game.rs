@@ -382,7 +382,7 @@ async fn players_can_complete_a_game() {
 }
 
 #[tokio::test]
-async fn players_can_continue_to_a_next_game() {
+async fn players_play_again_a_game() {
     let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
     let mut state = GameFsmState::PlayersSubmittingWords;
 
@@ -391,7 +391,7 @@ async fn players_can_continue_to_a_next_game() {
         state = game.continue_to_next_round().await.state;
     }
     assert_eq!(state, GameFsmState::EndOfGame);
-    state = game.continue_to_new_game().await.state;
+    state = game.play_again().await.state;
 
     assert_eq!(state, GameFsmState::Lobby);
 }

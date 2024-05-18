@@ -155,14 +155,11 @@ impl GameActor {
                                 .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
-                        GameCommand::ContinueToNewGame {
+                        GameCommand::PlayAgain {
                             nickname,
                             response_tx,
                         } => {
-                            let result = self
-                                .game
-                                .continue_to_new_game(&nickname)
-                                .map(|_| GameEvent::Ok);
+                            let result = self.game.play_again(&nickname).map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
                     };
@@ -237,7 +234,7 @@ pub(crate) enum GameCommand {
         nickname: String,
         response_tx: OneshotSender<GameEvent>,
     },
-    ContinueToNewGame {
+    PlayAgain {
         nickname: String,
         response_tx: OneshotSender<GameEvent>,
     },
