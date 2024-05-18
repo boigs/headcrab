@@ -145,7 +145,9 @@ impl Game {
                 )))
             } else {
                 self.amount_of_rounds = Some(amount_of_rounds);
-                self.process_event(&GameFsmInput::StartGame)
+                self.process_event(&GameFsmInput::StartGame)?;
+                self.start_new_round();
+                Ok(())
             }
         } else {
             Err(Error::Domain(DomainError::NonHostPlayerCannotStartGame(
@@ -187,18 +189,8 @@ impl Game {
     fn process_event(&mut self, event: &GameFsmInput) -> Result<(), Error> {
         match self.fsm.consume(event) {
             Ok(_) => match self.fsm.state() {
-                GameFsmState::CreatingNewRound => {
-                    if self.rounds.len()
-                        >= self.amount_of_rounds.unwrap_or(Game::DEFAULT_ROUNDS).into()
-                    {
-                        self.process_event(&GameFsmInput::NoMoreRounds)
-                    } else {
-                        self.start_new_round();
-                        self.process_event(&GameFsmInput::StartRound)
-                    }
-                }
-                GameFsmState::PlayersSubmittingWords => Ok(()),
                 GameFsmState::Lobby => Ok(()),
+                GameFsmState::PlayersSubmittingWords => Ok(()),
                 GameFsmState::PlayersSubmittingVotingWord => Ok(()),
                 GameFsmState::ChooseNextVotingItem => {
                     if self.get_current_round_mut().next_voting_item().is_some() {
@@ -308,7 +300,13 @@ impl Game {
 
     pub fn continue_to_next_round(&mut self, nickname: &str) -> Result<(), Error> {
         if self.is_host(nickname) {
-            self.process_event(&GameFsmInput::ContinueToNextRound)
+            if self.rounds.len() >= self.amount_of_rounds.unwrap_or(Game::DEFAULT_ROUNDS).into() {
+                self.process_event(&GameFsmInput::NoMoreRounds)
+            } else {
+                self.process_event(&GameFsmInput::NextRound)?;
+                self.start_new_round();
+                Ok(())
+            }
         } else {
             Err(Error::Domain(
                 DomainError::NonHostPlayerCannotContinueToNextRound(nickname.to_string()),
@@ -589,7 +587,7 @@ mod tests {
 
         let result = game.continue_to_next_round(PLAYER_1);
 
-        assert_eq!(result, Err(Error::Internal("The fsm in state Lobby can't transition with an event ContinueToNextRound. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
+        assert_eq!(result, Err(Error::Internal("The fsm in state Lobby can't transition with an event NextRound. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
     }
 
     #[test]

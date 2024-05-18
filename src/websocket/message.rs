@@ -136,7 +136,6 @@ impl From<VotingItem> for VotingItemDto {
 pub fn state_to_string(state: GameFsmState) -> String {
     match state {
         GameFsmState::Lobby => "Lobby".to_string(),
-        GameFsmState::CreatingNewRound => "CreatingNewRound".to_string(),
         GameFsmState::PlayersSubmittingWords => "PlayersSubmittingWords".to_string(),
         GameFsmState::ChooseNextVotingItem => "ChooseNextVotingItem".to_string(),
         GameFsmState::PlayersSubmittingVotingWord => "PlayersSubmittingVotingWord".to_string(),

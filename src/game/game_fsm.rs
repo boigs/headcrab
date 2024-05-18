@@ -14,11 +14,7 @@ state_machine! {
     pub GameFsm(Lobby)
 
     Lobby =>  {
-        StartGame => CreatingNewRound
-    },
-    CreatingNewRound => {
-        StartRound => PlayersSubmittingWords,
-        NoMoreRounds => EndOfGame,
+        StartGame => PlayersSubmittingWords
     },
     PlayersSubmittingWords => {
         // TODO: TimesUp => ScoreCounting,
@@ -32,7 +28,8 @@ state_machine! {
         AcceptPlayersVotingWords => ChooseNextVotingItem,
     },
     EndOfRound => {
-        ContinueToNextRound => CreatingNewRound,
+        NextRound => PlayersSubmittingWords,
+        NoMoreRounds => EndOfGame,
     },
     EndOfGame => {
         PlayAgain => Lobby
