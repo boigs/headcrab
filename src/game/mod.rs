@@ -288,10 +288,7 @@ impl Game {
                 .map(|player| player.nickname.clone())
                 .collect();
             if round.have_all_players_submitted_words(&connected_players) {
-                for disconnected_player in self
-                    .players
-                    .iter_mut()
-                    .filter(|player| !player.is_connected)
+                for disconnected_player in self.players.iter().filter(|player| !player.is_connected)
                 {
                     round.add_player_words(&disconnected_player.nickname, Vec::default())?;
                 }
