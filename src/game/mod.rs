@@ -312,8 +312,7 @@ impl Game {
             if self.rounds.len() >= self.amount_of_rounds.unwrap_or(Game::DEFAULT_ROUNDS).into() {
                 self.process_event(&GameFsmInput::NoMoreRounds)
             } else {
-                self.process_event(&GameFsmInput::NextRound)?;
-                Ok(())
+                self.process_event(&GameFsmInput::NextRound)
             }
         } else {
             Err(Error::Domain(
