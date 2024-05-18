@@ -288,6 +288,10 @@ impl Game {
                 .map(|player| player.nickname.clone())
                 .collect();
             if round.have_all_players_submitted_words(&connected_players) {
+                for disconnected_player in self.players.iter().filter(|player| !player.is_connected)
+                {
+                    round.add_player_words(&disconnected_player.nickname, Vec::default())?;
+                }
                 return self.process_event(&GameFsmInput::AllPlayersSubmittedWords);
             }
         }
@@ -529,6 +533,22 @@ mod tests {
         game.add_player_words(PLAYER_3, words()).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
+    }
+
+    #[test]
+    fn add_player_words_transitions_and_sets_default_words_for_disconnected_players() {
+        let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
+        game.disconnect_player(PLAYER_2).unwrap();
+        game.disconnect_player(PLAYER_3).unwrap();
+
+        game.add_player_words(PLAYER_1, words()).unwrap();
+
+        assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
+        let round = game.rounds().last().unwrap();
+        assert!(round.player_words.contains_key(PLAYER_2));
+        assert!(round.player_words[PLAYER_2].is_empty());
+        assert!(round.player_words.contains_key(PLAYER_3));
+        assert!(round.player_words[PLAYER_3].is_empty());
     }
 
     #[test]
