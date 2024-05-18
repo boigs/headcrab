@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use crate::helpers::{test_app::TestApp, test_game::GameFsmState};
+use crate::helpers::{
+    test_app::TestApp,
+    test_game::{GameFsmState, TestGame},
+};
 
 use tokio::time;
 use tokio_tungstenite::tungstenite::Message;
@@ -368,18 +371,29 @@ async fn players_can_complete_a_round() {
 #[tokio::test]
 async fn players_can_complete_a_game() {
     let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
+    let mut state = GameFsmState::PlayersSubmittingWords;
 
-    game.complete_round().await;
-    let state = game.continue_to_next_round().await;
-    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
+    for _ in 0..TestGame::AMOUNT_OF_ROUNDS {
+        game.complete_round().await;
+        state = game.continue_to_next_round().await.state;
+    }
 
-    game.complete_round().await;
-    let state = game.continue_to_next_round().await;
-    assert_eq!(state.state, GameFsmState::PlayersSubmittingWords);
+    assert_eq!(state, GameFsmState::EndOfGame);
+}
 
-    game.complete_round().await;
-    let state = game.continue_to_next_round().await;
-    assert_eq!(state.state, GameFsmState::EndOfGame);
+#[tokio::test]
+async fn players_play_again_a_game() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
+    let mut state = GameFsmState::PlayersSubmittingWords;
+
+    for _ in 0..TestGame::AMOUNT_OF_ROUNDS {
+        game.complete_round().await;
+        state = game.continue_to_next_round().await.state;
+    }
+    assert_eq!(state, GameFsmState::EndOfGame);
+    state = game.play_again().await.state;
+
+    assert_eq!(state, GameFsmState::Lobby);
 }
 
 async fn sleep(duration: Duration) {

@@ -33,5 +33,8 @@ state_machine! {
     },
     EndOfRound => {
         ContinueToNextRound => CreatingNewRound,
+    },
+    EndOfGame => {
+        PlayAgain => Lobby
     }
 }

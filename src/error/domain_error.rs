@@ -23,6 +23,8 @@ pub enum DomainError {
     #[error(
         "A non host player cannot continue the game to the next voting item. Nickname: '{0}'."
     )]
+    NonHostPlayerCannotSendPlayAgain(String),
+    #[error("A non host player cannot send play again. Nickname: '{0}'.")]
     NonHostPlayerCannotContinueToNextVotingItem(String),
     #[error(
         "A non host player cannot continue the game to the next voting item. Nickname: '{0}'."
