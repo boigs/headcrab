@@ -47,4 +47,12 @@ pub enum DomainError {
     },
     #[error("The player of the current Voting Item cannot submit a Voting Word. Nickname: '{0}'.")]
     VotingItemPlayerCannotSubmitVotingWord(String),
+    #[error("Cannot reject words in the current state.")]
+    InvalidStateForRejectingMatchedWords,
+    #[error("The rejected matched word does not exist.")]
+    RejectedMatchedWordDoesNotExist,
+    #[error("The rejected player does not exist.")]
+    RejectedMatchedPlayerDoesNotExist,
+    #[error("Non host cannot reject matched words")]
+    NonHostCannotRejectMatchedWords,
 }

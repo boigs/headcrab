@@ -189,6 +189,31 @@ impl GameClient {
             ),
         }
     }
+
+    pub async fn reject_matched_word(
+        &self,
+        initiator_nickname: &str,
+        rejected_player: String,
+        rejected_word: String,
+    ) -> Result<(), Error> {
+        let (tx, rx) = oneshot::channel();
+
+        self.send_command(
+            GameCommand::RejectPlayerMatchedWord {
+                initiator_nickname: initiator_nickname.to_string(),
+                rejected_player,
+                rejected_word,
+                response_tx: tx,
+            },
+            "GameCommand::PlayAgain",
+        )
+        .await?;
+
+        match rx.await {
+            Ok(GameEvent::Ok) => Ok(()),
+            error => Err(GameClient::handle_event_error(error)),
+        }
+    }
 }
 
 pub struct GameWideEventReceiver {

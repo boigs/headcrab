@@ -344,6 +344,27 @@ impl Game {
             ))
         }
     }
+
+    fn reject_player_word(
+        &mut self,
+        initiator_nickname: &str,
+        rejected_player: &str,
+        rejected_word: &str,
+    ) -> Result<(), Error> {
+        if self.state() != &GameFsmState::PlayersSubmittingVotingWord {
+            return Err(Error::Domain(
+                DomainError::InvalidStateForRejectingMatchedWords,
+            ));
+        }
+
+        if self.is_host(initiator_nickname) {
+            let current_round = self.get_current_round_mut();
+
+            current_round.reject_player_word(rejected_player, rejected_word)
+        } else {
+            Err(Error::Domain(DomainError::NonHostCannotRejectMatchedWords))
+        }
+    }
 }
 
 #[cfg(test)]

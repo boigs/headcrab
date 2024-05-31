@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +46,10 @@ pub enum WsMessageIn {
     #[serde(rename_all = "camelCase")]
     PlayerVotingWord {
         word: Option<String>,
+    },
+    RejectMatchedWord {
+        rejected_player: String,
+        rejected_word: String,
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
@@ -122,6 +126,7 @@ impl From<Word> for WordDto {
 pub struct VotingItemDto {
     player_nickname: String,
     word: String,
+    rejected_matches: HashMap<String, HashSet<String>>,
 }
 
 impl From<VotingItem> for VotingItemDto {
@@ -129,6 +134,7 @@ impl From<VotingItem> for VotingItemDto {
         Self {
             player_nickname: val.player_nickname,
             word: val.word,
+            rejected_matches: val.rejected_matches,
         }
     }
 }

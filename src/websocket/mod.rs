@@ -89,6 +89,18 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
                     "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
                 }
+                DomainError::RejectedMatchedWordDoesNotExist => {
+                    "REJECTED_MATCHED_WORD_DOES_NOT_EXIST"
+                }
+                DomainError::NonHostCannotRejectMatchedWords => {
+                    "NON_HOST_CANNOT_REJECT_MATCHED_WORDS"
+                }
+                DomainError::InvalidStateForRejectingMatchedWords => {
+                    "INVALID_STATE_FOR_REJECTING_MATCHED_WORDS"
+                }
+                DomainError::RejectedMatchedPlayerDoesNotExist => {
+                    "REJECTED_MATCHED_PLAYER_DOES_NOT_EXIST"
+                }
             },
             Error::External(ref external_error) => match external_error {
                 ExternalError::UnprocessableWebsocketMessage(_, _) => {
