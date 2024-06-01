@@ -58,13 +58,22 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
     WsMessageOut::Error {
         r#type: match error {
             Error::Domain(ref domain_error) => match domain_error {
+                DomainError::CannotRejectMatchedWordsWhenVotingItemIsNone => {
+                    "CANNOT_REJECT_MATCHED_WORDS_WHEN_VOTING_ITEM_IS_NONE"
+                }
                 DomainError::GameAlreadyInProgress(_) => "GAME_ALREADY_IN_PROGRESS",
                 DomainError::GameDoesNotExist(_) => "GAME_DOES_NOT_EXIST",
+                DomainError::InvalidStateForRejectingMatchedWords(_, _) => {
+                    "INVALID_STATE_FOR_REJECTING_MATCHED_WORDS"
+                }
                 DomainError::InvalidStateForWordsSubmission(_, _) => {
                     "INVALID_STATE_FOR_WORDS_SUBMISSION"
                 }
                 DomainError::InvalidStateForVotingWordSubmission(_, _) => {
                     "INVALID_STATE_FOR_VOTING_WORD_SUBMISSION"
+                }
+                DomainError::NonHostCannotRejectMatchedWords => {
+                    "NON_HOST_CANNOT_REJECT_MATCHED_WORDS"
                 }
                 DomainError::NotEnoughPlayers(_, _) => "NOT_ENOUGH_PLAYERS",
                 DomainError::NotEnoughRounds(_, _) => "NOT_ENOUGH_ROUNDS",
@@ -85,27 +94,18 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 DomainError::PlayerCannotSubmitVotingWordWhenVotingItemIsNone(_) => {
                     "PLAYER_CANNOT_SUBMIT_VOTING_WORD_WHEN_VOTING_ITEM_IS_NONE"
                 }
-                DomainError::RepeatedWords { .. } => "REPEATED_WORDS",
-                DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
-                    "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
-                }
                 DomainError::RejectedMatchedWordDoesNotExist => {
                     "REJECTED_MATCHED_WORD_DOES_NOT_EXIST"
-                }
-                DomainError::NonHostCannotRejectMatchedWords => {
-                    "NON_HOST_CANNOT_REJECT_MATCHED_WORDS"
-                }
-                DomainError::InvalidStateForRejectingMatchedWords => {
-                    "INVALID_STATE_FOR_REJECTING_MATCHED_WORDS"
                 }
                 DomainError::RejectedMatchedPlayerDoesNotExist => {
                     "REJECTED_MATCHED_PLAYER_DOES_NOT_EXIST"
                 }
-                DomainError::CannotRejectMatchedWordsWhenVotingItemIsNone => {
-                    "CANNOT_REJECT_MATCHED_WORDS_WHEN_VOTING_ITEM_IS_NONE"
-                }
+                DomainError::RepeatedWords { .. } => "REPEATED_WORDS",
                 DomainError::RejectedMatchedWordWasNotPickedByPlayer => {
                     "REJECTED_MATCHED_WORD_WAS_NOT_PICKED_BY_PLAYER"
+                }
+                DomainError::VotingItemPlayerCannotSubmitVotingWord(_) => {
+                    "VOTING_ITEM_PLAYER_CANNOT_SUBMIT_VOTING_WORD"
                 }
             },
             Error::External(ref external_error) => match external_error {
