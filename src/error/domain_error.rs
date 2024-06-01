@@ -6,6 +6,8 @@ use crate::game::game_fsm::GameFsmState;
 pub enum DomainError {
     #[error("Cannot reject matching words when voting item is none")]
     CannotRejectMatchedWordsWhenVotingItemIsNone,
+    #[error("Cannot submit a word for matching if it was previously rejected")]
+    CannotResubmitRejectedMatchedWord,
     #[error("The game is already in progress. GameId: '{0}'.")]
     GameAlreadyInProgress(String),
     #[error("The game does not exist. GameId: '{0}'.")]

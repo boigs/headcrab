@@ -61,6 +61,9 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 DomainError::CannotRejectMatchedWordsWhenVotingItemIsNone => {
                     "CANNOT_REJECT_MATCHED_WORDS_WHEN_VOTING_ITEM_IS_NONE"
                 }
+                DomainError::CannotResubmitRejectedMatchedWord => {
+                    "CANNOT_RESUBMIT_REJECTED_MATCHED_WORD"
+                }
                 DomainError::GameAlreadyInProgress(_) => "GAME_ALREADY_IN_PROGRESS",
                 DomainError::GameDoesNotExist(_) => "GAME_DOES_NOT_EXIST",
                 DomainError::InvalidStateForRejectingMatchedWords(_, _) => {
