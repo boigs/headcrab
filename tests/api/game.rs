@@ -396,6 +396,220 @@ async fn players_play_again_a_game() {
     assert_eq!(state, GameFsmState::Lobby);
 }
 
+#[tokio::test]
+async fn cannot_reject_word_outside_submitting_voting_word_state() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingWords).await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+
+    let error = host_player
+        .reject_matched_word("p2", "any-word")
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "INVALID_STATE_FOR_REJECTING_MATCHED_WORDS");
+}
+
+#[tokio::test]
+async fn non_host_player_cannot_reject_word() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let non_host_player = game.players.get_mut(1).unwrap();
+
+    let error = non_host_player
+        .reject_matched_word("p1", "any-word")
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "NON_HOST_CANNOT_REJECT_MATCHED_WORDS");
+}
+
+#[tokio::test]
+async fn cannot_reject_word_for_player_that_does_not_exist() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+
+    let error = host_player
+        .reject_matched_word("p99", "any-word")
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "REJECTED_MATCHED_PLAYER_DOES_NOT_EXIST");
+}
+
+#[tokio::test]
+async fn cannot_reject_word_when_word_does_not_exist() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+
+    let error = host_player
+        .reject_matched_word("p2", "non-existent-word-for-p2")
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "REJECTED_MATCHED_WORD_DOES_NOT_EXIST");
+}
+
+#[tokio::test]
+async fn cannot_reject_word_when_player_has_not_used_it_in_matching() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let rejected_word = game.players[1].words[0].clone();
+    let host_player = game.players.get_mut(0).unwrap();
+
+    let error = host_player
+        .reject_matched_word("p2", &rejected_word) // p2 has not submitted matching word yet
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "REJECTED_MATCHED_WORD_WAS_NOT_PICKED_BY_PLAYER");
+}
+
+#[tokio::test]
+async fn cannot_reject_word_when_player_has_voted_with_skip() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let rejected_word = game.players.get(1).unwrap().words[0].clone();
+
+    let player_to_reject_word = game.players.get_mut(1).unwrap();
+    let player_to_reject_word_nickname = player_to_reject_word.nickname.clone();
+    player_to_reject_word.send_voting_word(None).await.unwrap();
+
+    let _ = game.players.get_mut(0).unwrap().receive_game_state().await;
+    let _ = game.players.get_mut(2).unwrap().receive_game_state().await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+    let error = host_player
+        .reject_matched_word(&player_to_reject_word_nickname, &rejected_word)
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "REJECTED_MATCHED_WORD_WAS_NOT_PICKED_BY_PLAYER");
+}
+
+#[tokio::test]
+async fn rejected_word_is_represented_correctly_in_voting_item() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let rejected_word = game.players.get(1).unwrap().words[0].clone();
+
+    let player_to_reject_word = game.players.get_mut(1).unwrap();
+    let player_to_reject_word_nickname = player_to_reject_word.nickname.clone();
+    let state = player_to_reject_word
+        .send_voting_word(Some(rejected_word.clone()))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        state
+            .rounds
+            .last()
+            .unwrap()
+            .player_voting_words
+            .get("p2")
+            .unwrap(),
+        &Some(rejected_word.clone()),
+    );
+
+    let _ = game.players.get_mut(0).unwrap().receive_game_state().await;
+    let _ = game.players.get_mut(2).unwrap().receive_game_state().await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+    let state = host_player
+        .reject_matched_word(&player_to_reject_word_nickname, &rejected_word)
+        .await
+        .unwrap();
+
+    let voting_item = state.rounds.last().unwrap().voting_item.as_ref().unwrap();
+    let p2_rejected_words = voting_item
+        .rejected_matches
+        .get(&player_to_reject_word_nickname)
+        .unwrap();
+
+    assert!(p2_rejected_words.contains(&rejected_word));
+}
+
+#[tokio::test]
+async fn player_matched_word_becomes_none_in_match_after_being_rejected() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let rejected_word = game.players.get(1).unwrap().words[0].clone();
+
+    let player_to_reject_word = game.players.get_mut(1).unwrap();
+    let player_to_reject_word_nickname = player_to_reject_word.nickname.clone();
+    let state = player_to_reject_word
+        .send_voting_word(Some(rejected_word.clone()))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        state
+            .rounds
+            .last()
+            .unwrap()
+            .player_voting_words
+            .get("p2")
+            .unwrap(),
+        &Some(rejected_word.clone()),
+    );
+
+    let _ = game.players.get_mut(0).unwrap().receive_game_state().await;
+    let _ = game.players.get_mut(2).unwrap().receive_game_state().await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+    let state = host_player
+        .reject_matched_word(&player_to_reject_word_nickname, &rejected_word)
+        .await
+        .unwrap();
+
+    let player_matched_words = &state.rounds.last().unwrap().player_voting_words;
+    let p2_matched_word = player_matched_words
+        .get(&player_to_reject_word_nickname)
+        .unwrap();
+
+    assert_eq!(p2_matched_word, &None);
+}
+
+#[tokio::test]
+async fn cannot_reject_word_if_player_switched_to_different_one() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let some_word = game.players.get(1).unwrap().words[0].clone();
+    let word_to_reject = game.players.get(1).unwrap().words[1].clone();
+
+    {
+        let player_to_reject_word = game.players.get_mut(1).unwrap();
+        player_to_reject_word
+            .send_voting_word(Some(some_word.clone()))
+            .await
+            .unwrap();
+    }
+
+    let _ = game.players.get_mut(0).unwrap().receive_game_state().await;
+    let _ = game.players.get_mut(2).unwrap().receive_game_state().await;
+
+    {
+        let player_to_reject_word = game.players.get_mut(1).unwrap();
+        player_to_reject_word
+            .send_voting_word(Some(word_to_reject.clone()))
+            .await
+            .unwrap();
+    }
+
+    let _ = game.players.get_mut(0).unwrap().receive_game_state().await;
+    let _ = game.players.get_mut(2).unwrap().receive_game_state().await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+    let error = host_player
+        .reject_matched_word("p2", &some_word)
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "REJECTED_MATCHED_WORD_WAS_NOT_PICKED_BY_PLAYER");
+}
+
 async fn sleep(duration: Duration) {
     let mut timer = time::interval(duration);
     timer.tick().await;

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::error::{domain_error::DomainError, Error};
 
@@ -23,6 +23,17 @@ impl Word {
 pub struct VotingItem {
     pub player_nickname: String,
     pub word: String,
+    pub rejected_matches: HashMap<String, HashSet<String>>,
+}
+
+impl VotingItem {
+    fn new(player_nickname: String, word: String) -> Self {
+        Self {
+            player_nickname,
+            word,
+            rejected_matches: HashMap::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -107,10 +118,7 @@ impl Round {
                     .unwrap_or(&vec![])
                     .iter()
                     .filter(|word| !word.is_used)
-                    .map(|word| VotingItem {
-                        player_nickname: nickname.to_string(),
-                        word: word.word.to_string(),
-                    })
+                    .map(|word| VotingItem::new(nickname.to_string(), word.word.to_string()))
                     .collect::<Vec<_>>()
             })
             .next()
@@ -196,6 +204,47 @@ impl Round {
             }
         }
         self.player_voting_words = HashMap::default();
+    }
+
+    pub fn reject_player_word(
+        &mut self,
+        rejected_player: &str,
+        rejected_word: &str,
+    ) -> Result<(), Error> {
+        if !self
+            .player_words
+            .get(rejected_player)
+            .map(|words| words.iter().any(|word| word.word == rejected_word))
+            .unwrap_or(false)
+        {
+            return Err(Error::Domain(DomainError::RejectedMatchedWordDoesNotExist));
+        }
+
+        if !self.player_voting_words.contains_key(rejected_player) {
+            return Err(Error::Domain(
+                DomainError::RejectedMatchedWordWasNotPickedByPlayer,
+            ));
+        }
+
+        if self.player_voting_words.get(rejected_player) != Some(&Some(rejected_word.to_string())) {
+            return Err(Error::Domain(
+                DomainError::RejectedMatchedWordWasNotPickedByPlayer,
+            ));
+        }
+
+        if let Some(voting_item) = &mut self.voting_item {
+            voting_item
+                .rejected_matches
+                .entry(rejected_player.to_string())
+                .or_insert(HashSet::default())
+                .insert(rejected_word.to_string());
+        } else {
+            return Err(Error::Domain(
+                DomainError::CannotRejectMatchedWordsWhenVotingItemIsNone,
+            ));
+        }
+
+        self.set_player_voting_word(rejected_player, None)
     }
 }
 
@@ -380,50 +429,32 @@ mod tests {
 
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_1.to_string(),
-                word: WORD_1.to_string()
-            })
+            Some(VotingItem::new(PLAYER_1.to_string(), WORD_1.to_string()))
         );
         round.compute_score();
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_1.to_string(),
-                word: WORD_2.to_string()
-            })
+            Some(VotingItem::new(PLAYER_1.to_string(), WORD_2.to_string()))
         );
         round.compute_score();
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_2.to_string(),
-                word: WORD_1.to_string()
-            })
+            Some(VotingItem::new(PLAYER_2.to_string(), WORD_1.to_string()))
         );
         round.compute_score();
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_2.to_string(),
-                word: WORD_2.to_string()
-            })
+            Some(VotingItem::new(PLAYER_2.to_string(), WORD_2.to_string()))
         );
         round.compute_score();
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_3.to_string(),
-                word: WORD_1.to_string()
-            })
+            Some(VotingItem::new(PLAYER_3.to_string(), WORD_1.to_string()))
         );
         round.compute_score();
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_3.to_string(),
-                word: WORD_2.to_string()
-            })
+            Some(VotingItem::new(PLAYER_3.to_string(), WORD_2.to_string()))
         );
         round.compute_score();
         assert_eq!(round.next_voting_item(), None);
@@ -440,10 +471,7 @@ mod tests {
 
         assert_eq!(
             round.next_voting_item(),
-            Some(VotingItem {
-                player_nickname: PLAYER_3.to_string(),
-                word: WORD_1.to_string()
-            })
+            Some(VotingItem::new(PLAYER_3.to_string(), WORD_1.to_string()))
         )
     }
 

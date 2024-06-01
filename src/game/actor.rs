@@ -135,6 +135,18 @@ impl GameActor {
                                 .map(|_| GameEvent::Ok);
                             Some((result, nickname, response_tx))
                         }
+                        GameCommand::RejectPlayerMatchedWord {
+                            nickname,
+                            rejected_player,
+                            rejected_word,
+                            response_tx,
+                        } => {
+                            let result = self
+                                .game
+                                .reject_player_word(&nickname, &rejected_player, &rejected_word)
+                                .map(|_| GameEvent::Ok);
+                            Some((result, nickname, response_tx))
+                        }
                         GameCommand::AcceptPlayersVotingWords {
                             nickname,
                             response_tx,
@@ -224,6 +236,12 @@ pub(crate) enum GameCommand {
     SetPlayerVotingWord {
         nickname: String,
         word: Option<String>,
+        response_tx: OneshotSender<GameEvent>,
+    },
+    RejectPlayerMatchedWord {
+        nickname: String,
+        rejected_player: String,
+        rejected_word: String,
         response_tx: OneshotSender<GameEvent>,
     },
     AcceptPlayersVotingWords {

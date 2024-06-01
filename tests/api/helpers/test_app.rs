@@ -110,7 +110,17 @@ impl TestApp {
                 let _ = game.players[1].receive_game_state().await.unwrap();
                 game.players[2].receive_game_state().await.unwrap().state
             }
-            GameFsmState::PlayersSubmittingVotingWord => todo!(),
+            GameFsmState::PlayersSubmittingVotingWord => {
+                game.players[0]
+                    .start_game(TestGame::AMOUNT_OF_ROUNDS)
+                    .await
+                    .unwrap();
+
+                game.players[1].receive_game_state().await.unwrap();
+                game.players[2].receive_game_state().await.unwrap();
+
+                game.players_send_words().await.state
+            }
             GameFsmState::EndOfRound => todo!(),
             GameFsmState::EndOfGame => {
                 let mut state = game.players[0].start_game(3).await.unwrap();

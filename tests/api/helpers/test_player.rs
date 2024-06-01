@@ -95,6 +95,19 @@ impl TestPlayer {
         self.tx.send(message).await.expect("Could not send message");
     }
 
+    pub async fn reject_matched_word(
+        &mut self,
+        rejected_player: &str,
+        rejected_word: &str,
+    ) -> Result<GameState, String> {
+        self.send_text_message(WsMessageOut::RejectMatchedWord {
+            rejected_player: rejected_player.to_string(),
+            rejected_word: rejected_word.to_string(),
+        })
+        .await;
+        self.receive_game_state().await
+    }
+
     async fn send_text_message(&mut self, message: WsMessageOut) {
         self.send_message(Message::Text(
             serde_json::to_string(&message).expect("Could not serialize message"),
