@@ -61,7 +61,21 @@ jobs:
         shell: bash
         run: sed -i -E "s#headcrab_image#${{ needs.publish-service-image.outputs.image-sha-tag }}#g" k8s.yaml
 
+      - name: Check for k8s.yaml changes
+        id: file_check
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
+            const filesToCheck = ['k8s.yaml'];
+            const modified = changedFiles.some(file => filesToCheck.includes(file));
+            return modified;
+          result-encoding: string
+          result-type: boolean
+
       - name: K8s -> Test
+        if: steps.file_check.outputs.result == 'true'
         uses: ./.github/actions/test-k8s
         with:
           file: k8s.yaml
