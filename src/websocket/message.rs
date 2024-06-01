@@ -47,6 +47,7 @@ pub enum WsMessageIn {
     PlayerVotingWord {
         word: Option<String>,
     },
+    #[serde(rename_all = "camelCase")]
     RejectMatchedWord {
         rejected_player: String,
         rejected_word: String,
