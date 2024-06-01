@@ -205,7 +205,7 @@ impl GameClient {
                 rejected_word,
                 response_tx: tx,
             },
-            "GameCommand::PlayAgain",
+            "GameCommand::RejectPlayerMatchedWord",
         )
         .await?;
 
