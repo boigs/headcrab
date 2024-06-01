@@ -28,6 +28,8 @@ pub(crate) enum WsMessageOut {
     ChatMessage { sender: String, content: String },
 }
 
+// Trigger CI
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum WsMessageIn {
