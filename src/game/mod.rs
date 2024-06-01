@@ -357,6 +357,12 @@ impl Game {
             ));
         }
 
+        if !self.players.iter().any(|p| p.nickname == rejected_player) {
+            return Err(Error::Domain(
+                DomainError::RejectedMatchedPlayerDoesNotExist,
+            ));
+        }
+
         if self.is_host(initiator_nickname) {
             let current_round = self.get_current_round_mut();
 

@@ -211,12 +211,6 @@ impl Round {
         rejected_player: &str,
         rejected_word: &str,
     ) -> Result<(), Error> {
-        if !self.players.contains(&rejected_player.to_string()) {
-            return Err(Error::Domain(
-                DomainError::RejectedMatchedPlayerDoesNotExist,
-            ));
-        }
-
         if !self
             .player_words
             .get(rejected_player)
