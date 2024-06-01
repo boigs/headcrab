@@ -468,6 +468,28 @@ async fn cannot_reject_word_when_player_has_not_used_it_in_matching() {
 }
 
 #[tokio::test]
+async fn cannot_reject_word_when_player_has_voted_with_skip() {
+    let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
+
+    let rejected_word = game.players.get(1).unwrap().words[0].clone();
+
+    let player_to_reject_word = game.players.get_mut(1).unwrap();
+    let player_to_reject_word_nickname = player_to_reject_word.nickname.clone();
+    player_to_reject_word.send_voting_word(None).await.unwrap();
+
+    let _ = game.players.get_mut(0).unwrap().receive_game_state().await;
+    let _ = game.players.get_mut(2).unwrap().receive_game_state().await;
+
+    let host_player = game.players.get_mut(0).unwrap();
+    let error = host_player
+        .reject_matched_word(&player_to_reject_word_nickname, &rejected_word)
+        .await
+        .unwrap_err();
+
+    assert_eq!(&error, "REJECTED_MATCHED_WORD_WAS_NOT_PICKED_BY_PLAYER");
+}
+
+#[tokio::test]
 async fn rejected_word_is_represented_correctly_in_voting_item() {
     let mut game = TestApp::create_game(GameFsmState::PlayersSubmittingVotingWord).await;
 
