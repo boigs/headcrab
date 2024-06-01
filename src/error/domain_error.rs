@@ -10,8 +10,10 @@ pub enum DomainError {
     GameAlreadyInProgress(String),
     #[error("The game does not exist. GameId: '{0}'.")]
     GameDoesNotExist(String),
-    #[error("Cannot reject words in the current state.")]
-    InvalidStateForRejectingMatchedWords,
+    #[error(
+        "Cannot reject words in the current state. Actual state: '{0:?}', Expected state: '{1:?}'."
+    )]
+    InvalidStateForRejectingMatchedWords(GameFsmState, GameFsmState),
     #[error("Invalid state for submitting Words. ActualState: '{0:?}', ExpectedState: '{1:?}'.")]
     InvalidStateForWordsSubmission(GameFsmState, GameFsmState),
     #[error(

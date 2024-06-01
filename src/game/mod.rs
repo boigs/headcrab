@@ -353,7 +353,10 @@ impl Game {
     ) -> Result<(), Error> {
         if self.state() != &GameFsmState::PlayersSubmittingVotingWord {
             return Err(Error::Domain(
-                DomainError::InvalidStateForRejectingMatchedWords,
+                DomainError::InvalidStateForRejectingMatchedWords(
+                    self.state().clone(),
+                    GameFsmState::PlayersSubmittingVotingWord,
+                ),
             ));
         }
 
