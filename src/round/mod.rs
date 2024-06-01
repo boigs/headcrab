@@ -226,17 +226,31 @@ impl Round {
             return Err(Error::Domain(DomainError::RejectedMatchedWordDoesNotExist));
         }
 
+        if !self.player_voting_words.contains_key(rejected_player) {
+            return Err(Error::Domain(
+                DomainError::RejectedMatchedWordWasNotPickedByPlayer,
+            ));
+        }
+
+        if self.player_voting_words.get(rejected_player) != Some(&Some(rejected_word.to_string())) {
+            return Err(Error::Domain(
+                DomainError::RejectedMatchedWordWasNotPickedByPlayer,
+            ));
+        }
+
         if let Some(voting_item) = &mut self.voting_item {
             voting_item
                 .rejected_matches
                 .entry(rejected_player.to_string())
-                .and_modify(|words| {
-                    words.insert(rejected_word.to_string());
-                })
-                .or_insert(HashSet::default());
+                .or_insert(HashSet::default())
+                .insert(rejected_word.to_string());
+        } else {
+            return Err(Error::Domain(
+                DomainError::CannotRejectMatchedWordsWhenVotingItemIsNone,
+            ));
         }
 
-        Ok(())
+        self.set_player_voting_word(rejected_player, None)
     }
 }
 

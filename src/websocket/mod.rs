@@ -101,6 +101,12 @@ fn error_to_ws_error(error: Error) -> WsMessageOut {
                 DomainError::RejectedMatchedPlayerDoesNotExist => {
                     "REJECTED_MATCHED_PLAYER_DOES_NOT_EXIST"
                 }
+                DomainError::CannotRejectMatchedWordsWhenVotingItemIsNone => {
+                    "CANNOT_REJECT_MATCHED_WORDS_WHEN_VOTING_ITEM_IS_NONE"
+                }
+                DomainError::RejectedMatchedWordWasNotPickedByPlayer => {
+                    "REJECTED_MATCHED_WORD_WAS_NOT_PICKED_BY_PLAYER"
+                }
             },
             Error::External(ref external_error) => match external_error {
                 ExternalError::UnprocessableWebsocketMessage(_, _) => {

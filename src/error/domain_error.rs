@@ -55,4 +55,8 @@ pub enum DomainError {
     RejectedMatchedPlayerDoesNotExist,
     #[error("Non host cannot reject matched words")]
     NonHostCannotRejectMatchedWords,
+    #[error("Cannot reject matching words when voting item is none")]
+    CannotRejectMatchedWordsWhenVotingItemIsNone,
+    #[error("Cannot reject a word that was not previously picked by the player during matching")]
+    RejectedMatchedWordWasNotPickedByPlayer,
 }
