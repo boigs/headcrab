@@ -210,11 +210,11 @@ impl PlayerActor {
                     }
                     Ok(WsMessageIn::PlayAgain) => self.game.play_again(&self.nickname).await,
                     Ok(WsMessageIn::RejectMatchedWord {
-                        rejected_player: player,
-                        rejected_word: word,
+                        rejected_player,
+                        rejected_word,
                     }) => {
                         self.game
-                            .reject_matched_word(&self.nickname, player, word)
+                            .reject_matched_word(&self.nickname, rejected_player, rejected_word)
                             .await
                     }
                     Err(error) => Err(error),

@@ -192,7 +192,7 @@ impl GameClient {
 
     pub async fn reject_matched_word(
         &self,
-        initiator_nickname: &str,
+        nickname: &str,
         rejected_player: String,
         rejected_word: String,
     ) -> Result<(), Error> {
@@ -200,7 +200,7 @@ impl GameClient {
 
         self.send_command(
             GameCommand::RejectPlayerMatchedWord {
-                initiator_nickname: initiator_nickname.to_string(),
+                nickname: nickname.to_string(),
                 rejected_player,
                 rejected_word,
                 response_tx: tx,
