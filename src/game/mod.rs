@@ -347,7 +347,7 @@ impl Game {
 
     fn reject_player_word(
         &mut self,
-        initiator_nickname: &str,
+        nickname: &str,
         rejected_player: &str,
         rejected_word: &str,
     ) -> Result<(), Error> {
@@ -366,7 +366,7 @@ impl Game {
             ));
         }
 
-        if self.is_host(initiator_nickname) {
+        if self.is_host(nickname) {
             let current_round = self.get_current_round_mut();
 
             current_round.reject_player_word(rejected_player, rejected_word)
