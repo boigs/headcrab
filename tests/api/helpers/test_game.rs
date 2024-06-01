@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -137,10 +137,19 @@ pub struct Player {
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct VotingItem {
+    pub player_nickname: String,
+    pub word: String,
+    pub rejected_matches: HashMap<String, HashSet<String>>,
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Round {
     pub word: String,
     pub player_words: HashMap<String, Vec<Word>>,
     pub player_voting_words: HashMap<String, Option<String>>,
+    pub voting_item: Option<VotingItem>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -182,6 +191,11 @@ pub enum WsMessageOut {
     #[serde(rename_all = "camelCase")]
     PlayerVotingWord {
         word: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    RejectMatchedWord {
+        rejected_player: String,
+        rejected_word: String,
     },
     AcceptPlayersVotingWords,
     ContinueToNextRound,
