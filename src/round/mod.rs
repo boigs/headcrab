@@ -146,6 +146,18 @@ impl Round {
                         DomainError::VotingItemPlayerCannotSubmitVotingWord(nickname.to_string()),
                     ));
                 }
+
+                if let Some(word) = &word {
+                    if voting_item
+                        .rejected_matches
+                        .get(nickname)
+                        .is_some_and(|rejected_words| rejected_words.contains(word))
+                    {
+                        return Err(Error::Domain(
+                            DomainError::CannotResubmitRejectedMatchedWord,
+                        ));
+                    }
+                }
             }
             None => {
                 return Err(Error::Domain(
@@ -155,6 +167,7 @@ impl Round {
                 ));
             }
         }
+
         if !self.voting_word_exists_and_is_unused(nickname, word.clone()) {
             return Err(Error::Domain(
                 DomainError::PlayerCannotSubmitNonExistingOrUsedVotingWord(nickname.to_string()),
