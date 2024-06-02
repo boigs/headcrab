@@ -44,7 +44,7 @@ impl PlayerActor {
                     game,
                     game_wide_event_receiver,
                     websocket,
-                    inactivity_timeout: Duration::from_millis(2500),
+                    inactivity_timeout: Duration::from_millis(5000),
                 }
                 .start()
                 .await
