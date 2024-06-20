@@ -2,6 +2,7 @@
 name = "headcrab"
 version = "0.1.0"
 edition = "2021"
+license = "CC-BY-NC-SA-4.0"
 
 [lib]
 path = "src/lib.rs"
