@@ -92,9 +92,9 @@ mod tests {
         assert_eq!(id.len(), 5);
         for char in id.chars() {
             assert!(
-                ('0'..='9').contains(&char)
-                    || ('A'..='Z').contains(&char)
-                    || ('a'..='z').contains(&char)
+                char.is_ascii_digit()
+                    || char.is_ascii_uppercase()
+                    || char.is_ascii_lowercase()
             )
         }
     }

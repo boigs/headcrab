@@ -55,7 +55,7 @@ impl TestGame {
 
         // Voting for p1_w1
         // p1: [used, unused], p2: [used, unused], p3: [unused, unused]
-        let voting_word = self.players[1].words.get(0).cloned();
+        let voting_word = self.players[1].words.first().cloned();
         let _ = self.players[1].send_voting_word(voting_word).await.unwrap();
         let _ = self.players[0].receive_game_state().await.unwrap();
         let _ = self.players[2].receive_game_state().await.unwrap();

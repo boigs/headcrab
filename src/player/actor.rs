@@ -81,7 +81,7 @@ impl PlayerActor {
             }
         }
 
-        let _ = self.game.remove_player(&self.nickname.as_slice()).await;
+        let _ = self.game.remove_player(self.nickname.as_slice()).await;
         close(self.websocket).await;
         CONNECTED_PLAYERS.dec();
     }
@@ -111,7 +111,7 @@ impl PlayerActor {
                 send_message(
                     &mut self.websocket,
                     &PlayerActor::serialize_game_state(
-                        &self.nickname.as_slice(),
+                        self.nickname.as_slice(),
                         state,
                         players,
                         rounds,
@@ -189,38 +189,38 @@ impl PlayerActor {
                 message => match parse_message(message) {
                     Ok(WsMessageIn::StartGame { amount_of_rounds }) => {
                         self.game
-                            .start_game(&self.nickname.as_slice(), amount_of_rounds)
+                            .start_game(self.nickname.as_slice(), amount_of_rounds)
                             .await?;
                         log::info!("Started game with amount of rounds {amount_of_rounds}");
                         Ok(())
                     }
                     Ok(WsMessageIn::ChatMessage { content }) => {
                         self.game
-                            .send_chat_message(&self.nickname.as_slice(), &content)
+                            .send_chat_message(self.nickname.as_slice(), &content)
                             .await
                     }
                     Ok(WsMessageIn::PlayerWords { words }) => {
                         self.game
-                            .add_player_words(&self.nickname.as_slice(), words)
+                            .add_player_words(self.nickname.as_slice(), words)
                             .await
                     }
                     Ok(WsMessageIn::PlayerVotingWord { word }) => {
                         self.game
-                            .add_player_voting_word(&self.nickname.as_slice(), word)
+                            .add_player_voting_word(self.nickname.as_slice(), word)
                             .await
                     }
                     Ok(WsMessageIn::AcceptPlayersVotingWords) => {
                         self.game
-                            .accept_players_voting_words(&self.nickname.as_slice())
+                            .accept_players_voting_words(self.nickname.as_slice())
                             .await
                     }
                     Ok(WsMessageIn::ContinueToNextRound) => {
                         self.game
-                            .continue_to_next_round(&self.nickname.as_slice())
+                            .continue_to_next_round(self.nickname.as_slice())
                             .await
                     }
                     Ok(WsMessageIn::PlayAgain) => {
-                        self.game.play_again(&self.nickname.as_slice()).await
+                        self.game.play_again(self.nickname.as_slice()).await
                     }
                     Ok(WsMessageIn::RejectMatchedWord {
                         rejected_player,
@@ -228,7 +228,7 @@ impl PlayerActor {
                     }) => {
                         self.game
                             .reject_matched_word(
-                                &self.nickname.as_slice(),
+                                self.nickname.as_slice(),
                                 rejected_player,
                                 rejected_word,
                             )

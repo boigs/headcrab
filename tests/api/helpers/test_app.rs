@@ -81,21 +81,21 @@ impl TestApp {
         let state = game.add_player("p1").await.unwrap();
         assert_eq!(state.state, GameFsmState::Lobby);
         assert_eq!(state.players.len(), 1);
-        assert_eq!(state.players.get(0).unwrap().nickname, "p1");
-        assert!(state.players.get(0).unwrap().is_host);
+        assert_eq!(state.players.first().unwrap().nickname, "p1");
+        assert!(state.players.first().unwrap().is_host);
 
         // Make sure to read the events the other players receive when new players join, so that we leave a "clean" response channel for the tests
         let state = game.add_player("p2").await.unwrap();
         assert_eq!(state.state, GameFsmState::Lobby);
         assert_eq!(state.players.len(), 2);
-        assert_eq!(state.players.get(0).unwrap().nickname, "p1");
+        assert_eq!(state.players.first().unwrap().nickname, "p1");
         assert_eq!(state.players.get(1).unwrap().nickname, "p2");
         assert!(!state.players.get(1).unwrap().is_host);
 
         let state = game.add_player("p3").await.unwrap();
         assert_eq!(state.state, GameFsmState::Lobby);
         assert_eq!(state.players.len(), 3);
-        assert_eq!(state.players.get(0).unwrap().nickname, "p1");
+        assert_eq!(state.players.first().unwrap().nickname, "p1");
         assert_eq!(state.players.get(1).unwrap().nickname, "p2");
         assert_eq!(state.players.get(2).unwrap().nickname, "p3");
         assert!(!state.players.get(2).unwrap().is_host);

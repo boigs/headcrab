@@ -18,7 +18,7 @@ impl Nickname {
         }
     }
 
-    pub fn as_slice<'a>(&'a self) -> &'a str {
+    pub fn as_slice(&self) -> &str {
         &self.value
     }
 }

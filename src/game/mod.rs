@@ -99,14 +99,14 @@ impl Game {
     pub fn add_player(&mut self, nickname: Nickname) -> Result<(), Error> {
         let state = self.state().clone();
 
-        if let Some(player) = self.get_player_mut(&nickname.as_slice()) {
+        if let Some(player) = self.get_player_mut(nickname.as_slice()) {
             if player.is_connected {
                 return Err(Error::Domain(DomainError::PlayerAlreadyExists(nickname)));
             } else {
                 player.is_connected = true;
             }
         } else if state == GameFsmState::Lobby {
-            let new_player = Player::new(&nickname.as_slice());
+            let new_player = Player::new(nickname.as_slice());
             self.players.push(new_player);
         } else {
             return Err(Error::Domain(DomainError::GameAlreadyInProgress(
@@ -392,7 +392,7 @@ mod tests {
     static PLAYER_2: Lazy<Nickname> = Lazy::new(|| "p2".into());
     static PLAYER_3: Lazy<Nickname> = Lazy::new(|| "p3".into());
     fn players() -> Vec<String> {
-        vec![PLAYER_1.clone(), PLAYER_2.clone(), PLAYER_3.clone()]
+        [PLAYER_1.clone(), PLAYER_2.clone(), PLAYER_3.clone()]
             .iter()
             .map(|player| player.to_string())
             .collect()
@@ -401,7 +401,7 @@ mod tests {
     static WORD_1: &str = "w1";
     static WORD_2: &str = "w2";
     fn words() -> Vec<String> {
-        vec![WORD_1, WORD_2]
+        [WORD_1, WORD_2]
             .iter()
             .map(|word| word.to_string())
             .collect()

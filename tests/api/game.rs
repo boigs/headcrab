@@ -93,8 +93,8 @@ async fn game_is_still_alive_when_all_players_leave() {
 
     assert_eq!(state.state, GameFsmState::Lobby);
     assert_eq!(state.players.len(), 4);
-    assert!(!state.players.get(0).unwrap().is_connected);
-    assert!(!state.players.get(0).unwrap().is_host);
+    assert!(!state.players.first().unwrap().is_connected);
+    assert!(!state.players.first().unwrap().is_host);
     assert!(state.players.get(3).unwrap().is_connected);
     assert!(state.players.get(3).unwrap().is_host);
 }
@@ -189,7 +189,7 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 0);
@@ -211,11 +211,11 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(player_words.len(), 3);
     let p1_words = player_words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = player_words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 2);
-    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.first().unwrap().word, "p2_w1");
     assert_eq!(p2_words.get(1).unwrap().word, "p2_w2");
     let p3_words = player_words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 0);
@@ -240,13 +240,13 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(player_words.len(), 3);
     let p1_words = player_words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = player_words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 0);
     let p3_words = player_words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 2);
-    assert_eq!(p3_words.get(0).unwrap().word, "p3_w1");
+    assert_eq!(p3_words.first().unwrap().word, "p3_w1");
     assert_eq!(p3_words.get(1).unwrap().word, "p3_w2");
     // Voting words
     let voting_words = state.last_round().player_voting_words;
@@ -270,11 +270,11 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(player_words.len(), 3);
     let p1_words = player_words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = player_words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 2);
-    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.first().unwrap().word, "p2_w1");
     assert_eq!(p2_words.get(1).unwrap().word, "p2_w2");
     let p3_words = player_words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 0);
@@ -296,14 +296,14 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 1);
-    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.first().unwrap().word, "p2_w1");
     let p3_words = words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 1);
-    assert_eq!(p3_words.get(0).unwrap().word, "p3_w2");
+    assert_eq!(p3_words.first().unwrap().word, "p3_w2");
     // Voting words
     let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 1);
@@ -319,15 +319,15 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 2);
-    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.first().unwrap().word, "p2_w1");
     assert_eq!(p2_words.get(1).unwrap().word, "p2_w2");
     let p3_words = words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 1);
-    assert_eq!(p3_words.get(0).unwrap().word, "p3_w2");
+    assert_eq!(p3_words.first().unwrap().word, "p3_w2");
     // Voting words
     let voting_words = state.last_round().player_voting_words;
     assert_eq!(voting_words.len(), 1);
@@ -343,14 +343,14 @@ async fn player_visibility_of_other_players_words_is_correct() {
     assert_eq!(words.len(), 3);
     let p1_words = words.get(&game.players[0].nickname).unwrap();
     assert_eq!(p1_words.len(), 2);
-    assert_eq!(p1_words.get(0).unwrap().word, "p1_w1");
+    assert_eq!(p1_words.first().unwrap().word, "p1_w1");
     assert_eq!(p1_words.get(1).unwrap().word, "p1_w2");
     let p2_words = words.get(&game.players[1].nickname).unwrap();
     assert_eq!(p2_words.len(), 1);
-    assert_eq!(p2_words.get(0).unwrap().word, "p2_w1");
+    assert_eq!(p2_words.first().unwrap().word, "p2_w1");
     let p3_words = words.get(&game.players[2].nickname).unwrap();
     assert_eq!(p3_words.len(), 2);
-    assert_eq!(p3_words.get(0).unwrap().word, "p3_w1");
+    assert_eq!(p3_words.first().unwrap().word, "p3_w1");
     assert_eq!(p3_words.get(1).unwrap().word, "p3_w2");
     // Voting words
     let voting_words = state.last_round().player_voting_words;
