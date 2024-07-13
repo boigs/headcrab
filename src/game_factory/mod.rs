@@ -91,11 +91,7 @@ mod tests {
 
         assert_eq!(id.len(), 5);
         for char in id.chars() {
-            assert!(
-                char.is_ascii_digit()
-                    || char.is_ascii_uppercase()
-                    || char.is_ascii_lowercase()
-            )
+            assert!(char.is_ascii_digit() || char.is_ascii_uppercase() || char.is_ascii_lowercase())
         }
     }
 

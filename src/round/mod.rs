@@ -494,8 +494,9 @@ mod tests {
         round.add_player_words(PLAYER_1, words()).unwrap();
         round.add_player_words(PLAYER_2, words()).unwrap();
 
-        assert!(round
-            .have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()]));
+        assert!(
+            round.have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()])
+        );
     }
 
     #[test]
@@ -508,8 +509,9 @@ mod tests {
             .add_player_words(PLAYER_2, vec!["".to_string()])
             .unwrap();
 
-        assert!(round
-            .have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()]));
+        assert!(
+            round.have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()])
+        );
     }
 
     #[test]
@@ -517,8 +519,9 @@ mod tests {
         let mut round = get_round_on_writing_state();
         round.add_player_words(PLAYER_1, words()).unwrap();
 
-        assert!(!round
-            .have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()]));
+        assert!(
+            !round.have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()])
+        );
     }
 
     #[test]
