@@ -32,7 +32,7 @@ pub async fn connect_player_to_websocket(
 ) -> Response {
     websocket_upgrade.on_upgrade(move |mut websocket| async move {
         match game_factory.get_game(&game_id).await {
-            Ok(game) => PlayerActor::create(nickname, game, websocket).await,
+            Ok(game) => PlayerActor::create(nickname.into(), game, websocket).await,
             Err(error) => {
                 send_error(&mut websocket, &error).await;
                 close(websocket).await;

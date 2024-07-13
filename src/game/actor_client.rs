@@ -6,13 +6,15 @@ use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotS
 use crate::error::Error;
 use crate::game::actor::{GameCommand, GameEvent, GameWideEvent};
 
+use super::nickname::Nickname;
+
 #[derive(Clone, Debug)]
 pub struct GameClient {
     pub(super) game_tx: Sender<GameCommand>,
 }
 
 impl GameClient {
-    pub async fn add_player(&self, nickname: &str) -> Result<GameWideEventReceiver, Error> {
+    pub async fn add_player(&self, nickname: &Nickname) -> Result<GameWideEventReceiver, Error> {
         let (tx, rx): (OneshotSender<GameEvent>, OneshotReceiver<GameEvent>) = oneshot::channel();
 
         // An error can be returned at this point if:
@@ -21,7 +23,7 @@ impl GameClient {
         //  3. the user navigated to this game's URL in an attempt to re-join (and there aren't any other players in the game)
         self.send_command(
             GameCommand::AddPlayer {
-                nickname: nickname.to_string(),
+                nickname: nickname.clone(),
                 response_tx: tx,
             },
             "GameCommand::AddPlayer",

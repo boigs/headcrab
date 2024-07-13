@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::game::game_fsm::GameFsmState;
+use crate::game::{game_fsm::GameFsmState, nickname::Nickname};
 
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum DomainError {
@@ -41,7 +41,7 @@ pub enum DomainError {
     )]
     NonHostPlayerCannotStartGame(String),
     #[error("A player with the same nickname already exists. Nickname: '{0}'.")]
-    PlayerAlreadyExists(String),
+    PlayerAlreadyExists(Nickname),
     #[error(
         "A player cannot submit a non-existing or used word as a Voting Word. Nickname: '{0}'."
     )]
