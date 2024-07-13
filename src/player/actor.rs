@@ -12,6 +12,7 @@ use crate::game::actor::GameWideEvent;
 use crate::game::actor_client::GameClient;
 use crate::game::actor_client::GameWideEventReceiver;
 use crate::game::game_fsm::GameFsmState;
+use crate::game::nickname::Nickname;
 use crate::metrics::CONNECTED_PLAYERS;
 use crate::player::Player;
 use crate::round::Round;
@@ -28,7 +29,7 @@ use crate::websocket::send_message;
 use crate::websocket::send_message_string;
 
 pub struct PlayerActor {
-    nickname: String,
+    nickname: Nickname,
     game: GameClient,
     game_wide_event_receiver: GameWideEventReceiver,
     websocket: WebSocket,
@@ -36,7 +37,7 @@ pub struct PlayerActor {
 }
 
 impl PlayerActor {
-    pub async fn create(nickname: String, game: GameClient, mut websocket: WebSocket) {
+    pub async fn create(nickname: Nickname, game: GameClient, mut websocket: WebSocket) {
         match game.add_player(&nickname).await {
             Ok(game_wide_event_receiver) => {
                 PlayerActor {
@@ -80,7 +81,7 @@ impl PlayerActor {
             }
         }
 
-        let _ = self.game.remove_player(&self.nickname).await;
+        let _ = self.game.remove_player(self.nickname.as_slice()).await;
         close(self.websocket).await;
         CONNECTED_PLAYERS.dec();
     }
@@ -110,7 +111,7 @@ impl PlayerActor {
                 send_message(
                     &mut self.websocket,
                     &PlayerActor::serialize_game_state(
-                        &self.nickname,
+                        self.nickname.as_slice(),
                         state,
                         players,
                         rounds,
@@ -188,33 +189,49 @@ impl PlayerActor {
                 message => match parse_message(message) {
                     Ok(WsMessageIn::StartGame { amount_of_rounds }) => {
                         self.game
-                            .start_game(&self.nickname, amount_of_rounds)
+                            .start_game(self.nickname.as_slice(), amount_of_rounds)
                             .await?;
                         log::info!("Started game with amount of rounds {amount_of_rounds}");
                         Ok(())
                     }
                     Ok(WsMessageIn::ChatMessage { content }) => {
-                        self.game.send_chat_message(&self.nickname, &content).await
+                        self.game
+                            .send_chat_message(self.nickname.as_slice(), &content)
+                            .await
                     }
                     Ok(WsMessageIn::PlayerWords { words }) => {
-                        self.game.add_player_words(&self.nickname, words).await
+                        self.game
+                            .add_player_words(self.nickname.as_slice(), words)
+                            .await
                     }
                     Ok(WsMessageIn::PlayerVotingWord { word }) => {
-                        self.game.add_player_voting_word(&self.nickname, word).await
+                        self.game
+                            .add_player_voting_word(self.nickname.as_slice(), word)
+                            .await
                     }
                     Ok(WsMessageIn::AcceptPlayersVotingWords) => {
-                        self.game.accept_players_voting_words(&self.nickname).await
+                        self.game
+                            .accept_players_voting_words(self.nickname.as_slice())
+                            .await
                     }
                     Ok(WsMessageIn::ContinueToNextRound) => {
-                        self.game.continue_to_next_round(&self.nickname).await
+                        self.game
+                            .continue_to_next_round(self.nickname.as_slice())
+                            .await
                     }
-                    Ok(WsMessageIn::PlayAgain) => self.game.play_again(&self.nickname).await,
+                    Ok(WsMessageIn::PlayAgain) => {
+                        self.game.play_again(self.nickname.as_slice()).await
+                    }
                     Ok(WsMessageIn::RejectMatchedWord {
                         rejected_player,
                         rejected_word,
                     }) => {
                         self.game
-                            .reject_matched_word(&self.nickname, rejected_player, rejected_word)
+                            .reject_matched_word(
+                                self.nickname.as_slice(),
+                                rejected_player,
+                                rejected_word,
+                            )
                             .await
                     }
                     Err(error) => Err(error),
@@ -296,7 +313,7 @@ mod tests {
             DomainError::GameDoesNotExist("".to_string())
         )));
         assert!(PlayerActor::should_close_websocket(Error::Domain(
-            DomainError::PlayerAlreadyExists("".to_string())
+            DomainError::PlayerAlreadyExists("".into())
         )));
         assert!(PlayerActor::should_close_websocket(Error::Domain(
             DomainError::GameAlreadyInProgress("".to_string())

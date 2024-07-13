@@ -18,6 +18,8 @@ use crate::metrics::ACTIVE_GAMES;
 use crate::player::Player;
 use crate::round::Round;
 
+use super::nickname::Nickname;
+
 pub struct GameActor {
     game: Game,
     game_rx: Receiver<GameCommand>,
@@ -78,12 +80,11 @@ impl GameActor {
                             nickname,
                             response_tx,
                         } => {
-                            let result =
-                                self.game
-                                    .add_player(&nickname)
-                                    .map(|_| GameEvent::PlayerAdded {
-                                        broadcast_rx: self.broadcast_tx.subscribe(),
-                                    });
+                            let result = self.game.add_player(nickname.clone()).map(|_| {
+                                GameEvent::PlayerAdded {
+                                    broadcast_rx: self.broadcast_tx.subscribe(),
+                                }
+                            });
                             Some((result, nickname, response_tx))
                         }
                         GameCommand::DisconnectPlayer { nickname } => {
@@ -99,7 +100,7 @@ impl GameActor {
                                 .game
                                 .start_game(&nickname, amount_of_rounds)
                                 .map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                         GameCommand::AddChatMessage { sender, content } => {
                             if let Err(error) = self
@@ -122,7 +123,7 @@ impl GameActor {
                                 .game
                                 .add_player_words(&nickname, words)
                                 .map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                         GameCommand::SetPlayerVotingWord {
                             nickname,
@@ -133,7 +134,7 @@ impl GameActor {
                                 .game
                                 .set_player_voting_word(&nickname, word)
                                 .map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                         GameCommand::RejectPlayerMatchedWord {
                             nickname,
@@ -145,7 +146,7 @@ impl GameActor {
                                 .game
                                 .reject_player_word(&nickname, &rejected_player, &rejected_word)
                                 .map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                         GameCommand::AcceptPlayersVotingWords {
                             nickname,
@@ -155,7 +156,7 @@ impl GameActor {
                                 .game
                                 .accept_players_voting_words(&nickname)
                                 .map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                         GameCommand::ContinueToNextRound {
                             nickname,
@@ -165,14 +166,14 @@ impl GameActor {
                                 .game
                                 .continue_to_next_round(&nickname)
                                 .map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                         GameCommand::PlayAgain {
                             nickname,
                             response_tx,
                         } => {
                             let result = self.game.play_again(&nickname).map(|_| GameEvent::Ok);
-                            Some((result, nickname, response_tx))
+                            Some((result, nickname.into(), response_tx))
                         }
                     };
                     if let Some((result, nickname, response_tx)) = response {
@@ -182,7 +183,7 @@ impl GameActor {
                         };
                         if let Err(error) = response_tx.send(event) {
                             log::error!("Sent GameEvent to Player {nickname} but the response channel is closed. Removing the Player. Error: '{error}'.");
-                            let _ = self.game.disconnect_player(&nickname);
+                            let _ = self.game.disconnect_player(nickname.as_slice());
                         }
                     }
                     let _ = self.send_game_state();
@@ -213,7 +214,7 @@ impl GameActor {
 
 pub(crate) enum GameCommand {
     AddPlayer {
-        nickname: String,
+        nickname: Nickname,
         response_tx: OneshotSender<GameEvent>,
     },
     DisconnectPlayer {

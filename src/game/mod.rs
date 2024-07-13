@@ -2,7 +2,9 @@ pub mod actor;
 pub mod actor_client;
 pub mod game_fsm;
 mod game_word;
+pub mod nickname;
 
+use nickname::Nickname;
 use rand::{seq::SliceRandom, thread_rng};
 use rust_fsm::StateMachine;
 
@@ -94,19 +96,17 @@ impl Game {
             .collect()
     }
 
-    pub fn add_player(&mut self, nickname: &str) -> Result<(), Error> {
+    pub fn add_player(&mut self, nickname: Nickname) -> Result<(), Error> {
         let state = self.state().clone();
 
-        if let Some(player) = self.get_player_mut(nickname) {
+        if let Some(player) = self.get_player_mut(nickname.as_slice()) {
             if player.is_connected {
-                return Err(Error::Domain(DomainError::PlayerAlreadyExists(
-                    nickname.to_string(),
-                )));
+                return Err(Error::Domain(DomainError::PlayerAlreadyExists(nickname)));
             } else {
                 player.is_connected = true;
             }
         } else if state == GameFsmState::Lobby {
-            let new_player = Player::new(nickname);
+            let new_player = Player::new(nickname.as_slice());
             self.players.push(new_player);
         } else {
             return Err(Error::Domain(DomainError::GameAlreadyInProgress(
@@ -380,17 +380,19 @@ impl Game {
 mod tests {
     use std::collections::HashSet;
 
-    use super::Game;
+    use once_cell::sync::Lazy;
+
+    use super::{nickname::Nickname, Game};
     use crate::{
         error::{domain_error::DomainError, Error},
         game::game_fsm::GameFsmState,
     };
 
-    static PLAYER_1: &str = "p1";
-    static PLAYER_2: &str = "p2";
-    static PLAYER_3: &str = "p3";
+    static PLAYER_1: Lazy<Nickname> = Lazy::new(|| "p1".into());
+    static PLAYER_2: Lazy<Nickname> = Lazy::new(|| "p2".into());
+    static PLAYER_3: Lazy<Nickname> = Lazy::new(|| "p3".into());
     fn players() -> Vec<String> {
-        vec![PLAYER_1, PLAYER_2, PLAYER_3]
+        [PLAYER_1.clone(), PLAYER_2.clone(), PLAYER_3.clone()]
             .iter()
             .map(|player| player.to_string())
             .collect()
@@ -399,7 +401,7 @@ mod tests {
     static WORD_1: &str = "w1";
     static WORD_2: &str = "w2";
     fn words() -> Vec<String> {
-        vec![WORD_1, WORD_2]
+        [WORD_1, WORD_2]
             .iter()
             .map(|word| word.to_string())
             .collect()
@@ -409,10 +411,10 @@ mod tests {
     fn add_player_works() {
         let mut game = get_empty_game();
 
-        game.add_player(PLAYER_1).unwrap();
+        game.add_player(PLAYER_1.clone()).unwrap();
 
         assert_eq!(game.players().len(), 1);
-        assert_eq!(game.players()[0].nickname, PLAYER_1);
+        assert_eq!(game.players()[0].nickname, PLAYER_1.as_slice());
     }
 
     #[test]
@@ -424,7 +426,7 @@ mod tests {
         assert!(game.players()[1].is_connected);
         assert!(game.players()[2].is_connected);
 
-        game.disconnect_player(PLAYER_1).unwrap();
+        game.disconnect_player(PLAYER_1.as_slice()).unwrap();
 
         assert_eq!(game.players().len(), 3);
         assert!(!game.players()[0].is_connected);
@@ -459,7 +461,7 @@ mod tests {
     fn host_player_is_reelected_when_disconnected() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        game.disconnect_player(PLAYER_1).unwrap();
+        game.disconnect_player(PLAYER_1.as_slice()).unwrap();
 
         assert!(!game.players()[0].is_host);
         assert!(game.players()[1].is_host);
@@ -468,9 +470,9 @@ mod tests {
     #[test]
     fn game_cannot_be_started_with_less_than_three_players() {
         let mut game = get_empty_game();
-        game.add_player(PLAYER_1).unwrap();
+        game.add_player(PLAYER_1.clone()).unwrap();
 
-        let result = game.start_game(PLAYER_1, 3);
+        let result = game.start_game(PLAYER_1.as_slice(), 3);
 
         assert_eq!(
             result,
@@ -481,9 +483,9 @@ mod tests {
     #[test]
     fn game_cannot_be_started_with_less_than_one_round() {
         let mut game = get_empty_game();
-        game.add_player(PLAYER_1).unwrap();
+        game.add_player(PLAYER_1.clone()).unwrap();
 
-        let result = game.start_game(PLAYER_1, 0);
+        let result = game.start_game(PLAYER_1.as_slice(), 0);
 
         assert_eq!(
             result,
@@ -495,7 +497,7 @@ mod tests {
     fn host_player_can_start_game() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.start_game(PLAYER_1, 3);
+        let result = game.start_game(PLAYER_1.as_slice(), 3);
 
         assert_eq!(result, Ok(()));
     }
@@ -504,7 +506,7 @@ mod tests {
     fn non_host_player_cannot_start_game() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.start_game(PLAYER_2, 3);
+        let result = game.start_game(PLAYER_2.as_slice(), 3);
 
         assert_eq!(
             result,
@@ -525,7 +527,7 @@ mod tests {
     fn game_initializes_first_round() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        game.start_game(PLAYER_1, 3).unwrap();
+        game.start_game(PLAYER_1.as_slice(), 3).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
         assert_eq!(game.rounds().len(), 1);
@@ -542,9 +544,9 @@ mod tests {
     #[test]
     fn all_players_are_disconnected_is_true() {
         let mut game = get_game(&GameFsmState::Lobby);
-        let _ = game.disconnect_player(PLAYER_1);
-        let _ = game.disconnect_player(PLAYER_2);
-        let _ = game.disconnect_player(PLAYER_3);
+        let _ = game.disconnect_player(PLAYER_1.as_slice());
+        let _ = game.disconnect_player(PLAYER_2.as_slice());
+        let _ = game.disconnect_player(PLAYER_3.as_slice());
 
         assert!(game.all_players_are_disconnected());
     }
@@ -560,7 +562,7 @@ mod tests {
     fn add_player_words_works() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.add_player_words(PLAYER_1, words());
+        let result = game.add_player_words(PLAYER_1.as_slice(), words());
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
@@ -570,9 +572,9 @@ mod tests {
     fn add_player_words_transitions_to_players_submitting_voting_word_on_last_player_words() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        game.add_player_words(PLAYER_1, words()).unwrap();
-        game.add_player_words(PLAYER_2, words()).unwrap();
-        game.add_player_words(PLAYER_3, words()).unwrap();
+        game.add_player_words(PLAYER_1.as_slice(), words()).unwrap();
+        game.add_player_words(PLAYER_2.as_slice(), words()).unwrap();
+        game.add_player_words(PLAYER_3.as_slice(), words()).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
     }
@@ -580,24 +582,24 @@ mod tests {
     #[test]
     fn add_player_words_transitions_and_sets_default_words_for_disconnected_players() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
-        game.disconnect_player(PLAYER_2).unwrap();
-        game.disconnect_player(PLAYER_3).unwrap();
+        game.disconnect_player(PLAYER_2.as_slice()).unwrap();
+        game.disconnect_player(PLAYER_3.as_slice()).unwrap();
 
-        game.add_player_words(PLAYER_1, words()).unwrap();
+        game.add_player_words(PLAYER_1.as_slice(), words()).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
         let round = game.rounds().last().unwrap();
-        assert!(round.player_words.contains_key(PLAYER_2));
-        assert!(round.player_words[PLAYER_2].is_empty());
-        assert!(round.player_words.contains_key(PLAYER_3));
-        assert!(round.player_words[PLAYER_3].is_empty());
+        assert!(round.player_words.contains_key(PLAYER_2.as_slice()));
+        assert!(round.player_words[PLAYER_2.as_slice()].is_empty());
+        assert!(round.player_words.contains_key(PLAYER_3.as_slice()));
+        assert!(round.player_words[PLAYER_3.as_slice()].is_empty());
     }
 
     #[test]
     fn add_player_words_fails_when_state_is_not_players_submitting_words() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.add_player_words(PLAYER_1, words());
+        let result = game.add_player_words(PLAYER_1.as_slice(), words());
 
         assert_eq!(
             result,
@@ -612,7 +614,7 @@ mod tests {
     fn add_player_voting_word_works_with_valid_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = game.set_player_voting_word(PLAYER_2.as_slice(), Some(WORD_1.to_string()));
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
@@ -622,7 +624,7 @@ mod tests {
     fn add_player_voting_word_works_with_empty_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.set_player_voting_word(PLAYER_2, None);
+        let result = game.set_player_voting_word(PLAYER_2.as_slice(), None);
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
@@ -632,7 +634,7 @@ mod tests {
     fn add_player_voting_word_fails_when_state_is_not_players_submitting_voting_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.set_player_voting_word(PLAYER_2, Some(WORD_1.to_string()));
+        let result = game.set_player_voting_word(PLAYER_2.as_slice(), Some(WORD_1.to_string()));
 
         assert_eq!(
             result,
@@ -648,11 +650,11 @@ mod tests {
     #[test]
     fn when_last_player_without_words_submission_is_disonnected_games_proceeds_to_voting() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
-        game.add_player_words(PLAYER_1, words()).unwrap();
-        game.add_player_words(PLAYER_2, words()).unwrap();
+        game.add_player_words(PLAYER_1.as_slice(), words()).unwrap();
+        game.add_player_words(PLAYER_2.as_slice(), words()).unwrap();
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
 
-        game.disconnect_player(PLAYER_3).unwrap();
+        game.disconnect_player(PLAYER_3.as_slice()).unwrap();
 
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
     }
@@ -661,7 +663,7 @@ mod tests {
     fn continue_to_next_round_fails_when_state_is_not_end_of_round() {
         let mut game = get_game(&GameFsmState::Lobby);
 
-        let result = game.continue_to_next_round(PLAYER_1);
+        let result = game.continue_to_next_round(PLAYER_1.as_slice());
 
         assert_eq!(result, Err(Error::Internal("The fsm in state Lobby can't transition with an event ContinueToNextRound. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
     }
@@ -670,7 +672,7 @@ mod tests {
     fn continue_to_next_round_fails_when_player_is_not_host() {
         let mut game = get_game(&GameFsmState::EndOfRound);
 
-        let result = game.continue_to_next_round(PLAYER_2);
+        let result = game.continue_to_next_round(PLAYER_2.as_slice());
 
         assert_eq!(
             result,
@@ -684,7 +686,7 @@ mod tests {
     fn continue_to_next_round_proceeds_to_next_round() {
         let mut game = get_game(&GameFsmState::EndOfRound);
 
-        let result = game.continue_to_next_round(PLAYER_1);
+        let result = game.continue_to_next_round(PLAYER_1.as_slice());
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingWords);
@@ -695,14 +697,14 @@ mod tests {
         let mut game = get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, 3);
         for _ in 0..game.amount_of_rounds.unwrap() {
             complete_round(&mut game);
-            game.continue_to_next_round(PLAYER_1).unwrap();
+            game.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
         }
         assert_eq!(game.state(), &GameFsmState::EndOfGame);
 
         let mut game = get_game_with_rounds(&GameFsmState::PlayersSubmittingWords, 6);
         for _ in 0..game.amount_of_rounds.unwrap() {
             complete_round(&mut game);
-            game.continue_to_next_round(PLAYER_1).unwrap();
+            game.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
         }
         assert_eq!(game.state(), &GameFsmState::EndOfGame);
     }
@@ -711,7 +713,7 @@ mod tests {
     fn continue_to_next_voting_item_fails_when_state_is_not_players_submitting_voting_word() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.accept_players_voting_words(PLAYER_1);
+        let result = game.accept_players_voting_words(PLAYER_1.as_slice());
 
         assert_eq!(result, Err(Error::Internal("The fsm in state PlayersSubmittingWords can't transition with an event AcceptPlayersVotingWords. Error: 'cannot perform a state transition from the current state with the provided input'.".to_string())));
     }
@@ -720,7 +722,7 @@ mod tests {
     fn continue_to_next_voting_item_fails_when_player_is_not_host() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.accept_players_voting_words(PLAYER_2);
+        let result = game.accept_players_voting_words(PLAYER_2.as_slice());
 
         assert_eq!(
             result,
@@ -734,7 +736,7 @@ mod tests {
     fn continue_to_next_round_proceeds_to_next_voting_item() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingVotingWord);
 
-        let result = game.accept_players_voting_words(PLAYER_1);
+        let result = game.accept_players_voting_words(PLAYER_1.as_slice());
 
         assert_eq!(result, Ok(()));
         assert_eq!(game.state(), &GameFsmState::PlayersSubmittingVotingWord);
@@ -753,7 +755,7 @@ mod tests {
     fn new_players_cannot_be_added_after_game_is_started() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let result = game.add_player("new_player");
+        let result = game.add_player("new_player".into());
 
         assert_eq!(
             result,
@@ -765,9 +767,9 @@ mod tests {
     fn existing_player_can_rejoin_after_game_is_started() {
         let mut game = get_game(&GameFsmState::PlayersSubmittingWords);
 
-        let _ = game.disconnect_player(PLAYER_2);
+        let _ = game.disconnect_player(PLAYER_2.as_slice());
 
-        let result = game.add_player(PLAYER_2);
+        let result = game.add_player(PLAYER_2.clone());
 
         assert_eq!(result, Ok(()));
     }
@@ -783,7 +785,7 @@ mod tests {
             assert!(!used_words.contains(&round.word));
             used_words.insert(round.word.to_string());
             complete_round(&mut game);
-            game.continue_to_next_round(PLAYER_1).unwrap();
+            game.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
         }
         assert_eq!(game.state(), &GameFsmState::EndOfGame);
     }
@@ -801,7 +803,7 @@ mod tests {
             }
             used_words.insert(round.word.to_string());
             complete_round(&mut game);
-            game.continue_to_next_round(PLAYER_1).unwrap();
+            game.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
         }
         assert_eq!(game.state(), &GameFsmState::EndOfGame);
     }
@@ -817,7 +819,7 @@ mod tests {
             let round = game_1.rounds().last().unwrap();
             game_1_words.push(round.word.to_string());
             complete_round(&mut game_1);
-            game_1.continue_to_next_round(PLAYER_1).unwrap();
+            game_1.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
         }
 
         let mut game_2_words: Vec<String> = vec![];
@@ -827,7 +829,7 @@ mod tests {
             let round = game_2.rounds().last().unwrap();
             game_2_words.push(round.word.to_string());
             complete_round(&mut game_2);
-            game_2.continue_to_next_round(PLAYER_1).unwrap();
+            game_2.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
         }
 
         assert_eq!(game_1_words.len(), game_2_words.len());
@@ -843,7 +845,7 @@ mod tests {
     fn play_again_fails_when_player_is_not_host() {
         let mut game = get_game(&GameFsmState::EndOfGame);
 
-        let result = game.play_again(PLAYER_2);
+        let result = game.play_again(PLAYER_2.as_slice());
 
         assert_eq!(
             result,
@@ -858,7 +860,7 @@ mod tests {
         let mut game = get_game(&GameFsmState::EndOfGame);
         let expected_used_words = game.words.iter().filter(|word| word.is_used).count();
 
-        let result = game.play_again(PLAYER_1);
+        let result = game.play_again(PLAYER_1.as_slice());
         let actual_used_words = game.words.iter().filter(|word| word.is_used).count();
 
         assert_eq!(result, Ok(()));
@@ -878,28 +880,30 @@ mod tests {
 
     fn get_game_with_rounds(state: &GameFsmState, amount_of_rounds: u8) -> Game {
         let mut game = get_empty_game();
-        game.add_player(PLAYER_1).unwrap();
-        game.add_player(PLAYER_2).unwrap();
-        game.add_player(PLAYER_3).unwrap();
+        game.add_player(PLAYER_1.clone()).unwrap();
+        game.add_player(PLAYER_2.clone()).unwrap();
+        game.add_player(PLAYER_3.clone()).unwrap();
 
         match state {
             GameFsmState::Lobby => {}
-            GameFsmState::PlayersSubmittingWords => {
-                game.start_game(PLAYER_1, amount_of_rounds).unwrap()
-            }
+            GameFsmState::PlayersSubmittingWords => game
+                .start_game(PLAYER_1.as_slice(), amount_of_rounds)
+                .unwrap(),
             GameFsmState::PlayersSubmittingVotingWord => {
-                game.start_game(PLAYER_1, 3).unwrap();
+                game.start_game(PLAYER_1.as_slice(), 3).unwrap();
                 send_players_words(&mut game);
             }
             GameFsmState::EndOfRound => {
-                game.start_game(PLAYER_1, amount_of_rounds).unwrap();
+                game.start_game(PLAYER_1.as_slice(), amount_of_rounds)
+                    .unwrap();
                 complete_round(&mut game);
             }
             GameFsmState::EndOfGame => {
-                game.start_game(PLAYER_1, amount_of_rounds).unwrap();
+                game.start_game(PLAYER_1.as_slice(), amount_of_rounds)
+                    .unwrap();
                 for _ in 0..game.amount_of_rounds.unwrap() {
                     complete_round(&mut game);
-                    game.continue_to_next_round(PLAYER_1).unwrap();
+                    game.continue_to_next_round(PLAYER_1.as_slice()).unwrap();
                 }
             }
             _ => panic!("Unsupported desired state for unit tests"),
@@ -922,7 +926,8 @@ mod tests {
                 // For simplicity in the test setup, we'll iterate over all the words, even if they are already used, ignore such error
                 let _ = game.set_player_voting_word(&player, Some(word.to_string()));
             }
-            game.accept_players_voting_words(PLAYER_1).unwrap();
+            game.accept_players_voting_words(PLAYER_1.as_slice())
+                .unwrap();
         }
     }
 }

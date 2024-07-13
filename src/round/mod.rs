@@ -277,7 +277,7 @@ mod tests {
     static WORD_1: &str = "w1";
     static WORD_2: &str = "w2";
     fn words() -> Vec<String> {
-        vec![WORD_1, WORD_2]
+        [WORD_1, WORD_2]
             .iter()
             .map(|word| word.to_string())
             .collect()
@@ -494,8 +494,9 @@ mod tests {
         round.add_player_words(PLAYER_1, words()).unwrap();
         round.add_player_words(PLAYER_2, words()).unwrap();
 
-        assert!(round
-            .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
+        assert!(
+            round.have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()])
+        );
     }
 
     #[test]
@@ -508,8 +509,9 @@ mod tests {
             .add_player_words(PLAYER_2, vec!["".to_string()])
             .unwrap();
 
-        assert!(round
-            .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
+        assert!(
+            round.have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()])
+        );
     }
 
     #[test]
@@ -517,8 +519,9 @@ mod tests {
         let mut round = get_round_on_writing_state();
         round.add_player_words(PLAYER_1, words()).unwrap();
 
-        assert!(!round
-            .have_all_players_submitted_words(&vec![PLAYER_1.to_string(), PLAYER_2.to_string()]));
+        assert!(
+            !round.have_all_players_submitted_words(&[PLAYER_1.to_string(), PLAYER_2.to_string()])
+        );
     }
 
     #[test]
@@ -693,14 +696,14 @@ mod tests {
         round.add_player_words(PLAYER_3, words()).unwrap();
 
         let _ = round.next_voting_item().unwrap();
-        let _ = round.set_player_voting_word(PLAYER_2, None).unwrap();
-        let _ = round
+        round.set_player_voting_word(PLAYER_2, None).unwrap();
+        round
             .set_player_voting_word(PLAYER_3, Some(WORD_1.to_string()))
             .unwrap();
         round.compute_score();
         let _ = round.next_voting_item().unwrap();
-        let _ = round.set_player_voting_word(PLAYER_2, None).unwrap();
-        let _ = round
+        round.set_player_voting_word(PLAYER_2, None).unwrap();
+        round
             .set_player_voting_word(PLAYER_3, Some(WORD_2.to_string()))
             .unwrap();
         round.compute_score();
